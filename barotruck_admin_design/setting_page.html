@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ko">
+    <head>
+        <meta charset="utf-8">
+        <title>바로트럭 관리자 - 운영설정</title>
+        <link rel="stylesheet" href="style.css">
+    </head>
+
+    <body>
+        <nav>
+            <h2>BaroTruck</h2>
+            <div class="nav-top">
+                <div class="admin-profile">
+                    <div class="admin-avatar">A</div>
+                    <div class="admin-info">
+                        <span class="admin-name">최고관리자</span>
+                        <span class="admin-email">admin@barotruck.com</span>
+                    </div>
+                </div>
+            </div>
+            <div class="nav-bottom">
+                <ul style="list-style: none; padding: 0; margin-top: 40px;">
+                    <li style="margin-bottom: 20px;">🏠 대시보드</li>
+                    <li style="margin-bottom: 20px; color: #bdc3c7">📦 주문 관리</li>
+                    <li style="margin-bottom: 20px; color: #bdc3c7">💰 정산 관리</li>
+                    <li style="margin-bottom: 20px; color: #bdc3c7;">📊 통계 분석</li>
+                    <li style="margin-bottom: 20px; color: #bdc3c7;">👤 회원 관리</li>
+                </ul>
+            </div>
+        </nav>
+
+        <main style="background-color: #f4f7f9; min-height: 100vh; padding: 40px;">
+            <h1 style="font-size: 24px; color: #2c3e50; margin-bottom: 30px; font-weight: 700;">시스템 운영 설정</h1>
+
+            <div class="setting-container" style="max-width: 900px;">
+                
+                <div class="setting-section" style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 25px; border: 1px solid #e1e8ed;">
+                    <h2 style="font-size: 18px; color: #34495e; margin-bottom: 25px; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 22px;">💰</span> 정산 및 수수료 정책
+                    </h2>
+                    
+                    <div class="form-group" style="margin-bottom: 25px;">
+                        <label style="display: block; font-weight: 600; color: #5f6c7b; margin-bottom: 8px;">기본 중개 수수료율</label>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <input type="number" name="fee_rate" value="10" 
+                                style="width: 100px; padding: 10px; border: 1.5px solid #d1d9e0; border-radius: 8px; font-size: 16px; outline: none; transition: border-color 0.2s;"> 
+                            <span style="font-weight: 600; color: #2c3e50;">%</span>
+                        </div>
+                        <p class="helper-text" style="color: #94a3b8; font-size: 13px; margin-top: 8px;">화주 결제 금액에서 차감될 서비스 수수료를 설정합니다.</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label style="display: block; font-weight: 600; color: #5f6c7b; margin-bottom: 8px;">정산 자동 확정일</label>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span style="color: #2c3e50;">운송 완료 후</span> 
+                            <input type="number" name="settlement_days" value="3" 
+                                style="width: 80px; padding: 10px; border: 1.5px solid #d1d9e0; border-radius: 8px; text-align: center; font-size: 16px;"> 
+                            <span style="color: #2c3e50;">일 뒤</span>
+                        </div>
+                        <p class="helper-text" style="color: #94a3b8; font-size: 13px; margin-top: 8px;">인수증 승인 후 정산 대기 상태로 전환되는 유예 기간입니다.</p>
+                    </div>
+                </div>
+
+                <div class="setting-section" style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 30px; border: 1px solid #e1e8ed;">
+                    <h2 style="font-size: 18px; color: #34495e; margin-bottom: 25px; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 22px;">🚚</span> 배차 운영 설정
+                    </h2>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                        <div class="form-group">
+                            <label style="display: block; font-weight: 600; color: #5f6c7b; margin-bottom: 8px;">배차 수락 제한 시간</label>
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <input type="number" name="dispatch_timeout" value="15" 
+                                    style="width: 100%; padding: 10px; border: 1.5px solid #d1d9e0; border-radius: 8px; font-size: 16px;"> 
+                                <span style="white-space: nowrap;">분</span>
+                            </div>
+                            <p class="helper-text" style="color: #94a3b8; font-size: 13px; margin-top: 8px;">미확정 시 자동 취소 시간</p>
+                        </div>
+
+                        <div class="form-group">
+                            <label style="display: block; font-weight: 600; color: #5f6c7b; margin-bottom: 8px;">위치 공유 간격</label>
+                            <select name="location_interval" 
+                                    style="width: 100%; padding: 10px; border: 1.5px solid #d1d9e0; border-radius: 8px; font-size: 16px; background-color: white;">
+                                <option value="30">30초</option>
+                                <option value="60" selected>1분 (권장)</option>
+                                <option value="300">5분</option>
+                            </select>
+                            <p class="helper-text" style="color: #94a3b8; font-size: 13px; margin-top: 8px;">관제 지도 업데이트 주기</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="text-align: right;">
+                    <button class="btn-save" type="submit" 
+                            style="background: #3498db; color: white; border: none; padding: 14px 40px; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; transition: background 0.3s; box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3);">
+                        설정값 일괄 적용
+                    </button>
+                </div>
+            </div>
+        </main>
+    </body>
+</html>

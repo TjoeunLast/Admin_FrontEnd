@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ko">
+    <head>
+        <meta charset="utf-8">
+        <title>신고 관리</title>
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+        <nav>
+            <h2>BaroTruck</h2>
+            <div class="nav-top">
+                <div class="admin-profile">
+                    <div class="admin-avatar">A</div>
+                    <div class="admin-info">
+                        <span class="admin-name">최고관리자</span>
+                        <span class="admin-email">admin@barotruck.com</span>
+                    </div>
+                </div>
+            </div>
+            <div class="nav-bottom">
+                <ul style="list-style: none; padding: 0; margin-top: 40px;">
+                    <li style="margin-bottom: 20px;">🏠 대시보드</li>
+                    <li style="margin-bottom: 20px; color: #bdc3c7">📦 주문 관리</li>
+                    <li style="margin-bottom: 20px; color: #bdc3c7">💰 정산 관리</li>
+                    <li style="margin-bottom: 20px; color: #bdc3c7;">📊 통계 분석</li>
+                    <li style="margin-bottom: 20px; color: #bdc3c7;">👤 회원 관리</li>
+                </ul>
+            </div>
+        </nav>
+        <main style="padding: 40px; background: #f8fafc; min-height: 100vh;">
+            <h1 style="color: #c53030; font-size: 26px; font-weight: 800; margin-bottom: 30px; display: flex; align-items: center; gap: 10px;">
+                🚨 긴급 신고 센터
+            </h1>
+
+            <div style="max-width: 1000px; display: flex; flex-direction: column; gap: 20px;">
+                <div style="background: white; border-radius: 16px; border-left: 6px solid #ef4444; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.1); padding: 24px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #fee2e2; border-left-width: 6px;">
+                    <div style="flex: 1;">
+                        <span style="background: #fee2e2; color: #ef4444; padding: 4px 10px; border-radius: 6px; font-size: 13px; font-weight: 800;">[허위 인수증 제출]</span>
+                        <div style="margin-top: 15px; font-size: 18px; font-weight: 700; color: #1e293b;">대상: 윤은석(기사) | 신고자: (주)라이즈택배</div>
+                        <div style="font-size: 14px; color: #64748b; margin-top: 6px; line-height: 1.5;">내용: 실제 하차하지 않았는데 하차 완료 처리했습니다. (증빙 사진 없음)</div>
+                    </div>
+                    <button style="background: #1e293b; color: white; border: none; padding: 12px 24px; border-radius: 10px; font-weight: 700; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='#0f172a'" onmouseout="this.style.background='#1e293b'">
+                        계정 일시 정지
+                    </button>
+                </div>
+
+                <div style="background: white; border-radius: 16px; border-left: 6px solid #f59e0b; box-shadow: 0 4px 12px rgba(0,0,0,0.03); padding: 24px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #fef3c7; border-left-width: 6px;">
+                    <div style="flex: 1;">
+                        <span style="background: #fef3c7; color: #d97706; padding: 4px 10px; border-radius: 6px; font-size: 13px; font-weight: 800;">[연락두절]</span>
+                        <div style="margin-top: 15px; font-size: 18px; font-weight: 700; color: #1e293b;">대상: 박재민(기사) | 신고자: (주)드림운송</div>
+                        <div style="font-size: 14px; color: #64748b; margin-top: 6px; line-height: 1.5;">내용: 상차 예정 시간 1시간이 지났는데 연락을 받지 않습니다.</div>
+                    </div>
+                    <button style="background: #f59e0b; color: white; border: none; padding: 12px 24px; border-radius: 10px; font-weight: 700; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='#d97706'" onmouseout="this.style.background='#f59e0b'">
+                        경고 발송
+                    </button>
+                </div>
+            </div>
+        </main>
+    </body>
+</html>

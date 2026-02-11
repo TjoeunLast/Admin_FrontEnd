@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ko">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>바로트럭 관리자 - 인수증 검수</title>
+        <link rel = "stylesheet" href="style.css">
+    </head>
+    <body>
+        <nav>
+            <h2>BaroTruck</h2>
+            <div class="nav-top">
+                <div class="admin-profile">
+                    <div class="admin-avatar">A</div>
+                    <div class="admin-info">
+                        <span class="admin-name">최고관리자</span>
+                        <span class="admin-email">admin@barotruck.com</span>
+                    </div>
+                </div>
+            </div>
+            <div class="nav-bottom">
+                <ul style="list-style: none; padding: 0; margin-top: 40px;">
+                    <li style="margin-bottom: 20px;">🏠 대시보드</li>
+                    <li style="margin-bottom: 20px; color: #bdc3c7">📦 주문 관리</li>
+                    <li style="margin-bottom: 20px; color: #bdc3c7">💰 정산 관리</li>
+                    <li style="margin-bottom: 20px; color: #bdc3c7;">📊 통계 분석</li>
+                    <li style="margin-bottom: 20px; color: #bdc3c7;">👤 회원 관리</li>
+                </ul>
+            </div>
+        </nav>
+        <main style="padding: 40px; background: #f8fafc; min-height: 100vh;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <h1 style="font-size: 26px; font-weight: 800; color: #1e293b; margin: 0;">📸 인수증 검수</h1>
+                    <span style="background: #fef3c7; color: #d97706; padding: 5px 12px; border-radius: 20px; font-size: 13px; font-weight: 800; border: 1px solid #fde68a;">검수 대기중</span>
+                </div>
+                <div style="color: #64748b; font-size: 14px;">검수 요청일: 2026.02.04 15:42</div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 400px; gap: 30px; align-items: start;">
+                <div style="background: white; border-radius: 20px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05);">
+                    <div style="padding: 15px 25px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+                        <h3 style="margin: 0; font-size: 15px; color: #475569;">제출된 인수증 사진</h3>
+                        <div style="display: flex; gap: 8px;">
+                            <button style="background: white; border: 1px solid #cbd5e1; padding: 5px 10px; border-radius: 6px; font-size: 12px; cursor: pointer;">🔄 회전</button>
+                            <button style="background: white; border: 1px solid #cbd5e1; padding: 5px 10px; border-radius: 6px; font-size: 12px; cursor: pointer;">🔍 확대</button>
+                        </div>
+                    </div>
+                    <div style="padding: 20px; text-align: center; background: #334155;">
+                        <img src="https://mblogthumb-phinf.pstatic.net/MjAxOTEyMDRfNDgg/MDAxNTc1NDI2OTA4Njg1.TRTHS6AGHY0L8CNPUQOc1X74AUZQo_9fHmE8Pn9talIg.eE2EM6vmclvdWa492YjXRWL5kC01s1XwJTRe1o9aasAg.JPEG.yesformstory/SE-e1b05199-6747-44e6-8fe5-afbd11cd34a5.jpg?type=w800" 
+                            alt="인수증" style="max-width: 100%; border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 20px;">
+                    <div style="background: white; padding: 25px; border-radius: 20px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+                        <h3 style="margin: 0 0 20px 0; font-size: 17px; color: #1e293b; border-bottom: 2px solid #3b82f6; display: inline-block; padding-bottom: 5px;">🔗 매칭 오더 정보</h3>
+                        
+                        <div style="display: flex; flex-direction: column; gap: 15px; margin-top: 10px;">
+                            <div style="display: flex; justify-content: space-between;"><span style="color: #64748b;">주문번호</span><strong style="color: #1e293b;">ORD-2026-0202-001</strong></div>
+                            <div style="display: flex; justify-content: space-between;"><span style="color: #64748b;">운송구간</span><strong style="color: #1e293b;">전북 군산 → 경기 용인</strong></div>
+                            <div style="display: flex; justify-content: space-between;"><span style="color: #64748b;">차주명</span><strong style="color: #1e293b;">오시온 (5톤 카고)</strong></div>
+                            <div style="display: flex; justify-content: space-between; padding-top: 15px; border-top: 1px dashed #e2e8f0;">
+                                <span style="font-weight: 700; color: #1e293b;">최종 지급액</span>
+                                <span style="font-size: 20px; font-weight: 800; color: #3b82f6;">290,000원</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="background: white; padding: 25px; border-radius: 20px; border: 1px solid #e2e8f0;">
+                        <label style="font-size: 13px; font-weight: 700; color: #64748b; display: block; margin-bottom: 10px;">반려 사유 (반려 시 필수)</label>
+                        <textarea style="width: 100%; height: 80px; padding: 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-family: inherit; font-size: 14px; outline: none; margin-bottom: 20px; box-sizing: border-box;" 
+                                placeholder="이미지 식별 불가 등 사유 입력"></textarea>
+                        
+                        <div style="display: flex; gap: 10px;">
+                            <button style="flex: 1; background: #3b82f6; color: white; border: none; padding: 15px; border-radius: 12px; font-weight: 700; cursor: pointer; font-size: 16px;">검수 승인</button>
+                            <button style="flex: 1; background: #f8fafc; color: #ef4444; border: 1.5px solid #ef4444; padding: 15px; border-radius: 12px; font-weight: 700; cursor: pointer; font-size: 16px;">검수 반려</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </body>
+</html>

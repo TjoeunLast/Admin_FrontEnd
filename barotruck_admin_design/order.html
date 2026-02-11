@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ko">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>바로트럭 관리자 - 주문 관리</title>
+        <link rel = "stylesheet" href="style.css">
+    </head>
+    <body>
+        <nav>
+            <h2>BaroTruck</h2>
+            <div class="nav-top">
+                <div class="admin-profile">
+                    <div class="admin-avatar">A</div>
+                    <div class="admin-info">
+                        <span class="admin-name">최고관리자</span>
+                        <span class="admin-email">admin@barotruck.com</span>
+                    </div>
+                </div>
+            </div>
+            <div class="nav-bottom">
+                <ul style="list-style: none; padding: 0; margin-top: 40px;">
+                    <li style="margin-bottom: 20px;">🏠 대시보드</li>
+                    <li style="margin-bottom: 20px; color: #bdc3c7">📦 주문 관리</li>
+                    <li style="margin-bottom: 20px; color: #bdc3c7">💰 정산 관리</li>
+                    <li style="margin-bottom: 20px; color: #bdc3c7;">📊 통계 분석</li>
+                    <li style="margin-bottom: 20px; color: #bdc3c7;">👤 회원 관리</li>
+                </ul>
+            </div>
+        </nav>
+
+        <main style="margin-left: 260px; padding: 40px; background: #f8fafc; min-height: 100vh;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                <h1 style="font-size: 24px; font-weight: 700; color: #1e293b; margin: 0;">📦 주문 목록 관리</h1>
+                <button style="background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer;">+ 수동 오더 등록</button>
+            </div>
+
+            <div style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; display: flex; gap: 20px; align-items: flex-end; margin-bottom: 30px;">
+                <div style="flex: 1;">
+                    <label style="display: block; font-size: 13px; font-weight: 600; color: #64748b; margin-bottom: 8px;">운송 상태</label>
+                    <select style="width: 100%; padding: 10px; border: 1.5px solid #e2e8f0; border-radius: 8px; background: white;">
+                        <option>전체 상태</option>
+                        <option>배차 대기</option>
+                        <option>운송 중</option>
+                    </select>
+                </div>
+                <div style="flex: 2;">
+                    <label style="display: block; font-size: 13px; font-weight: 600; color: #64748b; margin-bottom: 8px;">검색어</label>
+                    <input type="text" placeholder="주문번호, 상차지, 차주명 검색" style="width: 100%; padding: 10px; border: 1.5px solid #e2e8f0; border-radius: 8px;">
+                </div>
+                <button style="background: #3b82f6; color: white; border: none; padding: 10px 25px; border-radius: 8px; font-weight: 600; cursor: pointer; height: 42px;">조회</button>
+            </div>
+
+            <div style="background: white; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead style="background: #f1f5f9; border-bottom: 1px solid #e2e8f0;">
+                        <tr>
+                            <th style="padding: 15px; text-align: center; font-size: 13px; color: #475569;">주문번호</th>
+                            <th style="padding: 15px; text-align: center; font-size: 13px; color: #475569;">상/하차지</th>
+                            <th style="padding: 15px; text-align: center; font-size: 13px; color: #475569;">요청 화주</th>
+                            <th style="padding: 15px; text-align: center; font-size: 13px; color: #475569;">차량/차주</th>
+                            <th style="padding: 15px; text-align: center; font-size: 13px; color: #475569;">운임</th>
+                            <th style="padding: 15px; text-align: center; font-size: 13px; color: #475569;">상태</th>
+                        </tr>
+                    </thead>
+                    <tbody style="font-size: 14px; color: #1e293b;">
+                        <tr style="border-bottom: 1px solid #f1f5f9; transition: all 0.2s;" 
+                            onmouseover="this.style.backgroundColor='#f8fafc'" 
+                            onmouseout="this.style.backgroundColor='transparent'">
+                            <td style="padding: 20px 24px; font-weight: 600; color: #3b82f6;">ORD-2026-0202-001</td>
+                            <td style="padding: 20px 24px;">전북 군산 → 경기 용인</td>
+                            <td style="padding: 20px 24px; color: #475569;">(주)세븐틴물류</td>
+                            <td style="padding: 20px 24px;">
+                                <div style="font-weight: 600;">오시온</div>
+                                <div style="font-size: 12px; color: #94a3b8;">5톤 카고</div>
+                            </td>
+                            <td style="padding: 20px 24px; text-align: right; font-weight: 700; font-size: 15px;">290,000원</td>
+                            <td style="padding: 20px 24px; text-align: center;">
+                                <span style="display: inline-block; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; white-space: nowrap;">운송 완료</span>
+                            </td>
+                        </tr>
+
+                        <tr style="border-bottom: 1px solid #f1f5f9; transition: all 0.2s;" 
+                            onmouseover="this.style.backgroundColor='#f8fafc'" 
+                            onmouseout="this.style.backgroundColor='transparent'">
+                            <td style="padding: 20px 24px; font-weight: 600; color: #3b82f6;">ORD-2026-0203-002</td>
+                            <td style="padding: 20px 24px;">서울 송파 → 대구 달서</td>
+                            <td style="padding: 20px 24px; color: #475569;">(주)드림통상</td>
+                            <td style="padding: 20px 24px;">
+                                <div style="font-weight: 600;">김대영</div>
+                                <div style="font-size: 12px; color: #94a3b8;">1톤 탑차</div>
+                            </td>
+                            <td style="padding: 20px 24px; text-align: right; font-weight: 700; font-size: 15px;">105,000원</td>
+                            <td style="padding: 20px 24px; text-align: center;">
+                                <span style="display: inline-block; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; white-space: nowrap;">배차 대기</span>
+                            </td>
+                        </tr>
+
+                        <tr style="border-bottom: 1px solid #f1f5f9; transition: all 0.2s;" 
+                            onmouseover="this.style.backgroundColor='#f8fafc'" 
+                            onmouseout="this.style.backgroundColor='transparent'">
+                            <td style="padding: 20px 24px; font-weight: 600; color: #3b82f6;">ORD-2026-0204-003</td>
+                            <td style="padding: 20px 24px;">경기 과천 → 경남 경주</td>
+                            <td style="padding: 20px 24px; color: #475569;">(주)라이즈택배</td>
+                            <td style="padding: 20px 24px;">
+                                <div style="font-weight: 600;">이원희</div>
+                                <div style="font-size: 12px; color: #94a3b8;">11톤 윙바디</div>
+                            </td>
+                            <td style="padding: 20px 24px; text-align: right; font-weight: 700; font-size: 15px;">470,000원</td>
+                            <td style="padding: 20px 24px; text-align: center;">
+                                <span style="display: inline-block; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; background: #eff6ff; color: #1d4ed8; border: 1px solid #dbeafe; white-space: nowrap;">운송 중</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </body>
+</html>

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ko">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>바로트럭 관리자 - 대시보드</title>
+        <link rel = "stylesheet" href="style.css">
+    </head>
+    <body>
+        <nav>
+            <h2>BaroTruck</h2>
+            <div class="nav-top">
+                <div class="admin-profile">
+                    <div class="admin-avatar">A</div>
+                    <div class="admin-info">
+                        <span class="admin-name">최고관리자</span>
+                        <span class="admin-email">admin@barotruck.com</span>
+                    </div>
+                </div>
+            </div>
+            <div class="nav-bottom">
+                <ul style="list-style: none; padding: 0; margin-top: 40px;">
+                    <li style="margin-bottom: 20px;">🏠 대시보드</li>
+                    <li style="margin-bottom: 20px; color: #bdc3c7">📦 주문 관리</li>
+                    <li style="margin-bottom: 20px; color: #bdc3c7">💰 정산 관리</li>
+                    <li style="margin-bottom: 20px; color: #bdc3c7;">📊 통계 분석</li>
+                    <li style="margin-bottom: 20px; color: #bdc3c7;">👤 회원 관리</li>
+                </ul>
+            </div>
+        </nav>
+
+        <main>
+            <h1>관제 현황</h1>
+
+            <div class="stats-container">
+                <div class="stats-card" style="border-color: #3498db;">
+                    <h3>오늘의 신규 오더</h3>
+                    <p>164건</p>
+                </div>
+                <div class="stats-card" style="border-color: #f39c12;">
+                    <h3>배차 대기</h3>
+                    <p>28건</p>
+                </div>
+                <div class="stats-card" style="border-color: #2ecc71;">
+                    <h3>승인 대기 회원</h3>
+                    <p>16명</p>
+                </div>
+                <div class="stats-card" style="border-color: #9b59b6;">
+                    <h3>오늘의 매출</h3>
+                    <p>3,287,000원</p>
+                </div>
+            </div>
+
+            <div class="content-box" style="
+                background: white; 
+                padding: 30px; 
+                border-radius: 16px; 
+                border: 1px solid #e2e8f0; 
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); 
+                margin-top: 30px;">
+                
+                <h2 style="font-size: 18px; font-weight: 700; color: #1e293b; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+                    📡 실시간 운송 피드
+                </h2>
+
+                <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <thead style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
+                        <tr>
+                            <th style="padding: 16px 20px; text-align: center; font-size: 13px; font-weight: 700; color: #64748b;">주문번호</th>
+                            <th style="padding: 16px 20px; text-align: center; font-size: 13px; font-weight: 700; color: #64748b;">상차지</th>
+                            <th style="padding: 16px 20px; text-align: center; font-size: 13px; font-weight: 700; color: #64748b;">하차지</th>
+                            <th style="padding: 16px 20px; text-align: center; font-size: 13px; font-weight: 700; color: #64748b;">차주 정보</th>
+                            <th style="padding: 16px 20px; text-align: center; font-size: 13px; font-weight: 700; color: #64748b;">차량 정보</th>
+                            <th style="padding: 16px 20px; text-align: center; font-size: 13px; font-weight: 700; color: #64748b; text-align: center;">상태</th>
+                        </tr>
+                    </thead>
+                    
+                    <tbody style="font-size: 14px; color: #1e293b;">
+                        <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                            <td style="padding: 18px 20px; font-weight: 600; color: #3b82f6;">ORD-2026-0202-001</td>
+                            <td style="padding: 18px 20px;">군산항</td>
+                            <td style="padding: 18px 20px;">경기 용인시</td>
+                            <td style="font-weight: 600;">오시온</td>
+                            <td style="padding: 18px 20px; color: #475569;">5톤 카고 <span style="font-size: 12px; color: #94a3b8;">(27오 1409)</span></td>
+                            <td style="padding: 18px 20px; text-align: center;">
+                                <span style="display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; background: #eff6ff; color: #2563eb; border: 1px solid #dbeafe;">배차 완료</span>
+                            </td>
+                        </tr>
+
+                        <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                            <td style="padding: 18px 20px; font-weight: 600; color: #3b82f6;">ORD-2026-0203-002</td>
+                            <td style="padding: 18px 20px;">서울 송파구</td>
+                            <td style="padding: 18px 20px;">경북 경주시</td>
+                            <td style="font-weight: 600;">김대영</td>
+                            <td style="padding: 18px 20px; color: #475569;">1톤 탑차 <span style="font-size: 12px; color: #94a3b8;">(26도 3316)</span></td>
+                            <td style="padding: 18px 20px; text-align: center;">
+                                <span style="display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; background: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0;">운송 완료</span>
+                            </td>
+                        </tr>
+
+                        <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                            <td style="padding: 18px 20px; font-weight: 600; color: #3b82f6;">ORD-2026-0204-003</td>
+                            <td style="padding: 18px 20px;">서울 중랑구</td>
+                            <td style="padding: 18px 20px;">대구 달서구</td>
+                            <td style="font-weight: 600;">이원희</td>
+                            <td style="padding: 18px 20px; color: #475569;">11톤 윙바디 <span style="font-size: 12px; color: #94a3b8;">(13세 5112)</span></td>
+                            <td style="padding: 18px 20px; text-align: center;">
+                                <span style="display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5;">운송 중</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </body>
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ko">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>바로트럭 관리자 - 통계 분석</title>
+        <link rel = "stylesheet" href="style.css">
+    </head>
+    <body>
+        <nav>
+            <h2>BaroTruck</h2>
+            <div class="nav-top">
+                <div class="admin-profile">
+                    <div class="admin-avatar">A</div>
+                    <div class="admin-info">
+                        <span class="admin-name">최고관리자</span>
+                        <span class="admin-email">admin@barotruck.com</span>
+                    </div>
+                </div>
+            </div>
+            <div class="nav-bottom">
+                <ul style="list-style: none; padding: 0; margin-top: 40px;">
+                    <li style="margin-bottom: 20px;">🏠 대시보드</li>
+                    <li style="margin-bottom: 20px; color: #bdc3c7">📦 주문 관리</li>
+                    <li style="margin-bottom: 20px; color: #bdc3c7">💰 정산 관리</li>
+                    <li style="margin-bottom: 20px; color: #bdc3c7;">📊 통계 분석</li>
+                    <li style="margin-bottom: 20px; color: #bdc3c7;">👤 회원 관리</li>
+                </ul>
+            </div>
+        </nav>
+        <main style="padding: 40px; background: #f8fafc; min-height: 100vh;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 30px;">
+                <div>
+                    <h1 style="font-size: 26px; font-weight: 800; color: #1e293b; margin: 0;">📊 운송 통계 분석</h1>
+                    <p style="color: #64748b; font-size: 14px; margin-top: 5px;">실시간 매출 및 물동량 데이터를 시각화합니다.</p>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <select style="padding: 10px 15px; border: 1px solid #e2e8f0; border-radius: 10px; background: white; font-weight: 600; color: #475569;">
+                        <option>2026년 1월</option>
+                    </select>
+                    <select style="padding: 10px 15px; border: 1px solid #e2e8f0; border-radius: 10px; background: white; font-weight: 600; color: #475569;">
+                        <option>최근 30일</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;">
+                <div style="background: white; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0;">
+                    <div style="color: #64748b; font-size: 13px; font-weight: 600;">총 매출액</div>
+                    <div style="font-size: 24px; font-weight: 800; color: #3b82f6; margin-top: 8px;">₩126,900,000</div>
+                    <div style="font-size: 12px; color: #10b981; margin-top: 5px;">전월 대비 ▲ 8.2%</div>
+                </div>
+                <div style="background: white; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0;">
+                    <div style="color: #64748b; font-size: 13px; font-weight: 600;">총 운송 건수</div>
+                    <div style="font-size: 24px; font-weight: 800; color: #1e293b; margin-top: 8px;">1,420건</div>
+                    <div style="font-size: 12px; color: #10b981; margin-top: 5px;">목표 달성률 92%</div>
+                </div>
+                <div style="background: white; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0;">
+                    <div style="color: #64748b; font-size: 13px; font-weight: 600;">평균 운송 단가</div>
+                    <div style="font-size: 24px; font-weight: 800; color: #1e293b; margin-top: 8px;">₩89,360</div>
+                    <div style="font-size: 12px; color: #94a3b8; margin-top: 5px;">건당 평균가</div>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 25px;">
+                <div style="background: white; padding: 25px; border-radius: 20px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);">
+                    <h3 style="margin: 0 0 20px 0; font-size: 16px; color: #1e293b;">일일 매출 추이</h3>
+                    <div style="height: 300px; background: #f8fafc; border-radius: 12px; border: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-weight: 600;">
+                        [ Line Chart Area ]
+                    </div>
+                </div>
+                <div style="background: white; padding: 25px; border-radius: 20px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);">
+                    <h3 style="margin: 0 0 20px 0; font-size: 16px; color: #1e293b;">요일별 물동량 현황</h3>
+                    <div style="height: 300px; background: #f8fafc; border-radius: 12px; border: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-weight: 600;">
+                        [ Horizontal Bar Chart Area ]
+                    </div>
+                </div>
+            </div>
+        </main>
+    </body>
+</html>

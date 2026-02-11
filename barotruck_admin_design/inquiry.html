@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko">
+    <head>
+        <meta charset="utf-8">
+        <title>1:1 문의 관리</title>
+        <link rel="stylesheet" href="style.css">
+    </head>
+
+    <body>
+        <nav>
+            <h2>BaroTruck</h2>
+            <div class="nav-top">
+                <div class="admin-profile">
+                    <div class="admin-avatar">A</div>
+                    <div class="admin-info">
+                        <span class="admin-name">최고관리자</span>
+                        <span class="admin-email">admin@barotruck.com</span>
+                    </div>
+                </div>
+            </div>
+            <div class="nav-bottom">
+                <ul style="list-style: none; padding: 0; margin-top: 40px;">
+                    <li style="margin-bottom: 20px;">🏠 대시보드</li>
+                    <li style="margin-bottom: 20px; color: #bdc3c7">📦 주문 관리</li>
+                    <li style="margin-bottom: 20px; color: #bdc3c7">💰 정산 관리</li>
+                    <li style="margin-bottom: 20px; color: #bdc3c7;">📊 통계 분석</li>
+                    <li style="margin-bottom: 20px; color: #bdc3c7;">👤 회원 관리</li>
+                </ul>
+            </div>
+        </nav>
+        <main>
+            <h1>🙋‍♂️ 1:1 문의 관리</h1>
+            <div class="inquiry-list" style="background: white; border-radius: 8px; border: 1px solid #ddd; overflow: hidden;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead style="background: #f8f9fa; border-bottom: 2px solid #eee;">
+                        <tr>
+                            <th style="padding: 15px; text-align: center; width: 100px;">상태</th>
+                            <th style="padding: 15px; text-align: center;">문의 제목 및 작성 정보</th>
+                            <th style="padding: 15px; text-align: center; width: 120px;">관리</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 15px;">
+                                <span class="status-wait" style="color: #e74c3c; font-weight: bold;">답변 대기</span>
+                            </td>
+                            <td style="padding: 15px;">
+                                <div style="font-weight: bold; font-size: 1.1em;">결제 수단 변경은 어떻게 하나요?</div>
+                                <div style="color: #7f8c8d; font-size: 0.9em; margin-top: 5px;">작성자: 김희철(화주) | 2026.01.26</div>
+                            </td>
+                            <td style="padding: 15px; text-align: center;">
+                                <button class="btn-search" style="cursor: pointer;">답변하기</button>
+                            </td>
+                        </tr>
+
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 15px;">
+                                <span class="status-done" style="color: #27ae60; font-weight: bold;">답변 완료</span>
+                            </td>
+                            <td style="padding: 15px;">
+                                <div style="font-weight: bold; font-size: 1.1em;">운송 완료 후 인수증 승인이 늦어지고 있습니다.</div>
+                                <div style="color: #7f8c8d; font-size: 0.9em; margin-top: 5px;">작성자: 노지선(기사) | 2026.02.03</div>
+                            </td>
+                            <td style="padding: 15px; text-align: center;">
+                                <button class="btn-search" style="background: #94a3b8; cursor: pointer;">상세보기</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </body>
+</html>
