@@ -10,9 +10,8 @@ export const AuthService = {
     });
     
     // 💡 토큰 저장 이름을 "accessToken"으로 고정 (client.ts의 이름과 일치)
-    if (response.data && response.data.accessToken) {
-      localStorage.setItem("accessToken", response.data.accessToken);
-      setCookie('access_token', response.data.accessToken, { maxAge: 60 * 60 * 24, path: '/' });
+    if (response.data && response.data.access_token) {
+      localStorage.setItem("accessToken", response.data.access_token);
     }
     return response.data;
   }

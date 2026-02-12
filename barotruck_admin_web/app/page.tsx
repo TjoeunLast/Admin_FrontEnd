@@ -1,11 +1,24 @@
 // app/page.tsx
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function DashboardPage() {
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem("accessToken");
+    
+    if (!token) {
+      router.replace("/global/login");
+    } else {
+      setIsLoading(false);
+    }
+  }, [router]);
+
+  if (isLoading) return <div>Loading...</div>;
   
   return (
     <div className="p-6 space-y-6 bg-gray-50 min-h-screen">

@@ -6,6 +6,10 @@ export function useAdmin() {
   const [admin, setAdmin] = useState({ nickname: '', email: '', profileImageUrl: '' });
 
   useEffect(() => {
+    // ✅ 토큰이 있을 때만 정보를 가져오도록 방어 코드를 추가할 수 있습니다.
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
+
     getMyInfo()
       .then(data => {
         // 💡 백엔드 UserResponseDto 필드명 매칭

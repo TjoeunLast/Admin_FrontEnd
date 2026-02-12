@@ -1,17 +1,14 @@
 // app/features/shared/api/client.ts
 import axios from "axios";
 
-export const API_BASE_URL = "http://localhost:8080";
-
 const client = axios.create({
-  baseURL: API_BASE_URL,
-  headers: { "Content-Type": "application/json" },
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080",
 });
 
+// 요청 인터셉터: 모든 요청에 토큰 추가
 client.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
-    // 💡 AuthService에서 저장한 이름인 "accessToken"을 가져옵니다.
-    const token = localStorage.getItem("accessToken"); 
+    const token = localStorage.getItem("accessToken");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
