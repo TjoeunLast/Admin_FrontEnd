@@ -1,20 +1,18 @@
-import client from "../../shared/api/client"; 
+import client from "./client"; 
 import { setCookie } from "cookies-next";
 
 export const AuthService = {
   login: async (email: string, password: string) => {
-    // 💡 401 에러는 '통신 규약'이 맞았다는 신호입니다. 
-    // 이제 실제 DB의 데이터만 일치하면 성공입니다.
-    const response = await client.post('/api/v1/auth/admin/create', { 
+    // 💡 client 인스턴스를 사용하여 백엔드 호출
+    const response = await client.post('/api/v1/auth/authenticate', { 
       email: email.trim(), 
-      password: password // 비밀번호는 trim 하면 안 될 수 있으니 그대로 보냅니다.
+      password 
     });
     
-    if (response.data && response.data.access_token) {
-      // 1. 모든 경로에서 접근 가능한 쿠키 저장
-      setCookie('access_token', response.data.access_token, { maxAge: 60 * 60 * 24, path: '/' });
-      // 2. 인터셉터용 로컬스토리지 저장
-      localStorage.setItem("token", response.data.access_token);
+    // 💡 토큰 저장 이름을 "accessToken"으로 고정 (client.ts의 이름과 일치)
+    if (response.data && response.data.accessToken) {
+      localStorage.setItem("accessToken", response.data.accessToken);
+      setCookie('access_token', response.data.accessToken, { maxAge: 60 * 60 * 24, path: '/' });
     }
     return response.data;
   }
