@@ -2,11 +2,19 @@
 import client from './client';
 
 export const getMyInfo = async () => {
-  // client.ts의 인터셉터가 헤더에 토큰을 자동으로 추가하므로 추가 설정이 필요 없습니다.
-  const response = await client.get('/api/user/me');
-
-  return response.data; // UserResponseDto { nickname, email, ... }
+  // 인터셉터가 토큰을 자동으로 추가함
+  const response = await client.get('api/user/me');
+  return response.data; 
 };
+
+
+/*
+// ✅ 관리자 상세 정보 조회를 위한 API 추가
+export const getUserDetail = async (userId: number) => {
+  const response = await client.get(`/api/v1/admin/user/${userId}`);
+  return response.data; // 백엔드의 AdminUserDetailResponse 반환
+};
+*/
 
 // ✅ 추가: 회원 목록 데이터 (가짜 데이터)
 export const getUsers = async () => {
@@ -28,3 +36,21 @@ export const getUserStats = async () => {
     shipperCount: 89
   };
 };
+
+/*
+// 회원 전체 목록 가져오기
+export const fetchUsers = async () => {
+  const response = await client.get('/api/v1/users');
+  return response.data;
+};
+
+// 회원 탈퇴 처리
+export const deleteUser = async (userId: number) => {
+  return await client.post('/api/user/delete');
+};
+
+// 회원 계정 복구
+export const restoreUser = async (userId: number) => {
+  return await client.patch('/api/user/restore');
+}
+*/

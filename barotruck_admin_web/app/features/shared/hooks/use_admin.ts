@@ -3,23 +3,30 @@ import { useEffect, useState } from 'react';
 import { getMyInfo } from '../api/user_api';
 
 export function useAdmin() {
-  const [admin, setAdmin] = useState({ nickname: '', email: '', profileImageUrl: '' });
+  const [admin, setAdmin] = useState({  
+    name: '',            // ✅ 실명(한수호)을 받기 위해 필드 추가
+    nickname: '', 
+    email: '', 
+    profileImageUrl: '' 
+  });
 
   useEffect(() => {
-    // ✅ 토큰이 있을 때만 정보를 가져오도록 방어 코드를 추가할 수 있습니다.
-    const token = localStorage.getItem("accessToken");
-    if (!token) return;
+    const accessToken = localStorage.getItem("access_token");
+    if (!accessToken) return;
 
     getMyInfo()
       .then(data => {
-        // 💡 백엔드 UserResponseDto 필드명 매칭
+        // ✅ 백엔드 데이터(name: "한수호")를 상태에 저장합니다.
         setAdmin({
-          nickname: data.nickname,      // "신동엽"
-          email: data.email,            // "bright_8954@naver.com"
-          profileImageUrl: data.profileImageUrl
+          name: data.name || '',              // DB의 NAME 컬럼 데이터
+          nickname: data.nickname || '', 
+          email: data.email || '',            // grease@naver.com
+          profileImageUrl: data.profileImageUrl || ''
         });
       })
-      .catch(err => console.error("데이터 로드 실패:", err));
+      .catch(err => {
+        console.error("데이터 로드 실패:", err);
+      });
   }, []);
 
   return { admin };

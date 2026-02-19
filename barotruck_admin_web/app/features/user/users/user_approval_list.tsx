@@ -67,7 +67,7 @@ export default function UserApprovalList({ searchKeyword, filterRole }: UserAppr
           <tr>
             <th className="p-4 font-bold text-slate-600 text-center w-16">번호</th>
             <th className="p-4 font-bold text-slate-600 text-center">구분</th>
-            <th className="p-4 font-bold text-slate-600 text-center">이름(닉네임)</th>
+            <th className="p-4 font-bold text-slate-600 text-center">이름</th>
             <th className="p-4 font-bold text-slate-600 text-center">연락처</th>
             <th className="p-4 font-bold text-slate-600 text-center">이메일</th>
             <th className="p-4 font-bold text-slate-600 text-center">가입일</th>

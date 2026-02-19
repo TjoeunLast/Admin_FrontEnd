@@ -4,6 +4,7 @@ import "./globals.css";
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAdmin } from './features/shared/hooks/use_admin'; // 커스텀 훅
+import AuthService from "./features/shared/api/authService"; // 💡 추가
 
 export default function RootLayout({
   children,
@@ -46,13 +47,24 @@ export default function RootLayout({
           <h2 className="text-2xl font-bold mb-8">BaroTruck</h2>
           
           {/* DB 연동 프로필 영역 */}
-          <div className="flex items-center gap-3 pb-8 border-b border-[#34495e]">
-            <div className="w-10 h-10 bg-[#3b82f6] rounded-full flex items-center justify-center font-bold overflow-hidden">
-              {admin.profileImageUrl ? <img src={admin.profileImageUrl} alt="profile" /> : (admin.nickname ? admin.nickname[0] : '?')}
+          <div className="flex items-center gap-3 px-2 py-3 bg-[#1e293b]/50 rounded-2xl border border-white/5">
+            <div className="w-10 h-10 rounded-full bg-blue-600 overflow-hidden border-2 border-blue-400/30">
+              {admin?.profileImageUrl ? (
+                <img src={admin.profileImageUrl} alt="profile" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-xs text-white">Admin</div>
+              )}
             </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-bold">{admin.nickname || "로딩 중..."}</span>
-              <span className="text-[11px] text-[#bdc3c7]">{admin.email}</span>
+            <div className="flex flex-col min-w-0">
+              {/* 💡 [핵심] admin.name 또는 admin.nickname을 출력하도록 바꿉니다. */}
+              <span className="text-sm font-bold text-white truncate">
+                {/* '관리자'라고 적힌 글자를 지우고 아래처럼 변수를 넣으세요. */}
+                {admin.name || admin.nickname || "관리자"} 
+              </span>
+
+              <span className="text-[11px] text-slate-400 truncate">
+                {admin.email || "데이터 연동 실패"}
+              </span>
             </div>
           </div>
 
@@ -78,6 +90,16 @@ export default function RootLayout({
               })}
             </ul>
           </nav>
+
+          {/* 사이드바 맨 아래 로그아웃 버튼 추가 */}
+          <div className="pt-6 border-t border-[#34495e]">
+            <button
+              onClick={() => AuthService.logout()}
+              className="flex items-center gap-3 w-full p-3 rounded-xl transition-all font-medium text-[#bdc3c7] hover:text-white hover:bg-[#e74c3c]"
+            >
+              <span className="text-[15px]">로그아웃</span>
+            </button>
+          </div>
         </aside>
 
         {/* 메인 콘텐츠 영역 */}

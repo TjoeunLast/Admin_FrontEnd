@@ -15,10 +15,9 @@ export default function LoginPage() {
       // ✅ 수정된 부분: { email, password } 객체가 아니라, 각각의 인수로 전달
       const data = await AuthService.login(email, password);
       
-      if (data && data.access_token) {
-        alert("로그인 성공");
-        // 로그인 성공 시 대시보드("/")로 이동
-        router.push("/"); 
+      if (data.access_token) {
+        // ✅ 로그인 성공 시 대시보드(/)로 이동합니다.
+        window.location.href = "/"; 
       }
     } catch (error) {
       console.error(error);

@@ -10,6 +10,7 @@ export default function UserPage() {
   const [stats, setStats] = useState({ pending: 0, drivers: 0, shippers: 0 });
   const [searchKeyword, setSearchKeyword] = useState("");
   const [filterRole, setFilterRole] = useState("전체 회원");
+  // const [userList, setUserList] = useState([]); // 회원 목록
 
   // ✅ 2. 페이지 로드 시 실시간 데이터 가져오기
   useEffect(() => {
