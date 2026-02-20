@@ -7,17 +7,11 @@ export const getMyInfo = async () => {
   return response.data; 
 };
 
-
-/*
-// ✅ 관리자 상세 정보 조회를 위한 API 추가
-export const getUserDetail = async (userId: number) => {
-  const response = await client.get(`/api/v1/admin/user/${userId}`);
-  return response.data; // 백엔드의 AdminUserDetailResponse 반환
-};
-*/
-
-// ✅ 추가: 회원 목록 데이터 (가짜 데이터)
+// ✅ 추가: 회원 목록 데이터 (데이터 연동)
 export const getUsers = async () => {
+  const response = await client.get('/api/v1/admin/user');
+  return response.data;
+  /*
   return [
     { userId: 1, nickname: "김무옥", phone: "010-1111-2222", email: "muok@gmail.com", userLevel: 1, enrollDate: "2026-02-01", regFlag: "Y" },
     { userId: 2, nickname: "문영철", phone: "010-3333-4444", email: "yeongcheol@naver.com", userLevel: 2, enrollDate: "2026-02-05", regFlag: "N" },
@@ -25,6 +19,13 @@ export const getUsers = async () => {
     { userId: 4, nickname: "홍만길", phone: "010-7777-8888", email: "mangil@gmail.com", userLevel: 2, enrollDate: "2026-02-11", regFlag: "N" },
     { userId: 5, nickname: "이정재", phone: "010-9999-0000", email: "jeongjae@gmail.com", userLevel: 1, enrollDate: "2026-02-12", regFlag: "N" },
   ];
+  */
+};
+
+// ✅ 관리자 상세 정보 조회를 위한 API 추가
+export const getUserDetail = async (userId: number) => {
+  const response = await client.get(`/api/v1/admin/user/${userId}`);
+  return response.data; // 백엔드의 AdminUserDetailResponse 반환
 };
 
 // ✅ 이 함수가 있어야 숫자를 가져올 수 있습니다.

@@ -3,14 +3,15 @@
 
 import { useEffect, useState } from "react"; // ✅ 상태 관리를 위해 추가
 import UserApprovalList from "../../features/user/users/user_approval_list";
-import { getUserStats } from "@/app/features/shared/api/user_api"; // ✅ 통계 API 임포트
+import { getUserStats, getUsers } from "@/app/features/shared/api/user_api"; // ✅ 통계 API 임포트
 
 export default function UserPage() {
   // ✅ 1. 통계 데이터를 저장할 상태 생성
   const [stats, setStats] = useState({ pending: 0, drivers: 0, shippers: 0 });
   const [searchKeyword, setSearchKeyword] = useState("");
   const [filterRole, setFilterRole] = useState("전체 회원");
-  // const [userList, setUserList] = useState([]); // 회원 목록
+  const [userList, setUserList] = useState<any[]>([]); // ✅ 회원 목록 상태 추가
+  const [loading, setLoading] = useState(true); // 로딩 상태 추가
 
   // ✅ 2. 페이지 로드 시 실시간 데이터 가져오기
   useEffect(() => {
@@ -21,7 +22,30 @@ export default function UserPage() {
         shippers: data.shipperCount
       });
     });
+
+    // ✅ 회원 목록 데이터 연동
+    getUsers().then(data => {
+      setUserList(data);
+      setLoading(false);
+    }).catch(err => {
+      console.error("회원 목록 로드 실패:", err);
+      setLoading(false);
+    });
   }, []);
+
+  // ✅ 검색 및 역할 필터링 로직
+  const filteredUsers = userList.filter(user => {
+    const matchesRole = 
+      filterRole === "전체 회원" || 
+      (filterRole === "차주" && user.userLevel === 1) || 
+      (filterRole === "화주" && user.userLevel === 2);
+    
+    const matchesSearch = 
+      user.nickname.toLowerCase().includes(searchKeyword.toLowerCase()) || 
+      user.phone.includes(searchKeyword);
+
+    return matchesRole && matchesSearch;
+  });
 
   return (
     <div className="space-y-6">
