@@ -1,7 +1,34 @@
 // app/global/settings/setting_page.tsx
 "use client";
 
+import { useState, useEffect } from "react"; // 상태 관리용
+import { useAdmin } from "@/app/features/shared/hooks/use_admin"; // 데이터 연동용
+
 export default function Integrated_Setting_Page() {
+  const {admin} = useAdmin(); // 로그인된 관리자 데이터 가져오기
+
+  const [formData, setFormData] = useState({
+    name:'',
+    email:'',
+    department: '운영부' // 이건 생각중이라 보류 -> 추후 수정할 거
+  });
+
+  // ✅ 관리자 데이터 로드 완료 시 폼 상태 동기화
+  useEffect(() => {
+    if (admin.email) {
+      setFormData(prev => ({
+        ...prev,
+        name: admin.nickname, // "한수호"
+        email: admin.email                 // "grease@naver.com"
+      }));
+    }
+  }, [admin]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const {name, value} = e.target;
+    setFormData(prev => ({...prev, [name]: value}));
+  };
+
   return (
     <div className="max-w-4xl space-y-8 pb-20">
       <div>
@@ -19,15 +46,32 @@ export default function Integrated_Setting_Page() {
         <div className="grid grid-cols-2 gap-6">
           <div className="space-y-2">
             <label className="text-xs font-bold text-[#64748b] uppercase">이름</label>
-            <input type="text" defaultValue="최고관리자" className="w-full p-2.5 border border-[#e2e8f0] rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              className="w-full p-2.5 border border-[#e2e8f0] rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+            />
           </div>
           <div className="space-y-2">
             <label className="text-xs font-bold text-[#64748b] uppercase">부서</label>
-            <input type="text" defaultValue="운영본부" className="w-full p-2.5 border border-[#e2e8f0] rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
+            <input
+              type="text"
+              value={formData.department}
+              disabled // 이건 추후에 수정할 예정임
+              className="w-full p-2.5 border border-[#e2e8f0] rounded-lg bg-slate-50 text-slate-400 cursor-not-allowed"
+            />
           </div>
           <div className="space-y-2">
             <label className="text-xs font-bold text-[#64748b] uppercase">이메일 (ID)</label>
-            <input type="email" defaultValue="admin@barotruck.com" disabled className="w-full p-2.5 border border-[#e2e8f0] rounded-lg bg-slate-50 text-slate-400 cursor-not-allowed" />
+            <input 
+              type="email" 
+              name="email"
+              value={formData.email} 
+              onChange={handleChange} // 💡 이메일 수정 가능하도록 변경
+              className="w-full p-2.5 border border-[#e2e8f0] rounded-lg outline-none focus:ring-2 focus:ring-blue-500" 
+            />
           </div>
           <div className="space-y-2">
             <label className="text-xs font-bold text-[#64748b] uppercase">비밀번호 변경</label>

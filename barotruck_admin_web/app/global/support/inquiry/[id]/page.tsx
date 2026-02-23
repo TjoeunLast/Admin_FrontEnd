@@ -1,94 +1,133 @@
-"use client";
+'use client';
+import { useState, useEffect, useRef } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
+import ChatBubble from '@/app/features/user/support/ChatBubble';
 
-import { useState } from "react";
-import { useRouter, useParams } from "next/navigation";
-
-export default function InquiryDetailPage() {
+export default function InquiryChatPage() {
+  const { id } = useParams();
   const router = useRouter();
-  const { id } = useParams(); // URL에서 문의 ID를 가져옵니다.
+  const [messages, setMessages] = useState<any[]>([]);
+  const [input, setInput] = useState('');
+  const stompClient = useRef<Client | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 샘플 데이터 (추후 API 연동)
-  const inquiryData = {
-    title: "결제 수단 변경은 어떻게 하나요?",
-    author: "김희철(화주)",
-    date: "2026.01.26",
-    content: "카드로 결제 등록을 했는데, 나중에 무통장 입금으로 결제 수단을 변경할 수 있는지 궁금합니다. 현재 메뉴에서는 찾기가 어렵네요.",
-    status: "답변 대기",
-    images: ["/sample-inquiry.jpg"] // 문의 시 첨부한 이미지
-  };
+  useEffect(() => {
+    // 1. STOMP 클라이언트 설정
+    const client = new Client({
+      webSocketFactory: () => new SockJS('http://localhost:8080/ws-stomp'), // 백엔드 주소 확인
+      debug: (str) => console.log(str),
+      reconnectDelay: 5000,
+      heartbeatIncoming: 4000,
+      heartbeatOutgoing: 4000,
+    });
 
-  const [answer, setAnswer] = useState("");
+    // 2. 연결 성공 시 콜백
+    client.onConnect = (frame) => {
+      console.log('Connected: ' + frame);
+      
+      // 문의방 전용 토픽 구독
+      client.subscribe(`/topic/chat/room/${id}`, (payload) => {
+        const newMessage = JSON.parse(payload.body);
+        setMessages((prev) => [...prev, newMessage]);
+      });
+    };
 
-  const handleAnswerSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    alert("답변이 성공적으로 등록되었습니다.");
-    router.push("/global/support");
+    client.onStompError = (frame) => {
+      console.error('STOMP Error:', frame.headers['message']);
+    };
+
+    // 3. 연결 활성화
+    client.activate();
+    stompClient.current = client;
+
+    // 4. 언마운트 시 연결 해제
+    return () => {
+      if (stompClient.current) {
+        stompClient.current.deactivate();
+      }
+    };
+  }, [id]);
+
+  // 메시지 수신 시 하단 스크롤
+  useEffect(() => {
+    scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleSend = () => {
+    if (!input.trim() || !stompClient.current?.connected) return;
+
+    const chatMessage = {
+      roomId: id,
+      senderId: 'ADMIN', // 실제 세션 정보로 교체 권장
+      senderName: '관리자',
+      message: input,
+      type: 'TALK'
+    };
+
+    stompClient.current.publish({
+      destination: '/app/chat/message',
+      body: JSON.stringify(chatMessage),
+    });
+    
+    setInput('');
   };
 
   return (
-    <div className="max-w-4xl space-y-6 pb-20">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-[#1e293b]">1:1 문의 상세 확인</h1>
+    <div className="flex flex-col h-[calc(100vh-120px)] bg-slate-50 border rounded-xl overflow-hidden shadow-lg">
+      {/* 상단 헤더 */}
+      <div className="p-4 bg-white border-b flex justify-between items-center shadow-sm">
+        <div>
+          <h2 className="font-bold text-[#1e293b] text-lg">1:1 문의 실시간 상담</h2>
+          <p className="text-xs text-slate-500">문의 ID: {id} | 상담원: 관리자</p>
         </div>
-        <span className={`px-4 py-1.5 rounded-full text-xs font-bold ${inquiryData.status === '답변 대기' ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-500'}`}>
-          {inquiryData.status}
-        </span>
+        <button 
+          onClick={() => router.back()}
+          className="text-sm px-4 py-2 border rounded-lg hover:bg-slate-50 transition-colors"
+        >
+          목록으로
+        </button>
       </div>
 
-      {/* 1. 문의 원문 섹션 */}
-      <section className="bg-white rounded-2xl border border-[#e2e8f0] shadow-sm overflow-hidden">
-        <div className="p-6 bg-slate-50 border-b border-[#e2e8f0]">
-          <h2 className="text-lg font-bold text-[#1e293b]">{inquiryData.title}</h2>
-          <div className="flex gap-4 mt-2 text-xs text-slate-500 font-medium">
-            <span>작성자: {inquiryData.author}</span>
-            <span>작성일: {inquiryData.date}</span>
-            <span>문의번호: {id}</span>
-          </div>
-        </div>
-        <div className="p-8 space-y-6">
-          <p className="text-[#475569] leading-relaxed whitespace-pre-wrap">
-            {inquiryData.content}
-          </p>
-          {/* 첨부 이미지 영역 */}
-          <div className="flex gap-4">
-            <div className="w-32 h-32 bg-slate-100 rounded-lg border border-slate-200 flex items-center justify-center text-[10px] text-slate-400">
-              첨부 이미지 1
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 2. 답변 작성 섹션 */}
-      <section className="bg-white rounded-2xl border border-[#e2e8f0] shadow-sm overflow-hidden font-sans">
-        <div className="p-6 border-b border-[#e2e8f0]">
-          <h2 className="text-lg font-bold text-[#1e293b]">관리자 답변 작성</h2>
-        </div>
-        <form onSubmit={handleAnswerSubmit} className="p-8 space-y-4">
-          <textarea 
-            className="w-full h-48 p-4 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-all resize-none leading-relaxed"
-            placeholder="사용자에게 전달할 답변을 정성껏 작성해주세요."
-            value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
-            required
+      {/* 채팅 메시지 영역 */}
+      <div className="flex-1 overflow-y-auto p-6 bg-[#f8fafc]">
+        {messages.map((msg, idx) => (
+          <ChatBubble 
+            key={idx} 
+            content={msg.message} 
+            senderRole={msg.senderId === 'ADMIN' ? 'ADMIN' : 'USER'} 
+            timestamp={msg.timestamp || new Date().toISOString()}
+            senderName={msg.senderName}
           />
-          <div className="flex justify-end gap-3">
-            <button 
-              type="button" 
-              onClick={() => router.back()}
-              className="px-6 py-2.5 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-all"
-            >
-              취소
-            </button>
-            <button 
-              type="submit"
-              className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
-            >
-              답변 등록 완료
-            </button>
-          </div>
-        </form>
-      </section>
+        ))}
+        <div ref={scrollRef} />
+      </div>
+
+      {/* 메시지 입력 영역 */}
+      <div className="p-5 bg-white border-t">
+        <div className="flex gap-3">
+          <textarea
+            rows={1}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            placeholder="상담 내용을 입력하세요..."
+            className="flex-1 resize-none border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 transition-all"
+          />
+          <button 
+            onClick={handleSend}
+            className="bg-[#3b82f6] text-white px-7 py-3 rounded-xl font-bold hover:bg-blue-600 shadow-md transition-all active:scale-95"
+          >
+            전송
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

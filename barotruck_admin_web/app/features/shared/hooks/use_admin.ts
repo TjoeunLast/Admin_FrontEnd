@@ -1,22 +1,32 @@
-// features/user/hooks/use_admin.ts
+// app/features/shared/hooks/use_admin.ts
 import { useEffect, useState } from 'react';
-import { getAdminProfile } from '../api/user_api';
+import { getMyInfo } from '../api/user_api';
 
 export function useAdmin() {
-  const [admin, setAdmin] = useState({
-    nickname: '최고관리자',
-    email: 'admin@barotruck.com'
+  const [admin, setAdmin] = useState({  
+    name: '',            // ✅ 실명(한수호)을 받기 위해 필드 추가
+    nickname: '', 
+    email: '', 
+    profileImageUrl: '' 
   });
 
   useEffect(() => {
-    getAdminProfile()
+    const accessToken = localStorage.getItem("access_token");
+    if (!accessToken) return;
+
+    getMyInfo()
       .then(data => {
+        // ✅ 백엔드 데이터(name: "한수호")를 상태에 저장합니다.
         setAdmin({
-          nickname: data.NICKNAME, // DB의 NICKNAME 연동
-          email: data.EMAIL        // DB의 EMAIL 연동
+          name: data.name || '',              // DB의 NAME 컬럼 데이터
+          nickname: data.nickname || '', 
+          email: data.email || '',            // grease@naver.com
+          profileImageUrl: data.profileImageUrl || ''
         });
       })
-      .catch(err => console.error("관리자 정보 로드 실패:", err));
+      .catch(err => {
+        console.error("데이터 로드 실패:", err);
+      });
   }, []);
 
   return { admin };
