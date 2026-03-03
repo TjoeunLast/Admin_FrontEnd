@@ -1,34 +1,31 @@
-// app/global/orders/page.tsx
 "use client"
-import Link from 'next/link'; // 1. Link 컴포넌트를 임포트합니다.
-import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useEffect, useState, useMemo } from 'react';
 import { fetchOrders } from './../../features/shared/api/order_api';
 import { OrderListResponse, ORDER_DRIVING_STATUS_MAP } from '../../features/orders/type';
 
-export default function Order_Page() {
-    /*
-    const orders = [
-        { id: 'ORD-2026-0202-001', route: '전북 군산 → 경기 용인', client: '(주)세븐틴물류', driver: '오시온', vehicle: '5톤 카고', price: '290,000원', status: '운송 완료', statusClass: 'bg-green-100 text-green-700 border-green-200' },
-        { id: 'ORD-2026-0203-002', route: '서울 송파 → 대구 달서', client: '(주)드림통상', driver: '김대영', vehicle: '1톤 탑차', price: '105,000원', status: '배차 대기', statusClass: 'bg-orange-100 text-orange-700 border-orange-200' },
-        { id: 'ORD-2026-0204-003', route: '경기 과천 → 경남 경주', client: '(주)라이즈택배', driver: '이원희', vehicle: '11톤 윙바디', price: '470,000원', status: '운송 중', statusClass: 'bg-blue-100 text-blue-700 border-blue-200' },
-    ];
-    */
+// 정렬 타입 정의
+type SortConfig = {
+    key: keyof OrderListResponse | 'totalPrice';
+    direction: 'asc' | 'desc' | null;
+};
 
-    // 1. 전체 데이터와 화면에 보여줄 데이터(필터링 결과) 상태 분리
+export default function Order_Page() {
     const [orders, setOrders] = useState<OrderListResponse[]>([]);
     const [filteredOrders, setFilteredOrders] = useState<OrderListResponse[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // 2. 검색창, 필터 상태 관리
     const [statusFilter, setStatusFilter] = useState('ALL');
     const [searchTerm, setSearchTerm] = useState('');
+    
+    // ✅ 정렬 상태 추가
+    const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'orderId', direction: 'desc' });
 
     useEffect(() => {
         const loadOrders = async () => {
             try {
                 const data = await fetchOrders();
                 setOrders(data);
-                setFilteredOrders(data); // 처음엔 필터 없이 전체 데이터를 보여줍니다.
             } catch(error) {
                 console.error('주문 목록을 불러오는데 실패하였습니다.', error);
             } finally {
@@ -38,77 +35,91 @@ export default function Order_Page() {
         loadOrders();
     }, []);
 
-    // 3. 필터 및 검색 로직
-    const handleSearch = () => {
-        let res = orders;
+    // ✅ 필터링 및 정렬 로직 통합
+    useEffect(() => {
+        let result = [...orders];
 
-        // 운송 상태
+        // 1. 필터링
         if(statusFilter !== 'ALL') {
-            res = res.filter(order => order.status === statusFilter);
+            result = result.filter(order => order.status === statusFilter);
         }
 
-        // 텍스트 검색 (주문번호, 상차지, 하차지)
         if(searchTerm.trim() !== '') {
             const keyword = searchTerm.toLowerCase();
-            res = res.filter(order => 
+            result = result.filter(order => 
                 String(order.orderId).includes(keyword) || 
-                (order.startPlace && order.startPlace.toLowerCase().includes(keyword)) ||
-                (order.endPlace && order.endPlace.toLowerCase().includes(keyword))
+                (order.startPlace?.toLowerCase().includes(keyword)) ||
+                (order.endPlace?.toLowerCase().includes(keyword))
             );
         }
 
-        setFilteredOrders(res);
-    };
+        // 2. 정렬
+        if (sortConfig.direction !== null) {
+            result.sort((a, b) => {
+                let aValue: any;
+                let bValue: any;
 
-    // 4. 상태 필터(Select)가 변경될 때마다 자동 검색 실행 (UX 개선)
-    useEffect(() => {
-        handleSearch();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [statusFilter, orders]);
+                // 가격 필드의 경우 합산 금액으로 비교
+                if (sortConfig.key === 'totalPrice') {
+                    aValue = a.totalPrice || (Number(a.basePrice || 0) + Number(a.laborFee || 0));
+                    bValue = b.totalPrice || (Number(b.basePrice || 0) + Number(b.laborFee || 0));
+                } else {
+                    aValue = a[sortConfig.key as keyof OrderListResponse];
+                    bValue = b[sortConfig.key as keyof OrderListResponse];
+                }
 
-    // 엔터키를 누르면 검색 실행
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if(e.key === 'Enter') {
-            handleSearch();
+                if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
         }
+
+        setFilteredOrders(result);
+    }, [orders, statusFilter, searchTerm, sortConfig]);
+
+    // ✅ 정렬 핸들러
+    const requestSort = (key: SortConfig['key']) => {
+        let direction: 'asc' | 'desc' = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
     };
 
-    
-
-    // 상태에 따른 배지 색상
     const getStatusClass = (status: string) => {
         switch(status) {
-            case 'COMPLETED': return 'bg-green-100 text-green-700 border-green-200';
-            case 'REQUESTED': case 'APPLIED': return 'bg-orange-100 text-orange-700 border-orange-200';
-            case 'IN_TRANSIT': case 'LOADING': case 'UNLOADING': return 'bg-blue-100 text-blue-700 border-blue-200';
-            default: return 'bg-slate-100 text-slate-700 border-slate-200';
+            case 'COMPLETED': return 'bg-emerald-50 text-emerald-600 border-emerald-100';
+            case 'REQUESTED': case 'APPLIED': return 'bg-amber-50 text-amber-600 border-amber-100';
+            case 'IN_TRANSIT': case 'LOADING': case 'UNLOADING': return 'bg-blue-50 text-blue-600 border-blue-100';
+            default: return 'bg-slate-50 text-slate-500 border-slate-200';
         }
     };
 
-    if(isLoading) return <div>데이터를 불러오는 중입니다...</div>;
+    if(isLoading) return <div className="p-10 text-center text-gray-500">데이터를 불러오는 중입니다...</div>;
 
     return (
-        <div className="space-y-6">
-            {/* 상단 헤더 영역 */}
-            <div className="flex justify-between items-center mb-8">
-                <h1 className="text-2xl font-bold text-slate-800">📦 주문 목록 관리</h1>
+        <div className="max-w-[1600px] mx-auto p-6 space-y-6">
+            <div className="flex justify-between items-end mb-2">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">주문 목록 관리</h1>
+                    <p className="text-gray-500 text-sm mt-1">배차 현황 및 운송 내역을 조회하고 관리합니다.</p>
+                </div>
                 <Link href="/global/orders/new">
-                    <button className="bg-emerald-500 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-emerald-600 transition-colors">
-                        + 수동 오더 등록
+                    <button className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-bold text-sm hover:bg-blue-700 transition-all shadow-sm flex items-center gap-2">
+                        <span>강제 배차</span>
                     </button>
                 </Link>
             </div>
 
-            {/* 필터 영역 */}
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 flex gap-5 items-end mb-8 shadow-sm">
-                <div className="flex-1">
-                    <label className="block text-xs font-bold text-slate-500 mb-2">운송 상태</label>
+            {/* 필터 섹션 */}
+            <div className="bg-white p-5 rounded-xl border border-gray-200 flex gap-4 items-end shadow-sm">
+                <div className="w-44">
+                    <label className="text-[11px] font-bold text-gray-400 mb-2 block uppercase tracking-tight">운송 상태</label>
                     <select 
-                        className="w-full p-2.5 border border-slate-200 rounded-lg bg-white outline-none focus:border-blue-500 transition-all"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-lg p-2.5 text-sm font-semibold text-gray-700 outline-none focus:border-blue-500 transition-all"
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
                     >
-                        {/* 백엔드 Enum 명칭과 value를 일치시킵니다 */}
                         <option value="ALL">전체 상태</option>
                         <option value="REQUESTED">배차 대기</option>
                         <option value="ACCEPTED">배차 확정</option>
@@ -116,75 +127,70 @@ export default function Order_Page() {
                         <option value="COMPLETED">운송 완료</option>
                     </select>
                 </div>
-                <div className="flex-[2]">
-                    <label className="block text-xs font-bold text-slate-500 mb-2">검색어</label>
+                <div className="flex-1">
+                    <label className="text-[11px] font-bold text-gray-400 mb-2 block uppercase tracking-tight">주문 검색</label>
                     <input 
                         type="text" 
-                        placeholder="주문번호, 상차지, 하차지 검색" 
-                        className="w-full p-2.5 border border-slate-200 rounded-lg outline-none focus:border-blue-500 transition-all"
+                        placeholder="주문번호, 상차지, 하차지 키워드 입력" 
+                        className="w-full bg-gray-50 border border-gray-200 rounded-lg p-2.5 text-sm font-medium text-gray-700 outline-none focus:border-blue-500 transition-all placeholder:text-gray-300"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        onKeyDown={handleKeyDown} // 엔터키 지원
                     />
                 </div>
-                <button
-                    onClick={handleSearch}
-                    className="bg-blue-500 text-white px-6 py-2.5 rounded-lg font-semibold h-[45px] hover:bg-blue-600 transition-colors"
-                >
-                    조회
-                </button>
             </div>
 
             {/* 테이블 영역 */}
-            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-                <table className="w-full border-collapse">
-                    <thead className="bg-slate-50 border-b border-slate-200">
-                        <tr>
-                            <th className="p-4 text-center text-xs font-bold text-slate-600 uppercase">주문번호</th>
-                            <th className="p-4 text-center text-xs font-bold text-slate-600 uppercase">상차지</th>
-                            <th className="p-4 text-center text-xs font-bold text-slate-600 uppercase">하차지</th>
-                            <th className="p-4 text-center text-xs font-bold text-slate-600 uppercase">차량정보</th>
-                            <th className="p-4 text-center text-xs font-bold text-slate-600 uppercase">운임</th>
-                            <th className="p-4 text-center text-xs font-bold text-slate-600 uppercase text-center">상태</th>
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                <table className="w-full text-left border-collapse table-fixed">
+                    <thead>
+                        <tr className="bg-gray-50/80 border-b border-gray-200">
+                            {/* 클릭 시 정렬 가능하도록 th 수정 */}
+                            <th onClick={() => requestSort('orderId')} className="w-20 p-4 text-center text-[11px] font-bold text-gray-400 uppercase tracking-tighter cursor-pointer hover:text-blue-600 transition-colors">
+                                ID {sortConfig.key === 'orderId' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                            </th>
+                            <th className="w-[28%] p-4 text-center text-[11px] font-bold text-gray-400 uppercase tracking-tighter">운송 경로</th>
+                            <th className="w-[18%] p-4 text-center text-[11px] font-bold text-gray-400 uppercase tracking-tighter">물품 정보</th>
+                            <th className="w-[15%] p-4 text-center text-[11px] font-bold text-gray-400 uppercase tracking-tighter">차량 정보</th>
+                            <th onClick={() => requestSort('totalPrice')} className="w-32 p-4 text-center text-[11px] font-bold text-gray-400 uppercase tracking-tighter cursor-pointer hover:text-blue-600 transition-colors">
+                                운임 {sortConfig.key === 'totalPrice' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+                            </th>
+                            <th className="w-28 p-4 text-center text-[11px] font-bold text-gray-400 uppercase tracking-tighter">상태</th>
                         </tr>
                     </thead>
-                    <tbody className="text-sm text-slate-800">
-                        {/* 검색 결과가 1개 이상일 때 */}
-                        {filteredOrders.length > 0 ? (
-                            filteredOrders.map((order) => (
-                            <tr key={order.orderId} className="border-b border-slate-100 hover:bg-slate-50 transition-all cursor-default">
-                                <td className="p-5 font-semibold text-center">
-                                    <Link 
-                                        href={`/global/orders/${order.orderId}`}
-                                        className="text-blue-500 hover:text-blue-700 hover:underline decoration-2 transition-colors"
-                                    >
-                                        {order.orderId}
-                                    </Link>
-                                </td>
-                                <td className="p-5 text-center">{order.startPlace}</td>
-                                <td className="p-5 text-center">{order.endPlace}</td>
-                                <td className="p-5 text-center">
-                                    <div className="font-semibold">{order.reqCarType}</div>
-                                    <div className="text-xs text-slate-400">{order.reqTonnage}</div>
-                                </td>
-                                <td className="p-5 text-right font-bold text-base">
-                                    {order.totalPrice?.toLocaleString() || 0}원
-                                </td>
-                                <td className="p-5 text-center">
-                                    <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-bold border whitespace-nowrap ${getStatusClass(order.status)}`}>
-                                        {ORDER_DRIVING_STATUS_MAP[order.status] || order.status}
-                                    </span>
-                                </td>
-                            </tr>
-                            ))
-                        ) : (
-                            /* 검색 결과가 0개일 때 */
-                            <tr>
-                                <td colSpan={6} className="p-10 text-center text-slate-500 font-bold">
-                                    조건에 일치하는 주문이 없습니다.
-                                </td>
-                            </tr>
-                        )}
+                    <tbody className="divide-y divide-gray-100">
+                        {filteredOrders.map((order) => {
+                            const displayPrice = order.totalPrice || (
+                                (Number(order.basePrice) || 0) + (Number(order.laborFee) || 0)
+                            );
+                            return (
+                                <tr key={order.orderId} className="hover:bg-gray-50/50 transition-all group cursor-default">
+                                    <td className="p-4 text-center">
+                                        <Link href={`/global/orders/${order.orderId}`} className="text-sm font-bold text-blue-600 hover:underline">
+                                            {order.orderId}
+                                        </Link>
+                                    </td>
+                                    <td className="p-4">
+                                        <div className="flex items-center gap-2 justify-center">
+                                            <span className="font-semibold text-gray-800 text-sm">{order.startPlace}</span>
+                                            <span className="text-gray-300 text-xs font-light">→</span>
+                                            <span className="font-semibold text-gray-800 text-sm">{order.endPlace}</span>
+                                        </div>
+                                    </td>
+                                    <td className="p-4 text-center text-gray-700 font-medium text-sm truncate">{order.cargoContent || "일반 화물"}</td>
+                                    <td className="p-4 text-center text-gray-600 text-[13px] font-semibold">
+                                        {order.reqCarType} <span className="text-gray-300 font-normal mx-1">|</span> {order.reqTonnage}
+                                    </td>
+                                    <td className="p-4 text-right pr-8">
+                                        <span className="text-sm font-bold text-gray-900">{displayPrice.toLocaleString()}원</span>
+                                    </td>
+                                    <td className="p-4 text-center">
+                                        <span className={`inline-block w-24 py-1.5 rounded-lg text-[11px] font-bold border ${getStatusClass(order.status)}`}>
+                                            {ORDER_DRIVING_STATUS_MAP[order.status] || order.status}
+                                        </span>
+                                    </td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>

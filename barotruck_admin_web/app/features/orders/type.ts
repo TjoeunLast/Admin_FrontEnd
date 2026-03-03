@@ -22,14 +22,23 @@ export interface AssignedDriverInfoResponse {
 // 주문 정보
 export interface OrderListResponse {
   orderId: number;
+  cargoContent: string;
+  nickname: string;
   startPlace: string; // 상차지
   endPlace: string; // 하차지
   distance: number; // 거리
   totalPrice: number; // 총 요금
+
+  basePrice?: number;      // 기본 운임
+  laborFee?: number;       // 수작업비
+  packagingPrice?: number; // 포장비
+  insuranceFee?: number;   // 보험료
+
   startSchedule: string; // 시작 시간
   reqCarType: string; // 요구 차종
   reqTonnage: string; // 요구 무게
   workType: string;
+  
   aiRecommended: boolean; // 추천 여부
   driveMode: string; // 운송 유형
   status: string;

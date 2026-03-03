@@ -1,15 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from 'next/link';
+import { settlementApi, SettlementResponse } from '@/app/features/shared/api/settlement_api';
+import SettlementSummaryCards from "@/app/features/user/billing/settlements_card";
 
 export default function ShipperSettlementPage() {
+  /*
   const [shippers] = useState([
     { id: 1, name: "(주)위시운송", bizNumber: "123-45-67890", amount: 5400000, status: "입금 완료", date: "2026.02.01" },
     { id: 2, name: "(주)세븐틴물류", bizNumber: "987-65-43210", amount: 2850000, status: "입금 대기", date: "2026.02.05" },
     { id: 3, name: "(주)라이즈택배", bizNumber: "555-88-12345", amount: 1200000, status: "미납", date: "2026.01.20" },
   ]);
+  */
 
+  // 1. 상태 정의하기
+  const [settlements, setSettlements] = useState<SettlementResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // 2. 데이터 로드하기
+  const loadSettlements = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const data = await settlementApi.getAll();
+      setSettlements(data);
+    } catch (err) {
+      console.error("화주 정산 데이터 로드 실패: ",err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSettlements();
+  }, [loadSettlements]);
+
+  // 금액 형식 초기화하기
   const formatAmount = (num: number) => new Intl.NumberFormat('ko-KR').format(num);
 
   return (
@@ -33,24 +59,7 @@ export default function ShipperSettlementPage() {
       </div>
 
       {/* 2. 요약 위젯 섹션 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-        <div className="bg-[#3b82f6] text-white p-6 rounded-2xl shadow-lg shadow-blue-100">
-          <div className="text-sm opacity-90 font-medium">이번 달 화주 총 청구액</div>
-          <div className="text-2xl font-black mt-1">₩320,500,000</div>
-        </div>
-        <div className="bg-white p-6 rounded-2xl border-l-4 border-l-[#ef4444] border border-[#e2e8f0] shadow-sm">
-          <div className="text-sm text-[#64748b] font-medium">화주 미수금 (미입금)</div>
-          <div className="text-2xl font-black text-[#ef4444] mt-1">₩40,500,000</div>
-        </div>
-        <div className="bg-white p-6 rounded-2xl border-l-4 border-l-[#10b981] border border-[#e2e8f0] shadow-sm">
-          <div className="text-sm text-[#64748b] font-medium">화주 입금 완료</div>
-          <div className="text-2xl font-black text-[#10b981] mt-1">₩280,000,000</div>
-        </div>
-        <div className="bg-[#eff6ff] p-6 rounded-2xl border border-[#3b82f6] shadow-sm">
-          <div className="text-sm text-[#3b82f6] font-bold">예상 중개 수익 (10%)</div>
-          <div className="text-2xl font-black text-[#3b82f6] mt-1">₩32,050,000</div>
-        </div>
-      </div>
+      <SettlementSummaryCards data={settlements} type="shipper" />
 
       {/* 3. 리스트 상단 컨트롤 */}
       <div className="flex justify-between items-center mt-10">
@@ -82,49 +91,56 @@ export default function ShipperSettlementPage() {
         </select>
       </div>
 
-      {/* 5. 테이블 섹션 */}
+      {/* 실데이터 테이블 */}
       <div className="bg-white rounded-2xl border border-[#e2e8f0] overflow-hidden shadow-sm">
-        <table className="w-full border-collapse text-sm">
+        <table className="w-full text-sm text-center">
           <thead className="bg-[#f8fafc] border-b-2 border-[#e2e8f0]">
             <tr className="text-[#64748b] font-bold">
-              <th className="p-4 text-center w-12"><input type="checkbox" /></th>
-              <th className="p-4 text-left">화주사명 / 사업자번호</th>
-              <th className="p-4 text-center">최종 청구일</th>
-              <th className="p-4 text-right">총 청구 금액</th>
-              <th className="p-4 text-center">상태</th>
-              <th className="p-4 text-center">관리</th>
+              <th className="p-4 w-12"><input type="checkbox" /></th>
+              <th className="p-4">청구 대상(화주)</th>
+              <th className="p-4">청구 발생일</th>
+              <th className="p-4">총 청구액</th>
+              <th className="p-4">입금 상태</th>
+              <th className="p-4">관리</th>
             </tr>
           </thead>
           <tbody>
-            {shippers.map((s) => (
-              <tr key={s.id} className="border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-all group">
-                <td className="p-4 text-center"><input type="checkbox" /></td>
-                <td className="p-4">
-                  <div className="font-bold text-[#1e293b] group-hover:text-blue-600 transition-colors">{s.name}</div>
-                  <div className="text-[11px] text-[#94a3b8] mt-0.5">{s.bizNumber}</div>
-                </td>
-                <td className="p-4 text-center text-[#64748b] font-medium">{s.date}</td>
-                <td className="p-4 text-right font-black text-[#1e293b]">₩{formatAmount(s.amount)}</td>
-                <td className="p-4 text-center">
-                  <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${
-                    s.status === '입금 완료' ? 'bg-green-50 text-green-600' : 
-                    s.status === '입금 대기' ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'
-                  }`}>
-                    {s.status}
-                  </span>
-                </td>
-                <td className="p-4 text-center flex justify-center gap-2">
-                  <Link href={`/global/billing/settlement/shipper/${s.id}`}>
-                    <button className="bg-white border border-[#cbd5e1] text-[#64748b] px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-100 transition-all">
-                      내역보기
-                    </button>
-                  </Link>
-                  <button className="bg-[#1e293b] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-black transition-all">
-                    입금확인
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {isLoading ? (
+              <tr><td colSpan={6} className="p-10 text-center">데이터 로딩 중...</td></tr>
+            ) : settlements.length === 0 ? (
+              <tr><td colSpan={6} className="p-10 text-center">정산 내역이 없습니다.</td></tr>
+            ) : (
+              settlements.map((s) => (
+                <tr key={s.settlementId} className="border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-all">
+                  <td className="p-4 text-center"><input type="checkbox" /></td>
+                  <td className="p-4 text-center">
+                    {/* s.name 대신 백엔드 필드인 s.shipperName 사용 */}
+                    <div className="font-bold text-[#1e293b]">{s.shipperName}</div>
+                    <div className="text-[11px] text-[#94a3b8] mt-0.5">{s.bizNumber}</div>
+                  </td>
+                  <td className="p-4 text-center text-[#64748b]">
+                    {s.feeDate ? new Date(s.feeDate).toLocaleDateString() : "-"}
+                  </td>
+                  <td className="p-4 text-center font-black text-[#1e293b]">
+                    ₩{s.totalPrice?.toLocaleString()}
+                  </td>
+                  <td className="p-4 text-center">
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${
+                      s.status === 'COMPLETED' ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'
+                    }`}>
+                      {s.status === 'COMPLETED' ? '입금 완료' : '입금 대기'}
+                    </span>
+                  </td>
+                  <td className="p-4 text-center">
+                    <Link href={`/global/billing/settlement/shipper/${s.orderId}`}>
+                      <button className="bg-white border border-[#cbd5e1] text-[#64748b] px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-100">
+                        내역보기
+                      </button>
+                    </Link>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
