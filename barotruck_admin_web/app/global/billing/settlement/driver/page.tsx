@@ -1,18 +1,46 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { settlementApi, SettlementResponse } from "@/app/features/shared/api/settlement_api";
+import SettlementSummaryCards from "@/app/features/user/billing/settlements_card";
 
 export default function DriverSettlementPage() {
-  const [drivers] = useState([
-    { name: '오시온', type: '5톤 카고', bank: '하나 012-123456-78910', date: '2026.02.04', amount: '1,820,000원', status: '지급 대기' },
-    { name: '김대영', type: '1톤 탑차', bank: '농협 987-3456-1234-000', date: '2026.02.05', amount: '730,000원', status: '지급 완료' },
-    { name: '유지민', type: '11톤 카고', bank: '신한 167-3966-71052', date: '2026.01.23', amount: '2,053,000원', status: '지급 완료' },
-    { name: '안유진', type: '5톤 윙바디', bank: '기업 010-8200-4000', date: '2026.01.15', amount: '5,771,000원', status: '지급 대기' },
-  ]);
+  const [settlements, setSettlements] = useState<SettlementResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // 데이터 로드 함수
+  const loadSettlements = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const data = await settlementApi.getAll(); 
+      setSettlements(data || []); // 데이터가 없을 경우 빈 배열 세팅
+    } catch (error: any) {
+      // 404 에러 발생 시 콘솔에 상세 정보 출력
+      console.error("정산 데이터 로드 실패:", error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSettlements();
+  }, [loadSettlements]);
+
+  // 지급 실행 함수
+  const handlePayout = async (orderId: number) => {
+    if (!confirm("해당 건의 지급을 확정하시겠습니까?")) return;
+    try {
+      await settlementApi.completeByUser(orderId);
+      alert("지급 처리가 완료되었습니다.");
+      loadSettlements(); // 목록 새로고침
+    } catch (error) {
+      alert("지급 처리 중 오류가 발생했습니다.");
+    }
+  };
 
   return (
-    <main className="space-y-8">
+    <main className="space-y-8 p-6">
       {/* 1. 헤더 및 탭 섹션 */}
       <div className="flex justify-between items-start">
         <div>
@@ -31,25 +59,8 @@ export default function DriverSettlementPage() {
         </div>
       </div>
 
-      {/* 2. 요약 카드 섹션 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-        <div className="bg-[#3b82f6] text-white p-6 rounded-2xl shadow-lg shadow-blue-100 relative overflow-hidden">
-          <div className="text-sm opacity-90 font-medium">이번 달 화주 총 청구액</div>
-          <div className="text-2xl font-black mt-1">₩320,500,000</div>
-        </div>
-        <div className="bg-white p-6 rounded-2xl border-l-4 border-l-[#ef4444] border border-[#e2e8f0] shadow-sm">
-          <div className="text-sm text-[#64748b] font-medium">화주 미수금 (미입금)</div>
-          <div className="text-2xl font-black text-[#ef4444] mt-1">₩40,500,000</div>
-        </div>
-        <div className="bg-white p-6 rounded-2xl border-l-4 border-l-[#10b981] border border-[#e2e8f0] shadow-sm">
-          <div className="text-sm text-[#64748b] font-medium">차주 지급 완료</div>
-          <div className="text-2xl font-black text-[#10b981] mt-1">₩260,000,000</div>
-        </div>
-        <div className="bg-[#eff6ff] p-6 rounded-2xl border border-[#3b82f6] shadow-sm">
-          <div className="text-sm text-[#3b82f6] font-bold">예상 중개 수익 (10%)</div>
-          <div className="text-2xl font-black text-[#3b82f6] mt-1">₩32,050,000</div>
-        </div>
-      </div>
+      {/* 2. 요약 카드 섹션 (기존 UI 유지) */}
+      <SettlementSummaryCards data={settlements} type="driver" />
 
       {/* 3. 리스트 상단 컨트롤 */}
       <div className="flex justify-between items-center mt-10">
@@ -73,48 +84,67 @@ export default function DriverSettlementPage() {
         </select>
       </div>
 
-      {/* 5. 테이블 섹션 */}
+      {/* 5. 테이블 섹션: settlements 데이터를 맵핑 */}
       <div className="bg-white rounded-2xl border border-[#e2e8f0] overflow-hidden shadow-sm">
-        <table className="w-full border-collapse text-sm">
+        <table className="w-full text-sm text-center">
           <thead className="bg-[#f8fafc] border-b-2 border-[#e2e8f0]">
             <tr className="text-[#64748b] font-bold">
-              <th className="p-4 text-center w-12"><input type="checkbox" /></th>
-              <th className="p-4 text-center">지급 대상(차주)</th>
-              <th className="p-4 text-center">은행/계좌번호</th>
-              <th className="p-4 text-center">운송 완료일</th>
-              <th className="p-4 text-center">총 지급액</th>
-              <th className="p-4 text-center">상태</th>
-              <th className="p-4 text-center">관리</th>
+              <th className="p-4 w-12"><input type="checkbox" /></th>
+              <th className="p-4">지급 대상(차주)</th>
+              <th className="p-4">은행/계좌번호</th>
+              <th className="p-4">운송 완료일</th>
+              <th className="p-4">총 지급액</th>
+              <th className="p-4">상태</th>
+              <th className="p-4">관리</th>
             </tr>
           </thead>
           <tbody>
-            {drivers.map((d, i) => (
-              <tr key={i} className="border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-all">
-                <td className="p-4 text-center"><input type="checkbox" /></td>
-                <td className="p-4 text-center font-bold">
-                  {d.name} <span className="text-[10px] text-blue-500 font-normal ml-1">{d.type}</span>
-                </td>
-                <td className="p-4 text-center text-slate-500">{d.bank}</td>
-                <td className="p-4 text-center text-slate-500">{d.date}</td>
-                <td className="p-4 text-center font-bold">{d.amount}</td>
-                <td className="p-4 text-center">
-                  <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${
-                    d.status === '지급 완료' ? 'bg-green-50 text-green-500' : 'bg-orange-50 text-orange-500'
-                  }`}>
-                    {d.status}
-                  </span>
-                </td>
-                <td className="p-4 text-center">
-                  <button className={`px-4 py-1.5 rounded-lg text-xs font-bold border ${
-                    d.status === '지급 완료' 
-                    ? 'bg-slate-50 text-slate-400 border-slate-200' 
-                    : 'bg-white border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white'
-                  }`}>
-                    {d.status === '지급 완료' ? '지급 완료' : '지급 실행'}
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {isLoading ? (
+              <tr><td colSpan={6} className="p-10 text-slate-400">데이터를 불러오는 중...</td></tr>
+            ) : settlements.length === 0 ? (
+              <tr><td colSpan={6} className="p-10 text-slate-400">표시할 정산 내역이 없습니다.</td></tr>
+            ) : (
+              settlements.map((s) => (
+                <tr key={s.settlementId} className="border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-all">
+                  <td className="p-4"><input type="checkbox" /></td>
+                  <td className="p-4 text-center font-bold">
+                    {/* ★ ID(숫자) 대신 차주의 실명을 출력 */}
+                    {s.driverName || `차주(${s.driverUserId})`} 
+                  </td>
+                  <td className="p-4 text-center text-slate-500">
+                    {s.bankName && s.accountNum 
+                      ? `${s.bankName} ${s.accountNum}` 
+                      : "계좌 정보 없음"}
+                  </td>
+                  <td className="p-4 text-slate-500">
+                    {s.feeDate ? new Date(s.feeDate).toLocaleDateString() : "-"}
+                  </td>
+                  <td className="p-4 font-black text-slate-900">
+                    {s.totalPrice?.toLocaleString()}원
+                  </td>
+                  <td className="p-4">
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${
+                      s.status === 'COMPLETED' ? 'bg-green-50 text-green-500' : 'bg-orange-50 text-orange-500'
+                    }`}>
+                      {s.status === 'COMPLETED' ? '지급 완료' : '지급 대기'}
+                    </span>
+                  </td>
+                  <td className="p-4">
+                    <button 
+                      onClick={() => handlePayout(s.orderId)}
+                      disabled={s.status === 'COMPLETED'}
+                      className={`px-4 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                        s.status === 'COMPLETED' 
+                        ? 'bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed' 
+                        : 'bg-white border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white'
+                      }`}
+                    >
+                      지급 실행
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

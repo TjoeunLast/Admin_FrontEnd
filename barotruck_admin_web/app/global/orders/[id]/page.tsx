@@ -17,27 +17,19 @@ export default function OrderDetailPage() {
   useEffect(() => {
     const loadData = async () => {
       if(!orderId) return;
-
       try {
         setIsLoading(true);
-        
-        // 💡 1. 주문 상세 정보와 차주 목록을 "동시에" 불러옵니다.
         const [orderData, driverDataList] = await Promise.all([
             fetchOrderDetail(orderId),
-            fetchOrderDrivers(orderId).catch(() => null) // 차주가 없어도 에러 안 나게 방어
+            fetchOrderDrivers(orderId).catch(() => null)
         ]);
-        
-        // 2. 주문 정보 세팅 (AdminOrderDetailResponse)
         setOrder(orderData);
-
-        // 3. 차주 정보 세팅 (배열의 첫 번째 기사 정보를 세팅)
         const drivers = driverDataList as any[];
         if (drivers && drivers.length > 0) {
             setDriver(drivers[0]);
         } else {
             setDriver(null);
         }
-        
       } catch(error) {
         console.error("데이터 로드 실패: ", error);
       } finally {
@@ -47,158 +39,174 @@ export default function OrderDetailPage() {
     loadData();
   }, [orderId]);
 
-  if(isLoading) return <div className="p-10 font-bold text-slate-500">데이터를 불러오는 중입니다...</div>;
-  if(!order) return <div className="p-10 font-bold text-red-500">주문 정보를 찾을 수 없습니다.</div>;
+  if(isLoading) return <div className="p-20 text-center font-bold text-gray-400 animate-pulse uppercase tracking-widest">Loading Data...</div>;
+  if(!order) return <div className="p-20 text-center font-bold text-red-500">ORDER NOT FOUND</div>;
 
-  // 💡 수정됨: 상태값에 'CANCELLED'라는 단어가 "포함"되어 있으면 무조건 취소로 처리합니다.
-  // (CANCELLED_BY_ADMIN, CANCELLED_BY_SHIPPER 모두 정상 작동)
   const isCancelled = order.status?.includes('CANCELLED');
-
+  
+  // ✅ 타임라인 단계별 고유 색상 정의
   const timelineSteps = [
-    { id: 'PENDING', label: '접수 대기' },
-    { id: 'REQUESTED', label: '배차 대기' },
-    { id: 'ACCEPTED', label: '배차 확정' },
-    { id: 'LOADING', label: '상차 중' },
-    { id: 'IN_TRANSIT', label: '운송 중' },
-    { id: 'UNLOADING', label: '하차 중' },
-    { id: 'COMPLETED', label: '운송 완료' },
+    { id: 'PENDING', label: '접수 대기', dotColor: 'bg-slate-300' },
+    { id: 'REQUESTED', label: '배차 대기', dotColor: 'bg-amber-400' },
+    { id: 'ACCEPTED', label: '배차 확정', dotColor: 'bg-indigo-500' },
+    { id: 'LOADING', label: '상차 중', dotColor: 'bg-blue-500' },
+    { id: 'IN_TRANSIT', label: '운송 중', dotColor: 'bg-sky-500' },
+    { id: 'UNLOADING', label: '하차 중', dotColor: 'bg-cyan-500' },
+    { id: 'COMPLETED', label: '운송 완료', dotColor: 'bg-emerald-500' },
   ];
-
+  
   const currentStatusIndex = timelineSteps.findIndex(step => step.id === order.status);
-
-  // 💡 운임 합산 계산 (기본운임 + 수작업비 + 포장비 + 보험료)
-  const calculateTotalPrice = () => {
-      if (order.basePrice == null) return null;
-      return (order.basePrice || 0) + (order.laborFee || 0) + (order.packagingPrice || 0) + (order.insuranceFee || 0);
-  };
-  const totalPrice = calculateTotalPrice();
+  const totalPrice = order.basePrice != null 
+    ? (order.basePrice || 0) + (order.laborFee || 0) + (order.packagingPrice || 0) + (order.insuranceFee || 0)
+    : null;
 
   return (
-    <div className="max-w-5xl space-y-6 pb-20">
-      <div className="flex items-center gap-4">
-        <h1 className="text-2xl font-bold text-[#1e293b]">
-          주문 상세 정보 <span className="text-blue-600 ml-2">#{orderId}</span>
-          <span className="ml-4 text-sm font-semibold bg-slate-100 text-slate-700 px-3 py-1 rounded-full align-middle">
-            {ORDER_DRIVING_STATUS_MAP?.[order.status] || order.status}
-          </span>
-        </h1>
-        <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500">뒤로 가기</button>
+    <div className="max-w-[1800px] mx-auto p-8 space-y-10 min-h-screen relative pb-40 bg-[#fcfdfe]">
+      {/* 상단 헤더 */}
+      <div className="flex justify-between items-end border-b border-gray-100 pb-8">
+        <div>
+          <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">Order Logistics Detail</p>
+          <h1 className="text-3xl font-black text-gray-900 tracking-tighter flex items-center gap-4">
+            주문 상세 정보 <span className="text-gray-300 font-light">/</span> <span className="text-blue-600">{orderId}</span>
+          </h1>
+        </div>
+        <span className="px-5 py-2 bg-white text-gray-700 text-xs font-black rounded-xl border border-gray-200 shadow-sm uppercase tracking-tighter">
+          Current Status: {ORDER_DRIVING_STATUS_MAP?.[order.status] || order.status}
+        </span>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <section className="bg-white p-8 rounded-2xl border border-[#e2e8f0] shadow-sm">
-            <h3 className="text-lg font-bold mb-6 text-[#1e293b]">운송 구간 정보</h3>
-            <div className="space-y-8 relative">
-              <div className="flex gap-4">
-                <div className="flex flex-col items-center">
-                  <div className="w-4 h-4 rounded-full bg-blue-600 z-10" />
-                  <div className="w-0.5 h-16 bg-slate-100" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-blue-600 uppercase">상차지</p>
-                  <p className="text-lg font-bold text-[#1e293b] mt-1">{order.startPlace}</p>
-                  <p className="text-sm text-slate-400">{order.startSchedule}</p>
-                </div>
+      {/* 가로 4단 레이아웃 + 세로 공간 확장 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 items-stretch">
+        
+        {/* 1. 운송 구간 정보 (세로 확장) */}
+        <section className="bg-white p-10 rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-50 flex flex-col min-h-[600px]">
+          <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-12">Transportation Route</h3>
+          <div className="flex-1 flex flex-col justify-around relative">
+            {/* 연결 선 */}
+            <div className="absolute left-[15px] top-[10%] bottom-[10%] w-px bg-dashed bg-gray-100 border-l border-dashed" />
+            
+            <div className="flex gap-6 items-start z-10">
+              <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center border-4 border-white shadow-md">
+                <div className="w-2 h-2 rounded-full bg-blue-600" />
               </div>
-              <div className="flex gap-4">
-                <div className="w-4 h-4 rounded-full bg-emerald-500 z-10" />
-                <div>
-                  <p className="text-xs font-bold text-emerald-500 uppercase">하차지</p>
-                  <p className="text-lg font-bold text-[#1e293b] mt-1">{order.endPlace}</p>
-                  <p className="text-sm text-slate-400">도착 예정 (API 연동 필요)</p>
-                </div>
+              <div>
+                <p className="text-[10px] font-black text-blue-500 uppercase tracking-wider">상차지 (Origin)</p>
+                <p className="font-black text-gray-900 text-xl mt-2 leading-tight">{order.startPlace}</p>
+                <p className="text-xs font-bold text-gray-400 mt-3">{order.startSchedule}</p>
               </div>
             </div>
-          </section>
 
-          <section className="bg-white p-8 rounded-2xl border border-[#e2e8f0] shadow-sm grid grid-cols-2 gap-8">
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase mb-2">요청 화주</p>
-              <p className="font-bold text-[#1e293b]">
-                {/* 💡 수정됨: 화주 이름 뒤에 전화번호(shipperPhone)가 있으면 같이 띄워줍니다. */}
-                {order.shipperNickname 
-                  ? `${order.shipperNickname} ${order.shipperPhone ? `(${order.shipperPhone})` : ''}` 
-                  : "화주 정보 없음"}
-              </p>
+            <div className="flex gap-6 items-start z-10">
+              <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center border-4 border-white shadow-md">
+                <div className="w-2 h-2 rounded-full bg-emerald-500" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-emerald-500 uppercase tracking-wider">하차지 (Destination)</p>
+                <p className="font-black text-gray-900 text-xl mt-2 leading-tight">{order.endPlace}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase mb-2">담당 차주</p>
-              <p className="font-bold text-[#1e293b]">
-                {/* 💡 driver API 응답을 통해 출력 */}
-                {driver 
-                  ? `${driver.nickname} (${driver.phone}) / ${driver.tonnage}톤 ${driver.carType}` 
-                  : "배차 대기 중"}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase mb-2">최종 운임</p>
-              <p className="text-xl font-black text-blue-600">
-                {/* 💡 basePrice 등을 합산한 가격 출력 */}
-                {totalPrice != null ? `${totalPrice.toLocaleString()}원` : "-"}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase mb-2">인수증 확인</p>
-              <button className="text-xs font-bold text-slate-500 underline hover:text-blue-600">파일 열기</button>
-            </div>
-          </section>
-        </div>
+          </div>
+        </section>
 
-        <div className="space-y-6">
-          <section className="bg-white p-8 rounded-2xl border border-[#e2e8f0] shadow-sm h-full">
-            <h3 className="text-lg font-bold mb-8 text-[#1e293b]">운송 타임라인</h3>
-            <div className="space-y-8">
-              {/* 💡 수정된 isCancelled 로직 덕분에 취소된 주문은 이 부분이 랜더링됩니다. */}
-              {isCancelled ? (
-                <div className="flex gap-4">
-                  <div className="flex flex-col items-center">
-                    <div className="w-4 h-4 rounded-full bg-red-500 z-10 ring-4 ring-red-100" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-red-600">주문 취소됨</p>
-                    <p className="text-[11px] text-slate-400">
-                      {order.cancellation?.cancelReason || "관리자 또는 화주에 의해 취소됨"}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                timelineSteps.map((step, i) => {
-                  const isDone = currentStatusIndex >= i;
-                  const isActive = currentStatusIndex === i;
-                  const isLineActive = currentStatusIndex > i;
+        {/* 2. 요청 화주 정보 (세로 확장) */}
+        <section className="bg-white p-10 rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-50 flex flex-col min-h-[600px]">
+          <div className="flex-1">
+            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-12">Shipper Information</h3>
+            <div className="space-y-10">
+              <InfoBlock label="화주명" value={order.user.nickname || "정보 없음"} subValue={order.shipperPhone} />
+              <InfoBlock label="물품 정보" value={order.cargoContent} />
+            </div>
+          </div>
+          <div className="pt-10 border-t border-gray-50 mt-10">
+            <p className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-widest">Total Fare</p>
+            <p className="text-3xl font-black text-blue-600 tracking-tighter">
+              {totalPrice != null ? `${totalPrice.toLocaleString()}원` : "0원"}
+            </p>
+          </div>
+        </section>
 
-                  return (
-                    <div key={step.id} className="flex gap-4">
-                      <div className="flex flex-col items-center">
-                        <div className={`w-3 h-3 rounded-full transition-colors ${
-                          isDone ? 'bg-blue-600' : 'bg-slate-200'
-                        } ${isActive ? 'ring-4 ring-blue-100' : ''}`} />
-                        
-                        {i !== timelineSteps.length - 1 && (
-                          <div className={`w-0.5 h-10 transition-colors ${
-                            isLineActive ? 'bg-blue-600' : 'bg-slate-100'
-                          }`} />
-                        )}
-                      </div>
-                      <div>
-                        <p className={`text-sm font-bold transition-colors ${
-                          isActive ? 'text-blue-600' : isDone ? 'text-[#1e293b]' : 'text-slate-300'
-                        }`}>
-                          {step.label}
-                        </p>
-                        <p className="text-[11px] text-slate-400">
-                          {i === 0 && order.startSchedule ? order.startSchedule : "-"}
-                        </p>
-                      </div>
+        {/* 3. 담당 차주 정보 (세로 확장) */}
+        <section className="bg-white p-10 rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-50 flex flex-col min-h-[600px]">
+          <div className="flex-1">
+            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-12">Driver Information</h3>
+            {driver ? (
+              <div className="space-y-10">
+                <InfoBlock label="차주명" value={driver.nickname} subValue={driver.phone} />
+                <InfoBlock label="차량 제원" value={`${driver.tonnage}톤 ${driver.carType}`} />
+              </div>
+            ) : (
+              <div className="h-40 flex items-center justify-center border-2 border-dashed border-gray-50 rounded-3xl">
+                <p className="text-sm font-bold text-gray-300 italic">배차 대기 중</p>
+              </div>
+            )}
+          </div>
+          <div className="pt-10 border-t border-gray-50 mt-10">
+            <p className="text-[10px] font-black text-gray-400 mb-3 uppercase tracking-widest">Proof of Delivery</p>
+            <button className="text-sm font-black text-blue-500 hover:text-blue-700 transition-colors flex items-center gap-2">
+              인수증 파일 확인 <span>→</span>
+            </button>
+          </div>
+        </section>
+
+        {/* 4. 운송 타임라인 (상태별 점 색상 차별화) */}
+        <section className="bg-white p-10 rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-50 flex flex-col min-h-[600px]">
+          <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-12">Status Timeline</h3>
+          <div className="flex-1 flex flex-col justify-between">
+            {isCancelled ? (
+              <div className="p-6 bg-red-50 rounded-3xl border border-red-100">
+                <p className="text-xs font-black text-red-600 uppercase mb-2">Order Cancelled</p>
+                <p className="text-sm font-bold text-red-800">{order.cancellation?.cancelReason || "관리자에 의한 취소"}</p>
+              </div>
+            ) : (
+              timelineSteps.map((step, i) => {
+                const isDone = currentStatusIndex >= i;
+                const isActive = currentStatusIndex === i;
+                
+                return (
+                  <div key={step.id} className="flex items-center gap-6 group">
+                    {/* ✅ 상태별 고유 점 색상 적용 */}
+                    <div className={`w-3 h-3 rounded-full shrink-0 transition-all duration-500 shadow-sm ${
+                      isDone ? step.dotColor : 'bg-gray-100'
+                    } ${isActive ? 'ring-8 ring-offset-2 ring-gray-50' : ''}`} />
+                    
+                    <div className="flex-1">
+                      <p className={`text-sm font-black transition-colors ${
+                        isActive ? 'text-gray-900' : isDone ? 'text-gray-600' : 'text-gray-300'
+                      }`}>
+                        {step.label}
+                      </p>
                     </div>
-                  );
-                })
-              )}
-            </div>
-          </section>
-        </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </section>
       </div>
+
+      {/* 우측 하단 뒤로 가기 버튼 (스타일 강조) */}
+      <div className="fixed bottom-12 right-12 z-50">
+        <button 
+          onClick={() => router.back()} 
+          className="bg-gray-950 text-white px-10 py-4 rounded-2xl font-black text-sm shadow-2xl hover:bg-blue-600 transition-all active:scale-95 flex items-center gap-3 uppercase tracking-widest group"
+        >
+          <span className="group-hover:-translate-x-1 transition-transform">←</span> 
+          Return to List
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 정보 블록 컴포넌트
+ */
+function InfoBlock({ label, value, subValue }: { label: string; value: string; subValue?: string }) {
+  return (
+    <div className="space-y-2">
+      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{label}</p>
+      <p className="font-black text-gray-900 text-lg leading-tight">{value}</p>
+      {subValue && <p className="text-sm font-bold text-gray-500">{subValue}</p>}
     </div>
   );
 }

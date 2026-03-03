@@ -1,19 +1,26 @@
-// app/global/users/[id]/user_profile_card.tsx
+"use client";
 
-// ✅ export를 추가하여 외부에서 사용할 수 있게 합니다.
+// ✅ 1. 인터페이스 설계도 수정
 export interface UserDetail {
   userId: number;
-  age: number;
   email: string;
-  enrolldate: string; 
-  gender: string;     
   nickname: string;
   phone: string;
-  imageUrl: string | null;
-  ratingAvg: number;
-  regflag: string;    
-  isOwner: "ADMIN" | "DRIVER" | "SHIPPER"; 
-  userLevel: number;
+  enrolldate: string;
+  delflag: string; // ✅ delflag -> delFlag로 통일 (대소문자 주의)
+  isOwner: string; 
+  age?: number;
+  gender?: string;
+  imageUrl?: string | null;
+  carNum?: string;
+  carType?: string;
+  tonnage?: number;
+  bankName?: string;
+  accountNum?: string;
+  companyName?: string;
+  bizRegNum?: string;
+  representative?: string;
+  totalOperationCount?: number; //
 }
 
 interface Props {
@@ -23,35 +30,35 @@ interface Props {
 export default function UserProfileCard({ user }: Props) {
   const roleLabel = user.isOwner === 'DRIVER' ? '차주' : user.isOwner === 'SHIPPER' ? '화주' : '관리자';
 
+  // ✅ 2. DB 값 기준: 'A'면 비활성(Deleted)
+  const isDeleted = user.delflag?.toUpperCase() === "A";
+
   return (
-    <div className="w-full lg:w-80 bg-white rounded-3xl border border-slate-200 p-8 shadow-sm space-y-8 h-fit">
-      {/* ... 기존 내용 동일 ... */}
-      <div className="flex flex-col items-center text-center">
-        <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-4 border border-slate-100 overflow-hidden shadow-inner">
-          {user.imageUrl ? (
-            <img src={user.imageUrl} alt="Profile" className="w-full h-full object-cover" />
-          ) : (
-            <span className="text-3xl text-slate-300">👤</span>
-          )}
+    <div className="w-full lg:w-80 bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm h-full flex flex-col">
+      <div className="flex flex-col items-center text-center mb-8">
+        <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-4 overflow-hidden border">
+          {user.imageUrl ? <img src={user.imageUrl} className="w-full h-full object-cover" /> : <span className="text-3xl text-slate-300">👤</span>}
         </div>
         <h2 className="text-xl font-bold text-slate-800">{user.nickname}</h2>
         <span className="text-blue-600 text-xs font-bold mt-1">{roleLabel}</span>
       </div>
 
-      <div className="space-y-5">
-        <InfoItem label="연락처" value={user.phone || "미등록"} />
+      <div className="space-y-6 flex-1">
+        <InfoItem label="연락처" value={user.phone} />
         <InfoItem label="이메일" value={user.email} />
-        <InfoItem label="가입신청일" value={user.enrolldate} />
-        <InfoItem label="차량정보" value="5톤 카고 / 12가 3456" />
-        
-        <div className="pt-6 border-t border-slate-100 text-center">
-          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-2">현재 상태</p>
-          <span className={`px-5 py-1.5 rounded-full font-bold text-xs border ${
-            user.regflag === 'Y' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-500 border-orange-100'
-          }`}>
-            {user.regflag === 'Y' ? '승인 완료' : '승인 대기'}
-          </span>
-        </div>
+        <InfoItem label="가입일" value={user.enrolldate} />
+      </div>
+
+      <div className="pt-6 border-t border-slate-100 mt-auto">
+         <div className="flex justify-between items-center">
+            <span className="text-xs font-bold text-slate-400">계정 상태</span>
+            {/* ✅ DB 데이터 연동: 'A'일 때 빨간색 비활성 배지 표시 */}
+            <span className={`px-3 py-1 text-xs font-bold rounded-full ${
+              isDeleted ? "bg-red-50 text-red-600" : "bg-green-50 text-green-600"
+            }`}>
+              {isDeleted ? "비활성 (Deleted)" : "정상 (Active)"}
+            </span>
+         </div>
       </div>
     </div>
   );
@@ -59,9 +66,9 @@ export default function UserProfileCard({ user }: Props) {
 
 function InfoItem({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-col gap-1 text-left">
-      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">{label}</p>
-      <p className="text-sm font-semibold text-slate-700">{value}</p>
+    <div className="flex flex-col gap-1">
+      <p className="text-[10px] text-slate-400 font-bold uppercase">{label}</p>
+      <p className="text-sm font-semibold text-slate-700">{value || "-"}</p>
     </div>
   );
 }
