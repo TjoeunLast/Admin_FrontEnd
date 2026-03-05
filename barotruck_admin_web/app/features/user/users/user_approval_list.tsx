@@ -53,6 +53,7 @@ export default function UserApprovalList({ searchKeyword, filterRole, users = []
             <th className="p-4 font-bold text-slate-400 text-center text-[11px] uppercase">연락처</th>
             <th className="p-4 font-bold text-slate-400 text-center text-[11px] uppercase">이메일</th>
             <th className="p-4 font-bold text-slate-400 text-center text-[11px] uppercase">가입일</th>
+            <th className="p-4 font-bold text-slate-400 text-center text-[11px] uppercase">상태</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
