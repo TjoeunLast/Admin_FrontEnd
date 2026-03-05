@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from 'next/link';
 import { settlementApi, SettlementResponse } from '@/app/features/shared/api/settlement_api';
 import SettlementSummaryCards from "@/app/features/user/billing/settlements_card";
@@ -17,6 +17,8 @@ export default function ShipperSettlementPage() {
   // 1. 상태 정의하기
   const [settlements, setSettlements] = useState<SettlementResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState(""); // 검색어 상태
+  const [statusFilter, setStatusFilter] = useState("ALL"); // 상태 필터 (전체, 입금 완료, 입금 대기, 미납)
 
   // 2. 데이터 로드하기
   const loadSettlements = useCallback(async () => {
@@ -37,6 +39,33 @@ export default function ShipperSettlementPage() {
 
   // 금액 형식 초기화하기
   const formatAmount = (num: number) => new Intl.NumberFormat('ko-KR').format(num);
+
+  // 검색어에 따른 필터링 결과 계산
+  const filteredSettlements = useMemo(() => {
+    let filtered = settlements;
+
+    // 이름 검색
+    if (searchTerm.trim()) {
+      const term = searchTerm.trim().toLowerCase();
+      filtered = filtered.filter(s =>
+        s.shipperName.toLowerCase().includes(term)
+      );
+    }
+
+    // 상태 필터
+    if (statusFilter !== "전체 상태") {
+      if (statusFilter === "입금 완료") {
+        filtered = filtered.filter(s => s.status === "COMPLETED");
+      } else if (statusFilter === "입금 대기") {
+        filtered = filtered.filter(s => s.status !== "COMPLETED");
+      } else if (statusFilter === "미납") {
+        // 백엔드 상태 코드가 다를 수 있으니 필요하면 수정
+        filtered = filtered.filter(s => s.status === "UNPAID");
+      }
+    }
+
+    return filtered;
+  }, [searchTerm, statusFilter, settlements]);
 
   return (
     <main className="space-y-8">
@@ -82,8 +111,14 @@ export default function ShipperSettlementPage() {
           type="text" 
           placeholder="화주사명을 검색하세요" 
           className="border border-[#e2e8f0] rounded-lg px-4 py-2 text-sm w-64 outline-none focus:border-blue-500"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
         />
-        <select className="border border-[#e2e8f0] rounded-lg px-4 py-2 text-sm outline-none">
+        <select
+          className="border border-[#e2e8f0] rounded-lg px-4 py-2 text-sm outline-none"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
           <option>전체 상태</option>
           <option>입금 완료</option>
           <option>입금 대기</option>
@@ -107,10 +142,10 @@ export default function ShipperSettlementPage() {
           <tbody>
             {isLoading ? (
               <tr><td colSpan={6} className="p-10 text-center">데이터 로딩 중...</td></tr>
-            ) : settlements.length === 0 ? (
+            ) : filteredSettlements.length === 0 ? (
               <tr><td colSpan={6} className="p-10 text-center">정산 내역이 없습니다.</td></tr>
             ) : (
-              settlements.map((s) => (
+              filteredSettlements.map((s) => (
                 <tr key={s.settlementId} className="border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-all">
                   <td className="p-4 text-center"><input type="checkbox" /></td>
                   <td className="p-4 text-center">

@@ -37,6 +37,7 @@ export default function AdminOrderListPage() {
   const loadPageData = async () => {
     try {
       const summaryData = await fetchAdminSummary('month');
+      console.log("통계 데이터 확인:", summaryData); // 여기서 키 이름을 확인하세요!
       setSummary(summaryData);
       const orderData = viewMode === "all" ? await fetchOrders() : await fetchCancelledOrders();
       setOrders(orderData);
@@ -79,6 +80,11 @@ export default function AdminOrderListPage() {
     setCancelReason("");
   };
 
+  const closeForceAllocateModal = () => {
+    setDriverIdInput("");
+    setSelectedOrder(null);
+  }
+
   return (
     <div className="p-8 max-w-7xl mx-auto bg-slate-50 min-h-screen font-sans">
       <header className="mb-8 flex justify-between items-center">
@@ -116,21 +122,6 @@ export default function AdminOrderListPage() {
         </div>
       </header>
 
-      {/* 대시보드 요약 섹션 추가 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 font-sans">
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-          <p className="text-slate-400 text-xs font-black uppercase mb-1">이달의 총 오더</p>
-          <p className="text-2xl font-black text-slate-900">{summary?.totalCount || 0}건</p>
-        </div>
-        <div className="bg-blue-600 p-6 rounded-3xl shadow-lg shadow-blue-100 text-white">
-          <p className="text-blue-100 text-xs font-black uppercase mb-1">진행 중인 오더</p>
-          <p className="text-2xl font-black">{summary?.activeCount || 0}건</p>
-        </div>
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-          <p className="text-rose-400 text-xs font-black uppercase mb-1">취소된 오더</p>
-          <p className="text-2xl font-black text-rose-600">{summary?.cancelledCount || 0}건</p>
-        </div>
-      </div>
 
       {/* 테이블 영역 */}
       <div className="bg-white rounded-[32px] shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
@@ -214,7 +205,7 @@ export default function AdminOrderListPage() {
                 배차 확정
               </button>
               <button 
-                onClick={closeCancelModal}
+                onClick={closeForceAllocateModal}
                 className="bg-slate-100 text-slate-500 py-4 rounded-2xl font-black hover:bg-slate-200 transition-all"
               >
                 닫기

@@ -1,7 +1,7 @@
 "use client"
 import Link from 'next/link';
 import { useEffect, useState, useMemo } from 'react';
-import { fetchOrders } from './../../features/shared/api/order_api';
+import { fetchOrders, fetchAdminSummary } from './../../features/shared/api/order_api';
 import { OrderListResponse, ORDER_DRIVING_STATUS_MAP } from '../../features/orders/type';
 
 // 정렬 타입 정의
@@ -14,12 +14,22 @@ export default function Order_Page() {
     const [orders, setOrders] = useState<OrderListResponse[]>([]);
     const [filteredOrders, setFilteredOrders] = useState<OrderListResponse[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-
     const [statusFilter, setStatusFilter] = useState('ALL');
     const [searchTerm, setSearchTerm] = useState('');
     
     // ✅ 정렬 상태 추가
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'orderId', direction: 'desc' });
+
+    // ✅ 프론트엔드에서 직접 계산하는 통계 데이터
+    const stats = useMemo(() => {
+        const total = orders.length;
+        // 완료(COMPLETED)와 취소(CANCEL)를 제외한 나머지를 '진행 중'으로 간주
+        const active = orders.filter(o => o.status !== 'COMPLETED' && !o.status.includes('CANCEL')).length;
+        const completed = orders.filter(o => o.status === 'COMPLETED').length;
+        const cancelled = orders.filter(o => o.status.includes('CANCEL')).length;
+        
+        return { total, active, completed,cancelled };
+    }, [orders]);
 
     useEffect(() => {
         const loadOrders = async () => {
@@ -106,9 +116,32 @@ export default function Order_Page() {
                 </div>
                 <Link href="/global/orders/new">
                     <button className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-bold text-sm hover:bg-blue-700 transition-all shadow-sm flex items-center gap-2">
-                        <span>강제 배차</span>
+                        <span>배차 관리</span>
                     </button>
                 </Link>
+            </div>
+
+            {/* 상단 통계 위젯 추가 */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6">
+                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <p className="text-gray-400 text-[11px] font-black uppercase mb-1">전체 오더</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.total}건</p>
+                </div>
+                
+                <div className="bg-blue-600 p-6 rounded-xl shadow-lg shadow-blue-100 text-white">
+                    <p className="text-blue-100 text-[11px] font-black uppercase mb-1">진행 중인 오더</p>
+                    <p className="text-2xl font-bold">{stats.active}건</p>
+                </div>
+
+                <div className="bg-green-600 p-6 rounded-xl shadow-lg shadow-blue-100 text-white">
+                    <p className="text-blue-100 text-[11px] font-black uppercase mb-1">완료된 오더</p>
+                    <p className="text-2xl font-bold">{stats.completed}건</p>
+                </div>
+                
+                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                    <p className="text-rose-500 text-[11px] font-black uppercase mb-1">취소된 오더</p>
+                    <p className="text-2xl font-bold text-rose-600">{stats.cancelled}건</p>
+                </div>
             </div>
 
             {/* 필터 섹션 */}
@@ -184,7 +217,7 @@ export default function Order_Page() {
                                         <span className="text-sm font-bold text-gray-900">{displayPrice.toLocaleString()}원</span>
                                     </td>
                                     <td className="p-4 text-center">
-                                        <span className={`inline-block w-24 py-1.5 rounded-lg text-[11px] font-bold border ${getStatusClass(order.status)}`}>
+                                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-black border ${getStatusClass(order.status)}`}>
                                             {ORDER_DRIVING_STATUS_MAP[order.status] || order.status}
                                         </span>
                                     </td>
