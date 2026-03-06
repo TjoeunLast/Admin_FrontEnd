@@ -37,3 +37,12 @@ export const deleteUser = async (userId: number) => {
 export const restoreUser = async (userId: number) => {
   return await client.post(`/api/v1/admin/user/restore/${userId}`);
 };
+
+// 강제 배차용 차주 목록 조회 API
+export const fetchDriversForAllocation = async () => {
+  // AdminUserController의 GET /api/v1/admin/user?role=DRIVER 호출
+  const response = await client.get("/api/v1/admin/user", {
+    params: { role: 'DRIVER' } 
+  });
+  return response.data;
+};

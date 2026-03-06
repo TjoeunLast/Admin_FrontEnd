@@ -42,7 +42,7 @@ export const settlementApi = {
         return response.data.data; 
     },
 
-    completeByUser: async (orderId: number): Promise<SettlementResponse> => {
+    completeSettlement: async (orderId: number): Promise<SettlementResponse> => {
         const response = await client.patch<ApiResponse<SettlementResponse>>(
             `/api/v1/settlements/${orderId}/complete`
         );

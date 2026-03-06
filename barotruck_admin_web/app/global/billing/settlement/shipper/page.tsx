@@ -90,22 +90,7 @@ export default function ShipperSettlementPage() {
       {/* 2. 요약 위젯 섹션 */}
       <SettlementSummaryCards data={settlements} type="shipper" />
 
-      {/* 3. 리스트 상단 컨트롤 */}
-      <div className="flex justify-between items-center mt-10">
-        <h3 className="text-lg font-bold text-[#1e293b]">청구 및 입금 목록 (화주)</h3>
-        <div className="flex gap-2">
-          <button className="bg-white border border-[#e2e8f0] px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-50 transition-all">
-            엑셀 다운로드
-          </button>
-          <Link href="/global/billing/tax_invoice">
-            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100">
-              일괄 세금계산서 발행
-            </button>
-          </Link>
-        </div>
-      </div>
-
-      {/* 4. 필터 영역 */}
+      {/* 3. 필터 영역 */}
       <div className="flex gap-2 mb-4">
         <input 
           type="text" 
@@ -122,7 +107,6 @@ export default function ShipperSettlementPage() {
           <option>전체 상태</option>
           <option>입금 완료</option>
           <option>입금 대기</option>
-          <option>미납</option>
         </select>
       </div>
 

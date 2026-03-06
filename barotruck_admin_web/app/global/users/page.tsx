@@ -38,9 +38,6 @@ export default function UserPage() {
           <h1 className="text-2xl font-bold text-slate-800">👥 회원 자격 관리</h1>
           <p className="text-sm text-slate-500 mt-1 font-medium">실시간 데이터 연동을 통해 시스템 이용 권한을 관리합니다.</p>
         </div>
-        <button className="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-sm">
-          엑셀 데이터 추출
-        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
