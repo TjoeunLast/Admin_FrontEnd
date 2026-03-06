@@ -1,86 +1,95 @@
 "use client";
 
-import { use } from "react";
+import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { fetchOrders } from "@/app/features/shared/api/order_api"; 
 
-interface PageProps {
-  params: Promise<{ id: string }>;
-}
-
-export default function ShipperDetailPage({ params }: PageProps) {
+export default function ShipperDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
-  const { id } = use(params); // Next.js 15+ 에서는 params를 unwrap해야 합니다.
+  const { id } = use(params);
 
-  // 샘플 데이터 (ID에 따라 필터링하거나 API 호출)
-  const shipperName = id === "1" ? "(주)위시운송" : "기타 화주";
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const details = [
-    { no: "260205-01", date: "2026.02.05", route: "서울 → 부산", vehicle: "5톤 카고", amount: 450000, status: "청구완료" },
-    { no: "260205-02", date: "2026.02.05", route: "인천 → 대구", vehicle: "11톤 윙바디", amount: 650000, status: "청구완료" },
-  ];
+  useEffect(() => {
+    const loadOrders = async () => {
+      try {
+        setLoading(true);
+        // 1. API 호출
+        const data = await fetchOrders(); 
+        
+        // 2. 필터링: DB의 USER_ID와 URL의 id가 같은 것만 필터링
+        // ※ 중요: 현재 DB에 USER_ID가 5인 주문은 없으므로, 테스트 시 주소를 /shipper/8 등으로 접속하세요.
+        const filtered = data.filter((order: any) => order.orderId === Number(id));
+        setOrders(filtered);
+      } catch (error) {
+        console.error("데이터 로드 실패:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadOrders();
+  }, [id]);
 
   const formatAmount = (num: number) => new Intl.NumberFormat('ko-KR').format(num);
 
+  if (loading) return <div className="p-8 text-center text-gray-500">정보 로딩 중...</div>;
+
   return (
     <main className="p-8 space-y-6">
-      {/* 상단 네비게이션 */}
-      <div className="flex items-center gap-4">
-        <button 
-          onClick={() => router.back()} 
-          className="p-2 hover:bg-gray-100 rounded-full transition-all"
-        >
-          ←
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold text-[#1e293b]">{shipperName} 상세 내역</h1>
-          <p className="text-sm text-[#64748b]">ID: {id} | 해당 화주의 개별 운송 내역입니다.</p>
-        </div>
-      </div>
+      <h1 className="text-2xl font-bold">화주(ID: {id}) 상세 내역</h1>
 
-      {/* 요약 카드 */}
-      <div className="bg-white border border-[#e2e8f0] rounded-2xl p-6 shadow-sm">
-        <div className="flex justify-between items-center">
-          <div>
-            <p className="text-sm text-[#64748b] font-medium">총 청구 금액 합계</p>
-            <p className="text-3xl font-black text-blue-600 mt-1">₩1,100,000</p>
-          </div>
-          <button className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold">
-            명세서 엑셀 다운로드
-          </button>
-        </div>
-      </div>
-
-      {/* 테이블 상세 */}
       <div className="bg-white rounded-2xl border border-[#e2e8f0] overflow-hidden shadow-sm">
         <table className="w-full text-sm text-left">
           <thead className="bg-[#f8fafc] border-b border-[#e2e8f0]">
             <tr className="text-[#64748b] font-bold">
-              <th className="p-4">운송번호 / 날짜</th>
-              <th className="p-4">구간</th>
+              <th className="p-4">주문번호 / 생성일</th>
               <th className="p-4">차량 정보</th>
-              <th className="p-4 text-right">금액</th>
+              <th className="p-4 text-blue-600">운송 구간</th>
+              <th className="p-4 text-right">기본 운임</th>
               <th className="p-4 text-center">상태</th>
             </tr>
           </thead>
           <tbody>
-            {details.map((d) => (
-              <tr key={d.no} className="border-b border-[#f1f5f9] hover:bg-[#f8fafc]">
-                <td className="p-4">
-                  <div className="font-bold text-[#1e293b]">{d.no}</div>
-                  <div className="text-[11px] text-[#94a3b8]">{d.date}</div>
-                </td>
-                <td className="p-4 text-[#475569]">{d.route}</td>
-                <td className="p-4 text-[#475569]">{d.vehicle}</td>
-                <td className="p-4 text-right font-bold text-[#1e293b]">₩{formatAmount(d.amount)}</td>
-                <td className="p-4 text-center">
-                  <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-[10px] font-bold">
-                    {d.status}
-                  </span>
+            {orders.length > 0 ? (
+              orders.map((order) => (
+                <tr key={order.orderId} className="border-b border-[#f1f5f9] hover:bg-[#f8fafc]">
+                  <td className="p-4">
+                    <div className="font-bold">ORD-{order.orderId}</div>
+                    <div className="text-[11px] text-[#94a3b8]">{order.createdAt}</div>
+                  </td>
+                  <td className="p-4">{order.tonnage}톤 차량</td>
+                  <td className="p-4 font-medium">
+                    {order.startPlace || "미지정"} → {order.endPlace || "미지정"}
+                  </td>
+                  <td className="p-4 text-right font-bold">₩{formatAmount(order.basePrice || 0)}</td>
+                  <td className="p-4 text-center">
+                    <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded text-[10px] font-bold">
+                      {order.status}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={5} className="p-20 text-center text-gray-400">
+                  ID {id}번에 해당하는 주문 데이터가 DB에 없습니다.
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
+
+        {/* 우측 하단 뒤로 가기 버튼 (스타일 강조) */}
+            <div className="fixed bottom-12 right-12 z-50">
+              <button 
+                onClick={() => router.back()} 
+                className="bg-gray-950 text-white px-10 py-4 rounded-2xl font-black text-sm shadow-2xl hover:bg-blue-600 transition-all active:scale-95 flex items-center gap-3 uppercase tracking-widest group"
+              >
+                <span className="group-hover:-translate-x-1 transition-transform">←</span> 
+                Return to List
+              </button>
+            </div>
       </div>
     </main>
   );

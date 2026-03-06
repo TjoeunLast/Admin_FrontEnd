@@ -33,12 +33,14 @@ export interface OrderListResponse {
   laborFee?: number;       // 수작업비
   packagingPrice?: number; // 포장비
   insuranceFee?: number;   // 보험료
+  tonnage?: number;        // 무게
 
   startSchedule: string; // 시작 시간
   reqCarType: string; // 요구 차종
   reqTonnage: string; // 요구 무게
   workType: string;
   
+  createdAt: string; // 주문 생성 시간
   aiRecommended: boolean; // 추천 여부
   driveMode: string; // 운송 유형
   status: string;

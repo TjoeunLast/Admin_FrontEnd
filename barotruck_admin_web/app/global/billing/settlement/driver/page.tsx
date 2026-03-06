@@ -31,7 +31,7 @@ export default function DriverSettlementPage() {
   const handlePayout = async (orderId: number) => {
     if (!confirm("해당 건의 지급을 확정하시겠습니까?")) return;
     try {
-      await settlementApi.completeByUser(orderId);
+      await settlementApi.completeSettlement(orderId);
       alert("지급 처리가 완료되었습니다.");
       loadSettlements(); // 목록 새로고침
     } catch (error) {
@@ -62,15 +62,7 @@ export default function DriverSettlementPage() {
       {/* 2. 요약 카드 섹션 (기존 UI 유지) */}
       <SettlementSummaryCards data={settlements} type="driver" />
 
-      {/* 3. 리스트 상단 컨트롤 */}
-      <div className="flex justify-between items-center mt-10">
-        <h3 className="text-lg font-bold text-[#1e293b]">지급 실행 목록 (차주)</h3>
-        <button className="bg-[#f1f5f9] text-[#1e293b] px-4 py-2 rounded-lg text-sm font-bold hover:bg-[#e2e8f0] transition-all">
-          선택 항목 일괄 지급 승인
-        </button>
-      </div>
-
-      {/* 4. 필터 영역 */}
+      {/* 3. 필터 영역 */}
       <div className="flex gap-2 mb-4">
         <input 
           type="text" 
