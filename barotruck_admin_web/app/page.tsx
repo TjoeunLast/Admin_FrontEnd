@@ -6,24 +6,48 @@ import { getUsers } from "./features/shared/api/user_api";
 import {
   paymentAdminApi,
   SettlementResponse,
+  SettlementStatusSummaryResponse,
 } from "./features/shared/api/payment_admin_api";
 import { DashboardCard } from "./features/dashboard/card";
+import { SettlementSummaryCard } from "./features/dashboard/settlement_summary_card";
 import { OrderListResponse } from "./features/orders/type";
+
+interface DashboardUser {
+  enrollDate?: string;
+  enrolldate?: string;
+}
 
 export default function DashboardPage() {
   const [orders, setOrders] = useState<OrderListResponse[]>([]);
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<DashboardUser[]>([]);
   const [settlements, setSettlements] = useState<SettlementResponse[]>([]);
+  const [settlementSummary, setSettlementSummary] =
+    useState<SettlementStatusSummaryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSummaryLoading, setIsSummaryLoading] = useState(true);
 
   // 1. 세 개의 API를 각각 호출하여 상태 저장
   useEffect(() => {
     const loadDashboardData = async () => {
+      setIsSummaryLoading(true);
+      const summaryTask = paymentAdminApi
+        .getSettlementStatusSummary()
+        .then((summary) => {
+          setSettlementSummary(summary);
+        })
+        .catch((error) => {
+          console.error("정산 요약 로딩 실패", error);
+          setSettlementSummary(null);
+        })
+        .finally(() => {
+          setIsSummaryLoading(false);
+        });
+
       try {
         const [orderData, userData, settlementData] = await Promise.all([
           fetchOrders(), // 전체 주문
           getUsers(),    // 전체 회원
-          paymentAdminApi.getSettlements("COMPLETED") // 완료된 정산
+          paymentAdminApi.getSettlements("COMPLETED"), // 완료된 정산
         ]);
         setOrders(orderData);
         setUsers(userData);
@@ -33,6 +57,8 @@ export default function DashboardPage() {
       } finally {
         setIsLoading(false);
       }
+
+      await summaryTask;
     };
     loadDashboardData();
   }, []);
@@ -45,7 +71,9 @@ export default function DashboardPage() {
     const newOrdersList = orders.filter(o => o.status === 'REQUESTED');
     
     // 조건 2) 최근 가입한 회원수 (예: 오늘 가입한 회원)
-    const recentMembers = users.filter(u => u.enrollDate?.includes(today)).length;
+    const recentMembers = users.filter(
+      (u) => u.enrollDate?.includes(today) || u.enrolldate?.includes(today)
+    ).length;
 
     // 조건 3) 오늘 배차 완료 내역
     const todayCompleted = orders.filter(o => o.status === 'ACCEPTED');
@@ -70,6 +98,11 @@ export default function DashboardPage() {
         <DashboardCard title="신규 가입 회원" value={stats.recentMemberCount} label="명" colorClass="text-emerald-500" />
         <DashboardCard title="오늘 배차 완료" value={stats.completedCount} label="건" colorClass="text-indigo-600" />
       </div>
+
+      <SettlementSummaryCard
+        summary={settlementSummary}
+        isLoading={isSummaryLoading}
+      />
 
       {/* 하단 리스트 영역 (신규 오더 vs 정산 완료 리스트) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

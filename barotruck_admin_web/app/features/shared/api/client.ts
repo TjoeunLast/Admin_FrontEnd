@@ -1,8 +1,9 @@
 // app/features/shared/api/client.ts
 import axios from "axios";
+import { getBackendOrigin } from "@/app/features/shared/lib/backend_origin";
 
 const client = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080",
+  baseURL: getBackendOrigin(),
 });
 
 client.interceptors.request.use((config) => {

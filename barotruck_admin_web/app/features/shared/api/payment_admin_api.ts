@@ -135,6 +135,15 @@ export interface PaymentDisputeResponse {
   processedAt: string | null;
 }
 
+export interface PaymentDisputeStatusResponse {
+  disputeId: number;
+  orderId: number;
+  paymentId: number;
+  status: PaymentDisputeStatus;
+  requestedAt: string;
+  processedAt: string | null;
+}
+
 export interface CreatePaymentDisputeRequest {
   requesterUserId?: number | null;
   reasonCode: PaymentDisputeReason;
@@ -181,6 +190,13 @@ const unwrapApiResponse = <T>(payload: ApiResponse<T> | T): T => {
 };
 
 export const paymentAdminApi = {
+  getSettlement: async (orderId: number): Promise<SettlementResponse> => {
+    const response = await client.get<
+      ApiResponse<SettlementResponse> | SettlementResponse
+    >(`/api/v1/settlements/orders/${orderId}`);
+    return unwrapApiResponse(response.data);
+  },
+
   getSettlements: async (status?: string): Promise<SettlementResponse[]> => {
     const response = await client.get<ApiResponse<SettlementResponse[]> | SettlementResponse[]>(
       "/api/v1/settlements/me",
@@ -269,6 +285,15 @@ export const paymentAdminApi = {
     >("/api/v1/payments/api-test/context", {
       params: { orderId },
     });
+    return unwrapApiResponse(response.data);
+  },
+
+  getPaymentDisputeStatus: async (
+    orderId: number
+  ): Promise<PaymentDisputeStatusResponse> => {
+    const response = await client.get<
+      ApiResponse<PaymentDisputeStatusResponse> | PaymentDisputeStatusResponse
+    >(`/api/admin/payment/orders/${orderId}/disputes/status`);
     return unwrapApiResponse(response.data);
   },
 
