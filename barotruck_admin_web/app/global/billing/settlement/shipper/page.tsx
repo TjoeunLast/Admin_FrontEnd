@@ -1,33 +1,65 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import Link from 'next/link';
-import { settlementApi, SettlementResponse } from '@/app/features/shared/api/settlement_api';
-import SettlementSummaryCards from "@/app/features/user/billing/settlements_card";
+import Link from "next/link";
+import {
+  paymentAdminApi,
+  SettlementResponse,
+  TransportPaymentStatus,
+} from "@/app/features/shared/api/payment_admin_api";
+import {
+  calculateAdminSettlementOverview,
+  getEffectivePaymentStatus,
+  getBillingAmount,
+  isPaymentCompleted,
+  PAYMENT_STATUS_LABELS,
+} from "@/app/features/shared/lib/admin_settlement_overview";
+
+const PAYMENT_STATUS_OPTIONS: TransportPaymentStatus[] = [
+  "READY",
+  "PAID",
+  "CONFIRMED",
+  "DISPUTED",
+  "ADMIN_HOLD",
+  "ADMIN_FORCE_CONFIRMED",
+  "ADMIN_REJECTED",
+  "CANCELLED",
+];
+
+const getPaymentStatusBadgeClass = (status: TransportPaymentStatus): string => {
+  if (status === "PAID" || status === "CONFIRMED" || status === "ADMIN_FORCE_CONFIRMED") {
+    return "bg-green-50 text-green-600";
+  }
+  if (status === "DISPUTED" || status === "ADMIN_HOLD") {
+    return "bg-amber-50 text-amber-700";
+  }
+  if (status === "ADMIN_REJECTED" || status === "CANCELLED") {
+    return "bg-rose-50 text-rose-600";
+  }
+  return "bg-slate-100 text-slate-600";
+};
+
+const needsPaymentMemo = (status: TransportPaymentStatus): boolean =>
+  status === "DISPUTED" || status.startsWith("ADMIN_");
 
 export default function ShipperSettlementPage() {
-  /*
-  const [shippers] = useState([
-    { id: 1, name: "(주)위시운송", bizNumber: "123-45-67890", amount: 5400000, status: "입금 완료", date: "2026.02.01" },
-    { id: 2, name: "(주)세븐틴물류", bizNumber: "987-65-43210", amount: 2850000, status: "입금 대기", date: "2026.02.05" },
-    { id: 3, name: "(주)라이즈택배", bizNumber: "555-88-12345", amount: 1200000, status: "미납", date: "2026.01.20" },
-  ]);
-  */
-
-  // 1. 상태 정의하기
   const [settlements, setSettlements] = useState<SettlementResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState(""); // 검색어 상태
-  const [statusFilter, setStatusFilter] = useState("ALL"); // 상태 필터 (전체, 입금 완료, 입금 대기, 미납)
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("전체 상태");
+  const [showPaymentColumns, setShowPaymentColumns] = useState(false);
+  const [submittingOrderId, setSubmittingOrderId] = useState<number | null>(null);
+  const [selectedPaymentStatusByOrder, setSelectedPaymentStatusByOrder] = useState<
+    Record<number, TransportPaymentStatus>
+  >({});
 
-  // 2. 데이터 로드하기
   const loadSettlements = useCallback(async () => {
     try {
       setIsLoading(true);
-      const data = await settlementApi.getAll();
+      const data = await paymentAdminApi.getSettlements();
       setSettlements(data);
     } catch (err) {
-      console.error("화주 정산 데이터 로드 실패: ",err);
+      console.error("화주 정산 데이터 로드 실패: ", err);
     } finally {
       setIsLoading(false);
     }
@@ -37,39 +69,128 @@ export default function ShipperSettlementPage() {
     loadSettlements();
   }, [loadSettlements]);
 
-  // 금액 형식 초기화하기
-  const formatAmount = (num: number) => new Intl.NumberFormat('ko-KR').format(num);
+  const formatAmount = (num: number) => new Intl.NumberFormat("ko-KR").format(num);
+  const overview = useMemo(
+    () => calculateAdminSettlementOverview(settlements),
+    [settlements]
+  );
+  const cards = useMemo(
+    () => [
+      {
+        title: "화주 총 청구액",
+        amount: overview.totalBillingAmount,
+        meta: `청구 ${overview.totalCount}건`,
+        className: "bg-[#0f172a] text-white shadow-sm",
+        titleClassName: "text-sm text-slate-300 font-medium",
+        amountClassName: "text-2xl font-black mt-1",
+        metaClassName: "text-xs text-slate-400 mt-2",
+      },
+      {
+        title: "화주 입금액",
+        amount: overview.completedBillingAmount,
+        meta: `입금 완료 ${overview.completedPaymentCount}건`,
+        className: "bg-white border border-[#e2e8f0] shadow-sm",
+        titleClassName: "text-sm text-[#64748b] font-medium",
+        amountClassName: "text-2xl font-black text-[#10b981] mt-1",
+        metaClassName: "text-xs text-slate-400 mt-2",
+      },
+      {
+        title: "화주 미수금 (미입금)",
+        amount: overview.pendingBillingAmount,
+        meta: `미입금 ${overview.pendingPaymentCount}건`,
+        className: "bg-white border border-[#e2e8f0] shadow-sm",
+        titleClassName: "text-sm text-[#64748b] font-medium",
+        amountClassName: "text-2xl font-black text-[#ef4444] mt-1",
+        metaClassName: "text-xs text-slate-400 mt-2",
+      },
+      {
+        title: "플랫폼 수수료 수익",
+        amount: overview.totalFeeAmount,
+        meta: "결제/정산 데이터 기준",
+        className: "bg-[#eff6ff] border border-[#bfdbfe] shadow-sm",
+        titleClassName: "text-sm text-[#2563eb] font-bold",
+        amountClassName: "text-2xl font-black text-[#2563eb] mt-1",
+        metaClassName: "text-xs text-[#60a5fa] mt-2",
+      },
+    ],
+    [overview]
+  );
 
-  // 검색어에 따른 필터링 결과 계산
   const filteredSettlements = useMemo(() => {
     let filtered = settlements;
 
-    // 이름 검색
     if (searchTerm.trim()) {
       const term = searchTerm.trim().toLowerCase();
-      filtered = filtered.filter(s =>
-        s.shipperName.toLowerCase().includes(term)
+      filtered = filtered.filter(
+        (s) =>
+          s.shipperName.toLowerCase().includes(term) ||
+          s.bizNumber.toLowerCase().includes(term)
       );
     }
 
-    // 상태 필터
     if (statusFilter !== "전체 상태") {
       if (statusFilter === "입금 완료") {
-        filtered = filtered.filter(s => s.status === "COMPLETED");
+        filtered = filtered.filter((s) => isPaymentCompleted(s));
       } else if (statusFilter === "입금 대기") {
-        filtered = filtered.filter(s => s.status !== "COMPLETED");
-      } else if (statusFilter === "미납") {
-        // 백엔드 상태 코드가 다를 수 있으니 필요하면 수정
-        filtered = filtered.filter(s => s.status === "UNPAID");
+        filtered = filtered.filter((s) => !isPaymentCompleted(s));
       }
     }
 
     return filtered;
   }, [searchTerm, statusFilter, settlements]);
 
+  const handleApplyPaymentStatus = useCallback(
+    async (settlement: SettlementResponse) => {
+      const currentStatus = getEffectivePaymentStatus(settlement);
+      const nextStatus =
+        selectedPaymentStatusByOrder[settlement.orderId] ?? currentStatus;
+
+      if (nextStatus === currentStatus) {
+        alert("변경할 결제 상태를 선택하세요.");
+        return;
+      }
+
+      let adminMemo: string | null | undefined;
+      if (needsPaymentMemo(nextStatus)) {
+        const input = window.prompt("관리 메모를 입력하세요. 비워두면 메모 없이 처리됩니다.", "");
+        if (input === null) {
+          return;
+        }
+        adminMemo = input.trim() || null;
+      }
+
+      if (!confirm(`주문 #${settlement.orderId} 결제 상태를 ${PAYMENT_STATUS_LABELS[nextStatus]}로 변경하시겠습니까?`)) {
+        return;
+      }
+
+      try {
+        setSubmittingOrderId(settlement.orderId);
+        await paymentAdminApi.updatePaymentStatus(settlement.orderId, {
+          status: nextStatus,
+          adminMemo,
+          method: settlement.paymentMethod,
+          paymentTiming: settlement.paymentTiming,
+          proofUrl: settlement.proofUrl,
+        });
+        await loadSettlements();
+        setSelectedPaymentStatusByOrder((prev) => {
+          const next = { ...prev };
+          delete next[settlement.orderId];
+          return next;
+        });
+        alert("결제 상태가 변경되었습니다.");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "결제 상태 변경 중 오류가 발생했습니다.";
+        alert(message);
+      } finally {
+        setSubmittingOrderId((prev) => (prev === settlement.orderId ? null : prev));
+      }
+    },
+    [loadSettlements, selectedPaymentStatusByOrder]
+  );
+
   return (
     <main className="space-y-8">
-      {/* 1. 헤더 및 탭 섹션 */}
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-extrabold text-[#1e293b]">정산 및 매출 관리</h1>
@@ -87,14 +208,23 @@ export default function ShipperSettlementPage() {
         </div>
       </div>
 
-      {/* 2. 요약 위젯 섹션 */}
-      <SettlementSummaryCards data={settlements} type="shipper" />
+      <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+        {cards.map((card) => (
+          <div
+            key={card.title}
+            className={`${card.className} p-6 rounded-2xl`}
+          >
+            <div className={card.titleClassName}>{card.title}</div>
+            <div className={card.amountClassName}>₩{formatAmount(card.amount)}</div>
+            <div className={card.metaClassName}>{card.meta}</div>
+          </div>
+        ))}
+      </section>
 
-      {/* 3. 필터 영역 */}
-      <div className="flex gap-2 mb-4">
-        <input 
-          type="text" 
-          placeholder="화주사명을 검색하세요" 
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <input
+          type="text"
+          placeholder="화주명 또는 사업자번호를 검색하세요"
           className="border border-[#e2e8f0] rounded-lg px-4 py-2 text-sm w-64 outline-none focus:border-blue-500"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -108,9 +238,16 @@ export default function ShipperSettlementPage() {
           <option>입금 완료</option>
           <option>입금 대기</option>
         </select>
+        <label className="flex items-center gap-2 rounded-lg border border-[#e2e8f0] bg-white px-3 py-2 text-sm text-slate-600">
+          <input
+            type="checkbox"
+            checked={showPaymentColumns}
+            onChange={(e) => setShowPaymentColumns(e.target.checked)}
+          />
+          추가 결제 컬럼 보기
+        </label>
       </div>
 
-      {/* 실데이터 테이블 */}
       <div className="bg-white rounded-2xl border border-[#e2e8f0] overflow-hidden shadow-sm">
         <table className="w-full text-sm text-center">
           <thead className="bg-[#f8fafc] border-b-2 border-[#e2e8f0]">
@@ -119,46 +256,109 @@ export default function ShipperSettlementPage() {
               <th className="p-4">청구 대상(화주)</th>
               <th className="p-4">청구 발생일</th>
               <th className="p-4">총 청구액</th>
+              {showPaymentColumns ? (
+                <>
+                  <th className="p-4">결제 상태</th>
+                  <th className="p-4">결제 수단</th>
+                  <th className="p-4">결제 시점</th>
+                  <th className="p-4">결제금액</th>
+                  <th className="p-4">수수료</th>
+                  <th className="p-4">PG/증빙</th>
+                </>
+              ) : null}
               <th className="p-4">입금 상태</th>
               <th className="p-4">관리</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={6} className="p-10 text-center">데이터 로딩 중...</td></tr>
+              <tr><td colSpan={showPaymentColumns ? 12 : 6} className="p-10 text-center">데이터 로딩 중...</td></tr>
             ) : filteredSettlements.length === 0 ? (
-              <tr><td colSpan={6} className="p-10 text-center">정산 내역이 없습니다.</td></tr>
+              <tr><td colSpan={showPaymentColumns ? 12 : 6} className="p-10 text-center">정산 내역이 없습니다.</td></tr>
             ) : (
-              filteredSettlements.map((s) => (
-                <tr key={s.settlementId} className="border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-all">
-                  <td className="p-4 text-center"><input type="checkbox" /></td>
-                  <td className="p-4 text-center">
-                    {/* s.name 대신 백엔드 필드인 s.shipperName 사용 */}
-                    <div className="font-bold text-[#1e293b]">{s.shipperName}</div>
-                    <div className="text-[11px] text-[#94a3b8] mt-0.5">{s.bizNumber}</div>
-                  </td>
-                  <td className="p-4 text-center text-[#64748b]">
-                    {s.feeDate ? new Date(s.feeDate).toLocaleDateString() : "-"}
-                  </td>
-                  <td className="p-4 text-center font-black text-[#1e293b]">
-                    ₩{s.totalPrice?.toLocaleString()}
-                  </td>
-                  <td className="p-4 text-center">
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${
-                      s.status === 'COMPLETED' ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'
-                    }`}>
-                      {s.status === 'COMPLETED' ? '입금 완료' : '입금 대기'}
-                    </span>
-                  </td>
-                  <td className="p-4 text-center">
-                    <Link href={`/global/billing/settlement/shipper/${s.orderId}`}>
-                      <button className="bg-white border border-[#cbd5e1] text-[#64748b] px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-100">
-                        내역보기
-                      </button>
-                    </Link>
-                  </td>
-                </tr>
-              ))
+              filteredSettlements.map((s) => {
+                const paymentStatus = getEffectivePaymentStatus(s);
+                const isSubmitting = submittingOrderId === s.orderId;
+                const selectedStatus =
+                  selectedPaymentStatusByOrder[s.orderId] ?? paymentStatus;
+
+                return (
+                  <tr key={s.settlementId} className="border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-all">
+                    <td className="p-4 text-center"><input type="checkbox" /></td>
+                    <td className="p-4 text-center">
+                      <div className="font-bold text-[#1e293b]">{s.shipperName}</div>
+                      <div className="text-[11px] text-[#94a3b8] mt-0.5">{s.bizNumber}</div>
+                    </td>
+                    <td className="p-4 text-center text-[#64748b]">
+                      {s.feeDate ? new Date(s.feeDate).toLocaleDateString() : "-"}
+                    </td>
+                    <td className="p-4 text-center font-black text-[#1e293b]">
+                      ₩{formatAmount(getBillingAmount(s))}
+                    </td>
+                    {showPaymentColumns ? (
+                      <>
+                        <td className="p-4 text-center text-[#64748b]">{s.paymentStatus || "-"}</td>
+                        <td className="p-4 text-center text-[#64748b]">{s.paymentMethod || "-"}</td>
+                        <td className="p-4 text-center text-[#64748b]">{s.paymentTiming || "-"}</td>
+                        <td className="p-4 text-center text-[#64748b]">
+                          {s.paymentAmount != null ? `₩${formatAmount(s.paymentAmount)}` : "-"}
+                        </td>
+                        <td className="p-4 text-center text-[#64748b]">
+                          {s.paymentFeeAmount != null ? `₩${formatAmount(s.paymentFeeAmount)}` : "-"}
+                        </td>
+                        <td className="p-4 text-center text-[#64748b]">
+                          {s.pgTid || s.proofUrl || "-"}
+                        </td>
+                      </>
+                    ) : null}
+                    <td className="p-4 text-center">
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${
+                        getPaymentStatusBadgeClass(paymentStatus)
+                      }`}>
+                        {PAYMENT_STATUS_LABELS[paymentStatus]}
+                      </span>
+                    </td>
+                    <td className="p-4 text-center">
+                      <div className="flex flex-col items-center gap-2">
+                        <select
+                          value={selectedStatus}
+                          onChange={(e) =>
+                            setSelectedPaymentStatusByOrder((prev) => ({
+                              ...prev,
+                              [s.orderId]: e.target.value as TransportPaymentStatus,
+                            }))
+                          }
+                          className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium text-slate-700"
+                        >
+                          {PAYMENT_STATUS_OPTIONS.map((option) => (
+                            <option key={option} value={option}>
+                              {PAYMENT_STATUS_LABELS[option]}
+                            </option>
+                          ))}
+                        </select>
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => void handleApplyPaymentStatus(s)}
+                            disabled={isSubmitting || selectedStatus === paymentStatus}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                              isSubmitting || selectedStatus === paymentStatus
+                                ? "bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed"
+                                : "bg-white border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white"
+                            }`}
+                          >
+                            {isSubmitting ? "처리중..." : "상태 적용"}
+                          </button>
+                          <Link href={`/global/billing/settlement/shipper/${s.orderId}`}>
+                            <button className="bg-white border border-[#cbd5e1] text-[#64748b] px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-100">
+                              내역보기
+                            </button>
+                          </Link>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

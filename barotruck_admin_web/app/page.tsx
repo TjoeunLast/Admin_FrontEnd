@@ -3,7 +3,10 @@
 import { useEffect, useState, useMemo } from "react";
 import { fetchOrders } from "./features/shared/api/order_api";
 import { getUsers } from "./features/shared/api/user_api";
-import { settlementApi, SettlementResponse } from "./features/shared/api/settlement_api";
+import {
+  paymentAdminApi,
+  SettlementResponse,
+} from "./features/shared/api/payment_admin_api";
 import { DashboardCard } from "./features/dashboard/card";
 import { OrderListResponse } from "./features/orders/type";
 
@@ -20,7 +23,7 @@ export default function DashboardPage() {
         const [orderData, userData, settlementData] = await Promise.all([
           fetchOrders(), // 전체 주문
           getUsers(),    // 전체 회원
-          settlementApi.getAll('COMPLETED') // 완료된 정산
+          paymentAdminApi.getSettlements("COMPLETED") // 완료된 정산
         ]);
         setOrders(orderData);
         setUsers(userData);
