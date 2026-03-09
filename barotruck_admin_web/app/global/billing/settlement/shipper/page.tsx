@@ -42,6 +42,14 @@ const getPaymentStatusBadgeClass = (status: TransportPaymentStatus): string => {
 const needsPaymentMemo = (status: TransportPaymentStatus): boolean =>
   status === "DISPUTED" || status.startsWith("ADMIN_");
 
+const needsProofUrl = (settlement: SettlementResponse): boolean =>
+  String(settlement.paymentMethod ?? "").toUpperCase() === "TRANSFER";
+
+const getPaymentStatusColumnText = (settlement: SettlementResponse): string => {
+  const paymentStatus = getEffectivePaymentStatus(settlement);
+  return PAYMENT_STATUS_LABELS[paymentStatus] ?? settlement.paymentStatus ?? "-";
+};
+
 export default function ShipperSettlementPage() {
   const [settlements, setSettlements] = useState<SettlementResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -189,6 +197,54 @@ export default function ShipperSettlementPage() {
     [loadSettlements, selectedPaymentStatusByOrder]
   );
 
+  const handleQuickMarkPaid = useCallback(
+    async (settlement: SettlementResponse) => {
+      if (getEffectivePaymentStatus(settlement) !== "READY") {
+        alert("결제 준비 상태에서만 빠른 입금 반영을 사용할 수 있습니다.");
+        return;
+      }
+
+      let proofUrl = settlement.proofUrl ?? null;
+      if (needsProofUrl(settlement)) {
+        const input = window.prompt(
+          "계좌이체 결제는 증빙 URL이 필요합니다. URL을 입력하세요.",
+          settlement.proofUrl ?? ""
+        );
+        if (input === null) {
+          return;
+        }
+        proofUrl = input.trim() || null;
+        if (!proofUrl) {
+          alert("계좌이체 결제는 증빙 URL이 필요합니다.");
+          return;
+        }
+      }
+
+      if (!confirm(`주문 #${settlement.orderId} 건을 즉시 입금 반영하시겠습니까?`)) {
+        return;
+      }
+
+      try {
+        setSubmittingOrderId(settlement.orderId);
+        await paymentAdminApi.markPaymentPaid(settlement.orderId, {
+          method: settlement.paymentMethod ?? undefined,
+          paymentTiming: settlement.paymentTiming ?? undefined,
+          proofUrl,
+          paidAt: new Date().toISOString(),
+        });
+        await loadSettlements();
+        alert("입금 반영이 완료되었습니다.");
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "입금 반영 중 오류가 발생했습니다.";
+        alert(message);
+      } finally {
+        setSubmittingOrderId((prev) => (prev === settlement.orderId ? null : prev));
+      }
+    },
+    [loadSettlements]
+  );
+
   return (
     <main className="space-y-8">
       <div className="flex justify-between items-start">
@@ -248,26 +304,27 @@ export default function ShipperSettlementPage() {
         </label>
       </div>
 
-      <div className="bg-white rounded-2xl border border-[#e2e8f0] overflow-hidden shadow-sm">
-        <table className="w-full text-sm text-center">
+      <div className="bg-white rounded-2xl border border-[#e2e8f0] shadow-sm">
+        <div className="overflow-x-auto">
+        <table className={`w-full min-w-[960px] text-sm text-center ${showPaymentColumns ? "xl:min-w-[1480px]" : ""}`}>
           <thead className="bg-[#f8fafc] border-b-2 border-[#e2e8f0]">
             <tr className="text-[#64748b] font-bold">
               <th className="p-4 w-12"><input type="checkbox" /></th>
-              <th className="p-4">청구 대상(화주)</th>
-              <th className="p-4">청구 발생일</th>
-              <th className="p-4">총 청구액</th>
+              <th className="p-4 min-w-[180px] whitespace-nowrap">청구 대상(화주)</th>
+              <th className="p-4 min-w-[120px] whitespace-nowrap">청구 발생일</th>
+              <th className="p-4 min-w-[120px] whitespace-nowrap">총 청구액</th>
               {showPaymentColumns ? (
                 <>
-                  <th className="p-4">결제 상태</th>
-                  <th className="p-4">결제 수단</th>
-                  <th className="p-4">결제 시점</th>
-                  <th className="p-4">결제금액</th>
-                  <th className="p-4">수수료</th>
-                  <th className="p-4">PG/증빙</th>
+                  <th className="p-4 min-w-[110px] whitespace-nowrap">결제 상태</th>
+                  <th className="p-4 min-w-[110px] whitespace-nowrap">결제 수단</th>
+                  <th className="p-4 min-w-[110px] whitespace-nowrap">결제 시점</th>
+                  <th className="p-4 min-w-[120px] whitespace-nowrap">결제금액</th>
+                  <th className="p-4 min-w-[110px] whitespace-nowrap">수수료</th>
+                  <th className="p-4 min-w-[180px] whitespace-nowrap">PG/증빙</th>
                 </>
               ) : null}
-              <th className="p-4">입금 상태</th>
-              <th className="p-4">관리</th>
+              <th className="p-4 min-w-[100px] whitespace-nowrap">입금 상태</th>
+              <th className="p-4 min-w-[280px] whitespace-nowrap">관리</th>
             </tr>
           </thead>
           <tbody>
@@ -289,25 +346,42 @@ export default function ShipperSettlementPage() {
                       <div className="font-bold text-[#1e293b]">{s.shipperName}</div>
                       <div className="text-[11px] text-[#94a3b8] mt-0.5">{s.bizNumber}</div>
                     </td>
-                    <td className="p-4 text-center text-[#64748b]">
+                    <td className="p-4 text-center whitespace-nowrap text-[#64748b]">
                       {s.feeDate ? new Date(s.feeDate).toLocaleDateString() : "-"}
                     </td>
-                    <td className="p-4 text-center font-black text-[#1e293b]">
+                    <td className="p-4 text-center whitespace-nowrap font-black text-[#1e293b]">
                       ₩{formatAmount(getBillingAmount(s))}
                     </td>
                     {showPaymentColumns ? (
                       <>
-                        <td className="p-4 text-center text-[#64748b]">{s.paymentStatus || "-"}</td>
-                        <td className="p-4 text-center text-[#64748b]">{s.paymentMethod || "-"}</td>
-                        <td className="p-4 text-center text-[#64748b]">{s.paymentTiming || "-"}</td>
-                        <td className="p-4 text-center text-[#64748b]">
-                          {s.paymentAmount != null ? `₩${formatAmount(s.paymentAmount)}` : "-"}
+                        <td
+                          className="p-4 text-center text-[#64748b]"
+                          title={s.paymentStatus || getPaymentStatusColumnText(s)}
+                        >
+                          <span className="inline-flex max-w-[92px] items-center justify-center truncate rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
+                            {getPaymentStatusColumnText(s)}
+                          </span>
                         </td>
                         <td className="p-4 text-center text-[#64748b]">
+                          <span className="inline-block max-w-[92px] truncate align-middle" title={s.paymentMethod || "-"}>
+                            {s.paymentMethod || "-"}
+                          </span>
+                        </td>
+                        <td className="p-4 text-center text-[#64748b]">
+                          <span className="inline-block max-w-[92px] truncate align-middle" title={s.paymentTiming || "-"}>
+                            {s.paymentTiming || "-"}
+                          </span>
+                        </td>
+                        <td className="p-4 text-center whitespace-nowrap text-[#64748b]">
+                          {s.paymentAmount != null ? `₩${formatAmount(s.paymentAmount)}` : "-"}
+                        </td>
+                        <td className="p-4 text-center whitespace-nowrap text-[#64748b]">
                           {s.paymentFeeAmount != null ? `₩${formatAmount(s.paymentFeeAmount)}` : "-"}
                         </td>
                         <td className="p-4 text-center text-[#64748b]">
-                          {s.pgTid || s.proofUrl || "-"}
+                          <span className="inline-block max-w-[160px] truncate align-middle" title={s.pgTid || s.proofUrl || "-"}>
+                            {s.pgTid || s.proofUrl || "-"}
+                          </span>
                         </td>
                       </>
                     ) : null}
@@ -338,6 +412,17 @@ export default function ShipperSettlementPage() {
                         </select>
                         <div className="flex items-center justify-center gap-2">
                           <button
+                            onClick={() => void handleQuickMarkPaid(s)}
+                            disabled={isSubmitting || paymentStatus !== "READY"}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                              isSubmitting || paymentStatus !== "READY"
+                                ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
+                                : "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-600 hover:text-white"
+                            }`}
+                          >
+                            {isSubmitting ? "처리중..." : "입금 반영"}
+                          </button>
+                          <button
                             onClick={() => void handleApplyPaymentStatus(s)}
                             disabled={isSubmitting || selectedStatus === paymentStatus}
                             className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
@@ -362,6 +447,7 @@ export default function ShipperSettlementPage() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </main>
   );
