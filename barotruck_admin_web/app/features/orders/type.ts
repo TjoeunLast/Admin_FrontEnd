@@ -1,3 +1,5 @@
+import { CANCELLED } from "dns";
+
 // app/features/orders/types.ts
 export const ORDER_DRIVING_STATUS_MAP: Record<string, string> = {
   REQUESTED: '배차 대기',
@@ -6,7 +8,9 @@ export const ORDER_DRIVING_STATUS_MAP: Record<string, string> = {
   LOADING: '상차 중',
   IN_TRANSIT: '이동 중',
   UNLOADING: '하차 중',
-  COMPLETED: '운송 완료'
+  COMPLETED: '운송 완료',
+  CANCELLED: '취소',
+  CANCELLED_BY_ADMIN: '취소(관리자)',
 };
 
 // 배차 기사 정보
@@ -24,6 +28,14 @@ export interface OrderListResponse {
   orderId: number;
   cargoContent: string;
   nickname: string;
+  
+  // cancellation 객체 구조 추가
+  cancellation?: {
+    cancelReason: string;
+    cancelledAt: string;
+    cancelledBy: string;
+  };
+  
   startPlace: string; // 상차지
   endPlace: string; // 하차지
   distance: number; // 거리

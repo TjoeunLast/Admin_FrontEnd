@@ -46,8 +46,8 @@ export default function OrderDetailPage() {
   
   // ✅ 타임라인 단계별 고유 색상 정의
   const timelineSteps = [
-    { id: 'PENDING', label: '접수 대기', dotColor: 'bg-slate-300' },
     { id: 'REQUESTED', label: '배차 대기', dotColor: 'bg-amber-400' },
+    { id: 'APPLIED', label: '승인 대기', dotColor: 'bg-yellow-500' },
     { id: 'ACCEPTED', label: '배차 확정', dotColor: 'bg-indigo-500' },
     { id: 'LOADING', label: '상차 중', dotColor: 'bg-blue-500' },
     { id: 'IN_TRANSIT', label: '운송 중', dotColor: 'bg-sky-500' },
