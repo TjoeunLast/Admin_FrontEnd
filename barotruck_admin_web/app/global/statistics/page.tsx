@@ -14,11 +14,13 @@ import {
 import { fetchOrders } from "@/app/features/shared/api/order_api";
 
 export default function StatisticsPage() {
+  /* 상태 정의 */
   const [orders, setOrders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const MAIN_COLOR = "#4E46E5";
 
+  /* 데이터 호출 */
   useEffect(() => {
     const loadRawData = async () => {
       try {
@@ -26,7 +28,7 @@ export default function StatisticsPage() {
         const data = await fetchOrders();
         setOrders(data || []);
       } catch (error) {
-        console.error("오더 데이터 로드 실패:", error);
+        console.error("데이터 로드 실패:", error);
       } finally {
         setIsLoading(false);
       }
@@ -34,6 +36,7 @@ export default function StatisticsPage() {
     loadRawData();
   }, []);
 
+  /* 통계 계산 */
   const stats = useMemo(() => {
     if (!orders.length)
       return {
@@ -58,9 +61,8 @@ export default function StatisticsPage() {
 
     const regionCounts: Record<string, number> = {};
     orders.forEach((o) => {
-      if (o.puProvince) {
+      if (o.puProvince)
         regionCounts[o.puProvince] = (regionCounts[o.puProvince] || 0) + 1;
-      }
     });
     const regionalTop10 = Object.entries(regionCounts)
       .map(([name, value]) => ({ name, value }))
@@ -91,20 +93,20 @@ export default function StatisticsPage() {
   if (isLoading)
     return (
       <div className="p-10 text-center text-slate-500 font-medium">
-        데이터를 분석 중입니다...
+        데이터 분석 중...
       </div>
     );
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-6 font-sans">
-      {/* 1. 상단 헤더: 주문 목록과 동일한 디자인 */}
+      {/* 페이지 헤더 */}
       <header className="mb-8 pl-1">
         <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
           통계 분석 리포트
         </h1>
       </header>
 
-      {/* 2. 상단 통계 위젯: 주문 목록과 동일한 카드 디자인 */}
+      {/* 요약 통계 위젯 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-sm font-medium text-slate-500 mb-1">전체 매출</p>
@@ -141,127 +143,123 @@ export default function StatisticsPage() {
         </div>
       </div>
 
-      {/* 3. 차트 섹션: 주문 목록 테이블 영역과 유사한 카드 스타일 */}
+      {/* 분석 차트 영역 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 지역별 물동량 */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-          <h3 className="text-[14px] font-bold text-slate-800 mb-8 pb-4 border-b border-slate-50">
-            지역별 물동량 TOP 10
-          </h3>
-          <div className="h-[450px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={stats.regionalTop10}
-                layout="vertical"
-                margin={{ top: 5, right: 40, left: 10, bottom: 5 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  horizontal={true}
-                  vertical={false}
-                  stroke="#f1f5f9"
-                />
-                <XAxis type="number" hide />
-                <YAxis
-                  dataKey="name"
-                  type="category"
-                  axisLine={false}
-                  tickLine={false}
-                  width={80}
-                  style={{
-                    fontSize: "12px",
-                    fontWeight: "bold",
-                    fill: "#64748b",
-                  }}
-                />
-                <Tooltip
-                  cursor={{ fill: "#f8fafc" }}
-                  contentStyle={{
-                    borderRadius: "12px",
-                    border: "none",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
-                  }}
-                />
-                <Bar
-                  dataKey="value"
-                  fill={MAIN_COLOR}
-                  radius={[0, 4, 4, 0]}
-                  barSize={20}
+        {/* 지역별 통계 */}
+        <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+          <div className="bg-slate-50/50 border-b border-slate-200 px-6 py-4">
+            <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              지역별 물동량 TOP 10
+            </h3>
+          </div>
+          <div className="p-8">
+            <div className="h-[400px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={stats.regionalTop10}
+                  layout="vertical"
+                  margin={{ top: 0, right: 60, left: -20, bottom: 0 }}
                 >
-                  <LabelList
-                    dataKey="value"
-                    position="right"
-                    formatter={(val: any) => `${val}건`}
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    horizontal={false}
+                    vertical={true}
+                    stroke="#f1f5f9"
+                  />
+                  <XAxis type="number" hide />
+                  <YAxis
+                    dataKey="name"
+                    type="category"
+                    axisLine={false}
+                    tickLine={false}
+                    width={100}
                     style={{
-                      fontSize: "11px",
-                      fontWeight: "black",
-                      fill: "#94a3b8",
+                      fontSize: "12px",
+                      fontWeight: "700",
+                      fill: "#64748b",
                     }}
                   />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+                  <Tooltip cursor={false} contentStyle={{ display: "none" }} />
+                  <Bar
+                    dataKey="value"
+                    fill={MAIN_COLOR}
+                    radius={[0, 6, 6, 0]}
+                    barSize={24}
+                  >
+                    <LabelList
+                      dataKey="value"
+                      position="right"
+                      formatter={(val: any) => `${val}건`}
+                      style={{
+                        fontSize: "12px",
+                        fontWeight: "800",
+                        fill: "#475569",
+                      }}
+                      offset={10}
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
 
-        {/* 노선별 물동량 */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-          <h3 className="text-[14px] font-bold text-slate-800 mb-8 pb-4 border-b border-slate-50">
-            노선별 물동량 TOP 10
-          </h3>
-          <div className="h-[450px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={stats.routeTop10}
-                layout="vertical"
-                margin={{ top: 5, right: 40, left: 10, bottom: 5 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  horizontal={true}
-                  vertical={false}
-                  stroke="#f1f5f9"
-                />
-                <XAxis type="number" hide />
-                <YAxis
-                  dataKey="name"
-                  type="category"
-                  axisLine={false}
-                  tickLine={false}
-                  width={120}
-                  style={{
-                    fontSize: "12px",
-                    fontWeight: "bold",
-                    fill: "#64748b",
-                  }}
-                />
-                <Tooltip
-                  cursor={{ fill: "#f8fafc" }}
-                  contentStyle={{
-                    borderRadius: "12px",
-                    border: "none",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
-                  }}
-                />
-                <Bar
-                  dataKey="value"
-                  fill="#10b981"
-                  radius={[0, 4, 4, 0]}
-                  barSize={20}
+        {/* 노선별 통계 */}
+        <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+          <div className="bg-slate-50/50 border-b border-slate-200 px-6 py-4">
+            <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              노선별 물동량 TOP 10
+            </h3>
+          </div>
+          <div className="p-8">
+            <div className="h-[400px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={stats.routeTop10}
+                  layout="vertical"
+                  margin={{ top: 0, right: 70, left: -10, bottom: 0 }}
                 >
-                  <LabelList
-                    dataKey="value"
-                    position="right"
-                    formatter={(val: any) => `${val}건`}
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    horizontal={false}
+                    vertical={true}
+                    stroke="#f1f5f9"
+                  />
+                  <XAxis type="number" hide />
+                  <YAxis
+                    dataKey="name"
+                    type="category"
+                    axisLine={false}
+                    tickLine={false}
+                    width={110}
                     style={{
-                      fontSize: "11px",
-                      fontWeight: "black",
-                      fill: "#94a3b8",
+                      fontSize: "12px",
+                      fontWeight: "700",
+                      fill: "#64748b",
                     }}
                   />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+                  <Tooltip cursor={false} contentStyle={{ display: "none" }} />
+                  <Bar
+                    dataKey="value"
+                    fill="#10b981"
+                    radius={[0, 6, 6, 0]}
+                    barSize={24}
+                  >
+                    <LabelList
+                      dataKey="value"
+                      position="right"
+                      formatter={(val: any) => `${val}건`}
+                      style={{
+                        fontSize: "12px",
+                        fontWeight: "800",
+                        fill: "#475569",
+                      }}
+                      offset={10}
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
       </div>
