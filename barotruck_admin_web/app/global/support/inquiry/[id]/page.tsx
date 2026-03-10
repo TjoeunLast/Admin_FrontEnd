@@ -197,8 +197,7 @@ export default function InquiryDetailPage() {
           <button
             onClick={() => {
               if (targetUserId) {
-                const nickname = encodeURIComponent(inquiry.reporterNickname || "");
-                router.push(`/global/chat/personal/${targetUserId}?nickname=${nickname}`);
+                router.push(`/global/chat/personal/${targetUserId}`);
                 return;
               }
               if (directRoomId) {
