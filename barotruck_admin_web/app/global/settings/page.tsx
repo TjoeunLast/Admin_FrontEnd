@@ -1,23 +1,101 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  paymentAdminApi,
+  FeePolicyResponse,
+} from "@/app/features/shared/api/payment_admin_api";
+
+const toPercent = (value: number) => Number((value * 100).toFixed(2));
+const toRate = (value: number) => Number((value / 100).toFixed(4));
+
+const DEFAULT_POLICY: FeePolicyResponse = {
+  level0Rate: 0.05,
+  level1Rate: 0.04,
+  level2Rate: 0.03,
+  level3PlusRate: 0.03,
+  firstPaymentPromoRate: 0.03,
+  minFee: 2000,
+  updatedAt: null,
+};
 
 export default function System_Setting_Page() {
-  // 💡 개인 정보(name, email) 상태를 제거하고 서비스 정책 설정만 남깁니다.
   const [formData, setFormData] = useState({
-    commissionRate: 10,       // 기본 중개 수수료율
-    settlementDays: 3,         // 정산 자동 확정일
+    level0Rate: toPercent(DEFAULT_POLICY.level0Rate),
+    level1Rate: toPercent(DEFAULT_POLICY.level1Rate),
+    level2Rate: toPercent(DEFAULT_POLICY.level2Rate),
+    level3PlusRate: toPercent(DEFAULT_POLICY.level3PlusRate),
+    firstPaymentPromoRate: toPercent(DEFAULT_POLICY.firstPaymentPromoRate),
+    minFee: DEFAULT_POLICY.minFee,
     dispatchTimeout: 15,       // 배차 수락 제한 시간
     trackingInterval: '1분 (실시간)', // 위치 공유 간격
     allowPush: true,           // 웹 푸시 알림
     allowSms: false,           // 중요 장애 SMS
     operationStatus: '정상 운영' // 서비스 운영 상태 (예시 추가)
   });
+  const [isPolicyLoading, setIsPolicyLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target as HTMLInputElement;
-    const val = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
+    const val =
+      type === 'checkbox'
+        ? (e.target as HTMLInputElement).checked
+        : type === 'number'
+          ? Number(value)
+          : value;
     setFormData(prev => ({ ...prev, [name]: val }));
+  };
+
+  const applyPolicyToForm = (policy: FeePolicyResponse) => {
+    setFormData((prev) => ({
+      ...prev,
+      level0Rate: toPercent(Number(policy.level0Rate ?? DEFAULT_POLICY.level0Rate)),
+      level1Rate: toPercent(Number(policy.level1Rate ?? DEFAULT_POLICY.level1Rate)),
+      level2Rate: toPercent(Number(policy.level2Rate ?? DEFAULT_POLICY.level2Rate)),
+      level3PlusRate: toPercent(Number(policy.level3PlusRate ?? DEFAULT_POLICY.level3PlusRate)),
+      firstPaymentPromoRate: toPercent(
+        Number(policy.firstPaymentPromoRate ?? DEFAULT_POLICY.firstPaymentPromoRate)
+      ),
+      minFee: Number(policy.minFee ?? DEFAULT_POLICY.minFee),
+    }));
+  };
+
+  useEffect(() => {
+    const loadPolicy = async () => {
+      try {
+        setIsPolicyLoading(true);
+        const policy = await paymentAdminApi.getCurrentFeePolicy();
+        applyPolicyToForm(policy);
+      } catch (error) {
+        console.error("수수료 정책 로드 실패:", error);
+      } finally {
+        setIsPolicyLoading(false);
+      }
+    };
+
+    loadPolicy();
+  }, []);
+
+  const handleSaveFeePolicy = async () => {
+    try {
+      setIsSaving(true);
+      const saved = await paymentAdminApi.updateFeePolicy({
+        level0Rate: toRate(formData.level0Rate),
+        level1Rate: toRate(formData.level1Rate),
+        level2Rate: toRate(formData.level2Rate),
+        level3PlusRate: toRate(formData.level3PlusRate),
+        firstPaymentPromoRate: toRate(formData.firstPaymentPromoRate),
+        minFee: Number(formData.minFee),
+      });
+      applyPolicyToForm(saved);
+      alert("수수료 정책이 저장되었습니다.");
+    } catch (error) {
+      console.error("수수료 정책 저장 실패:", error);
+      alert("수수료 정책 저장에 실패했습니다.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -28,8 +106,12 @@ export default function System_Setting_Page() {
           <h1 className="text-2xl font-bold text-[#1e293b]">⚙️ 시스템 제어 센터</h1>
           <p className="text-sm text-[#64748b] mt-1">운송 정책 및 전역 시스템 설정을 관리합니다.</p>
         </div>
-        <button className="bg-[#3b82f6] text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-600 transition-all shadow-lg active:scale-95">
-          설정값 일괄 적용
+        <button
+          onClick={handleSaveFeePolicy}
+          disabled={isPolicyLoading || isSaving}
+          className="bg-[#3b82f6] text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-600 transition-all shadow-lg active:scale-95 disabled:bg-slate-300 disabled:cursor-not-allowed"
+        >
+          {isSaving ? "저장 중..." : "수수료 정책 저장"}
         </button>
       </div>
 
@@ -42,25 +124,60 @@ export default function System_Setting_Page() {
             <span className="text-lg text-emerald-500">💰</span>
             <h2 className="font-bold text-[#1e293b]">정산 정책</h2>
           </div>
-          <div className="space-y-6 flex-grow">
-            <div className="flex justify-between items-center p-4 bg-slate-50 rounded-xl">
-              <span className="text-sm font-medium text-slate-600">중개 수수료율</span>
-              <div className="flex items-center gap-2">
-                <input type="number" name="commissionRate" value={formData.commissionRate} onChange={handleChange} className="w-12 text-right font-bold text-blue-600 bg-transparent outline-none" />
-                <span className="text-sm font-bold">%</span>
+          {isPolicyLoading ? (
+            <div className="flex-grow rounded-xl bg-slate-50 p-6 text-sm text-slate-400">
+              수수료 정책을 불러오는 중입니다.
+            </div>
+          ) : (
+            <div className="space-y-4 flex-grow">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex justify-between items-center p-4 bg-slate-50 rounded-xl">
+                  <span className="text-sm font-medium text-slate-600">레벨 0</span>
+                  <div className="flex items-center gap-2">
+                    <input type="number" step="0.1" name="level0Rate" value={formData.level0Rate} onChange={handleChange} className="w-14 text-right font-bold text-blue-600 bg-transparent outline-none" />
+                    <span className="text-sm font-bold">%</span>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center p-4 bg-slate-50 rounded-xl">
+                  <span className="text-sm font-medium text-slate-600">레벨 1</span>
+                  <div className="flex items-center gap-2">
+                    <input type="number" step="0.1" name="level1Rate" value={formData.level1Rate} onChange={handleChange} className="w-14 text-right font-bold text-blue-600 bg-transparent outline-none" />
+                    <span className="text-sm font-bold">%</span>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center p-4 bg-slate-50 rounded-xl">
+                  <span className="text-sm font-medium text-slate-600">레벨 2</span>
+                  <div className="flex items-center gap-2">
+                    <input type="number" step="0.1" name="level2Rate" value={formData.level2Rate} onChange={handleChange} className="w-14 text-right font-bold text-blue-600 bg-transparent outline-none" />
+                    <span className="text-sm font-bold">%</span>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center p-4 bg-slate-50 rounded-xl">
+                  <span className="text-sm font-medium text-slate-600">레벨 3+</span>
+                  <div className="flex items-center gap-2">
+                    <input type="number" step="0.1" name="level3PlusRate" value={formData.level3PlusRate} onChange={handleChange} className="w-14 text-right font-bold text-blue-600 bg-transparent outline-none" />
+                    <span className="text-sm font-bold">%</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-between items-center p-4 bg-slate-50 rounded-xl">
+                <span className="text-sm font-medium text-slate-600">첫 결제 프로모션</span>
+                <div className="flex items-center gap-2">
+                  <input type="number" step="0.1" name="firstPaymentPromoRate" value={formData.firstPaymentPromoRate} onChange={handleChange} className="w-14 text-right font-bold text-blue-600 bg-transparent outline-none" />
+                  <span className="text-sm font-bold">%</span>
+                </div>
+              </div>
+              <div className="flex justify-between items-center p-4 bg-slate-50 rounded-xl">
+                <span className="text-sm font-medium text-slate-600">최소 수수료</span>
+                <div className="flex items-center gap-2">
+                  <input type="number" step="100" name="minFee" value={formData.minFee} onChange={handleChange} className="w-24 text-right font-bold text-blue-600 bg-transparent outline-none" />
+                  <span className="text-sm font-bold">원</span>
+                </div>
               </div>
             </div>
-            <div className="flex justify-between items-center p-4 bg-slate-50 rounded-xl">
-              <span className="text-sm font-medium text-slate-600">자동 확정일</span>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-400">완료 후</span>
-                <input type="number" name="settlementDays" value={formData.settlementDays} onChange={handleChange} className="w-8 text-center font-bold text-blue-600 bg-transparent outline-none" />
-                <span className="text-sm font-bold">일</span>
-              </div>
-            </div>
-          </div>
+          )}
           <p className="mt-4 text-[11px] text-slate-400 leading-relaxed">
-            * 수수료율 변경 시 익일 00시 주문부터 적용됩니다.
+            * 이 카드의 값은 관리자 payment 수수료 정책 API와 직접 연동됩니다.
           </p>
         </section>
 

@@ -24,10 +24,13 @@ export interface SettlementResponse {
     feeDate: string;
 }
 
-export interface SettlementRequest {
-    orderId: number;
-    couponDiscount: number;
-    levelDiscount: number;
+export interface SettlementStatusSummaryResponse {
+    totalAmount: number;
+    pendingAmount: number;
+    completedAmount: number;
+    totalCount: number;
+    pendingCount: number;
+    completedCount: number;
 }
 
 export const settlementApi = {
@@ -42,9 +45,9 @@ export const settlementApi = {
         return response.data.data; 
     },
 
-    completeSettlement: async (orderId: number): Promise<SettlementResponse> => {
-        const response = await client.patch<ApiResponse<SettlementResponse>>(
-            `/api/v1/settlements/${orderId}/complete`
+    getStatusSummary: async (): Promise<SettlementStatusSummaryResponse> => {
+        const response = await client.get<ApiResponse<SettlementStatusSummaryResponse>>(
+            "/api/v1/settlements/admin/status-summary"
         );
         return response.data.data;
     }

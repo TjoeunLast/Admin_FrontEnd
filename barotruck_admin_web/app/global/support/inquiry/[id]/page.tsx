@@ -5,6 +5,13 @@ import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import ChatBubble from '@/app/features/user/support/ChatBubble';
 import { inquiryApi, ChatMessageResponse, UserInfo } from '@/app/features/shared/api/inquiry_api';
+import { getBackendWebSocketUrl } from '@/app/features/shared/lib/backend_origin';
+
+declare global {
+  interface Window {
+    stompClient?: Client | null;
+  }
+}
 
 export default function InquiryChatPage() {
   const router = useRouter();
@@ -43,16 +50,14 @@ export default function InquiryChatPage() {
     if (!currentUser) return;
 
     const stomp = new Client({
-      webSocketFactory: () => new SockJS('http://localhost:8080/ws-stomp'),
+      webSocketFactory: () => new SockJS(getBackendWebSocketUrl()),
       reconnectDelay: 5000,
-      onConnect: (frame) => {
-        //console.log('Connected: ' + frame);
-        
+      onConnect: () => {
         // ★ 테스트를 위해 콘솔에서 접근 가능하도록 등록
-        (window as any).stompClient = stomp;
+        window.stompClient = stomp;
 
         stomp.subscribe(`/sub/chat/room/${roomId}`, (payload) => {
-          const newMessage = JSON.parse(payload.body);
+          const newMessage = JSON.parse(payload.body) as ChatMessageResponse;
           setMessages((prev) => {
             const updated = [...prev, newMessage];
             // ★ 수신 시에도 항상 시간순 정렬 보장
@@ -69,7 +74,7 @@ export default function InquiryChatPage() {
 
     return () => {
       stomp.deactivate();
-      (window as any).stompClient = null;
+      window.stompClient = null;
     };
   }, [roomId, currentUser]);
 
