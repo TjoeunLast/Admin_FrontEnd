@@ -8,6 +8,9 @@ export default function ReportList() {
   const [reports, setReports] = useState<ReportResponse[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const buildUserDetailHref = (userId?: number | null) =>
+    userId ? `/global/users/${userId}` : null;
+
   const fetchReports = async () => {
     try {
       const data = await reportApi.getAll();
@@ -79,12 +82,37 @@ export default function ReportList() {
                 </div>
               </div>
 
-              {/* 회원 관리 페이지로 이동하는 버튼 */}
-              <Link href={"/global/users"}>
-                <button className="px-6 py-3 bg-[#1e293b] hover:bg-black rounded-xl font-bold text-sm text-white transition-all shadow-md active:scale-95">
-                  회원 정보 확인
-                </button>
-              </Link>
+              <div className="ml-6 flex shrink-0 flex-col gap-2">
+                {buildUserDetailHref(r.reporterUser?.userId) ? (
+                  <Link href={buildUserDetailHref(r.reporterUser?.userId)!}>
+                    <button className="w-[170px] px-6 py-3 bg-[#1e293b] hover:bg-black rounded-xl font-bold text-sm text-white transition-all shadow-md active:scale-95">
+                      신고자 정보 확인
+                    </button>
+                  </Link>
+                ) : (
+                  <button
+                    disabled
+                    className="w-[170px] px-6 py-3 bg-slate-100 rounded-xl font-bold text-sm text-slate-400 cursor-not-allowed"
+                  >
+                    신고자 정보 없음
+                  </button>
+                )}
+
+                {buildUserDetailHref(r.targetUser?.userId) ? (
+                  <Link href={buildUserDetailHref(r.targetUser?.userId)!}>
+                    <button className="w-[170px] px-6 py-3 bg-white border border-[#cbd5e1] hover:bg-slate-50 rounded-xl font-bold text-sm text-[#1e293b] transition-all shadow-sm active:scale-95">
+                      신고대상 정보 확인
+                    </button>
+                  </Link>
+                ) : (
+                  <button
+                    disabled
+                    className="w-[170px] px-6 py-3 bg-slate-100 rounded-xl font-bold text-sm text-slate-400 cursor-not-allowed"
+                  >
+                    신고대상 정보 없음
+                  </button>
+                )}
+              </div>
             </div>
           );
         })

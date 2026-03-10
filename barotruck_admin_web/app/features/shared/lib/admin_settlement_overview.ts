@@ -60,6 +60,7 @@ export interface AdminSettlementOverview {
   totalCount: number;
   completedPaymentCount: number;
   pendingPaymentCount: number;
+  payoutTargetCount: number;
   completedSettlementCount: number;
   pendingSettlementCount: number;
 }
@@ -75,6 +76,7 @@ const EMPTY_OVERVIEW: AdminSettlementOverview = {
   totalCount: 0,
   completedPaymentCount: 0,
   pendingPaymentCount: 0,
+  payoutTargetCount: 0,
   completedSettlementCount: 0,
   pendingSettlementCount: 0,
 };
@@ -205,22 +207,23 @@ export const calculateAdminSettlementOverview = (
     const settlementDone = isSettlementCompleted(settlement);
 
     acc.totalBillingAmount += billingAmount;
-    acc.totalPayoutAmount += payoutAmount;
-    acc.totalFeeAmount += feeAmount;
     acc.totalCount += 1;
 
     if (paymentDone) {
       acc.completedBillingAmount += billingAmount;
       acc.completedPaymentCount += 1;
+      acc.totalPayoutAmount += payoutAmount;
+      acc.totalFeeAmount += feeAmount;
+      acc.payoutTargetCount += 1;
     } else {
       acc.pendingBillingAmount += billingAmount;
       acc.pendingPaymentCount += 1;
     }
 
-    if (settlementDone) {
+    if (paymentDone && settlementDone) {
       acc.completedPayoutAmount += payoutAmount;
       acc.completedSettlementCount += 1;
-    } else {
+    } else if (paymentDone) {
       acc.pendingPayoutAmount += payoutAmount;
       acc.pendingSettlementCount += 1;
     }

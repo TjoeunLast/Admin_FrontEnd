@@ -189,7 +189,7 @@ export default function DriverSettlementPage() {
       {
         title: "차주 총 지급 대상액",
         amount: overview.totalPayoutAmount,
-        meta: `지급 대상 ${overview.totalCount}건`,
+        meta: `지급 대상 ${overview.payoutTargetCount}건`,
         className: "bg-[#0f172a] text-white shadow-sm",
         titleClassName: "text-sm text-slate-300 font-medium",
         amountClassName: "text-2xl font-black mt-1",
