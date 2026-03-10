@@ -17,8 +17,8 @@ export default function ChatBubble({ content, senderRole, timestamp, senderName,
   if (isSystem) {
     return (
       <div className="flex justify-center my-4 w-full animate-in fade-in duration-500">
-        <div className="bg-slate-100 px-4 py-1.5 rounded-full shadow-sm border border-slate-200">
-          <span className="text-[11px] font-medium text-slate-500">
+        <div className="rounded-full border border-[#DDD6FE] bg-[#EDECFC] px-4 py-1.5 shadow-sm">
+          <span className="text-[11px] font-medium text-[#4E46E5]">
             {content}
           </span>
         </div>
@@ -38,7 +38,7 @@ export default function ChatBubble({ content, senderRole, timestamp, senderName,
         </div>
         <div className={`p-3.5 rounded-2xl text-sm shadow-sm leading-relaxed ${
           isAdmin 
-            ? 'bg-[#3b82f6] text-white rounded-tr-none' 
+            ? 'bg-[#4E46E5] text-white rounded-tr-none' 
             : 'bg-white text-slate-800 border border-slate-200 rounded-tl-none'
         }`}>
           {content}
