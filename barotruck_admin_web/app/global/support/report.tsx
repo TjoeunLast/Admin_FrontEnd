@@ -7,6 +7,10 @@ import Link from "next/link"; // 이동을 위해 추가
 export default function ReportList() {
   const [reports, setReports] = useState<ReportResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingReportId, setDeletingReportId] = useState<number | null>(null);
+
+  const buildUserDetailHref = (userId?: number | null) =>
+    userId ? `/global/users/${userId}` : null;
 
   const fetchReports = async () => {
     try {
@@ -22,6 +26,29 @@ export default function ReportList() {
   useEffect(() => {
     fetchReports();
   }, []);
+
+  const handleDeleteReport = async (reportId: number) => {
+    if (!window.confirm("이 신고 내역을 삭제하시겠습니까?")) {
+      return;
+    }
+
+    try {
+      setDeletingReportId(reportId);
+      const success = await reportApi.deleteReport(reportId);
+      if (!success) {
+        alert("신고 삭제에 실패했습니다.");
+        return;
+      }
+
+      setReports((prev) => prev.filter((item) => item.reportId !== reportId));
+      alert("신고가 삭제되었습니다.");
+    } catch (err) {
+      console.error("신고 삭제에 실패하였습니다.", err);
+      alert("신고 삭제 중 오류가 발생했습니다.");
+    } finally {
+      setDeletingReportId((prev) => (prev === reportId ? null : prev));
+    }
+  };
 
   const getStatusStyle = (type: string) => {
     // 긴급도가 높은 유형 정의
@@ -79,12 +106,49 @@ export default function ReportList() {
                 </div>
               </div>
 
-              {/* 회원 관리 페이지로 이동하는 버튼 */}
-              <Link href={"/global/users"}>
-                <button className="px-6 py-3 bg-[#1e293b] hover:bg-black rounded-xl font-bold text-sm text-white transition-all shadow-md active:scale-95">
-                  회원 정보 확인
+              <div className="ml-6 flex shrink-0 flex-col gap-2">
+                {buildUserDetailHref(r.reporterUser?.userId) ? (
+                  <Link href={buildUserDetailHref(r.reporterUser?.userId)!}>
+                    <button className="w-[170px] px-6 py-3 bg-[#1e293b] hover:bg-black rounded-xl font-bold text-sm text-white transition-all shadow-md active:scale-95">
+                      신고자 정보 확인
+                    </button>
+                  </Link>
+                ) : (
+                  <button
+                    disabled
+                    className="w-[170px] px-6 py-3 bg-slate-100 rounded-xl font-bold text-sm text-slate-400 cursor-not-allowed"
+                  >
+                    신고자 정보 없음
+                  </button>
+                )}
+
+                {buildUserDetailHref(r.targetUser?.userId) ? (
+                  <Link href={buildUserDetailHref(r.targetUser?.userId)!}>
+                    <button className="w-[170px] px-6 py-3 bg-white border border-[#cbd5e1] hover:bg-slate-50 rounded-xl font-bold text-sm text-[#1e293b] transition-all shadow-sm active:scale-95">
+                      신고대상 정보 확인
+                    </button>
+                  </Link>
+                ) : (
+                  <button
+                    disabled
+                    className="w-[170px] px-6 py-3 bg-slate-100 rounded-xl font-bold text-sm text-slate-400 cursor-not-allowed"
+                  >
+                    신고대상 정보 없음
+                  </button>
+                )}
+
+                <button
+                  onClick={() => void handleDeleteReport(r.reportId)}
+                  disabled={deletingReportId === r.reportId}
+                  className={`w-[170px] px-6 py-3 rounded-xl font-bold text-sm transition-all active:scale-95 ${
+                    deletingReportId === r.reportId
+                      ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                      : "bg-rose-600 text-white hover:bg-rose-700 shadow-sm"
+                  }`}
+                >
+                  {deletingReportId === r.reportId ? "삭제 중..." : "신고 삭제"}
                 </button>
-              </Link>
+              </div>
             </div>
           );
         })

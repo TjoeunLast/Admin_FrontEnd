@@ -33,20 +33,20 @@ const SETTLEMENT_STATUSES = new Set<SettlementWorkflowStatus>([
 ]);
 
 export const PAYMENT_STATUS_LABELS: Record<TransportPaymentStatus, string> = {
-  READY: "결제 준비",
-  PAID: "결제 완료",
-  CONFIRMED: "차주 확인",
-  DISPUTED: "이의 제기",
-  ADMIN_HOLD: "관리자 보류",
-  ADMIN_FORCE_CONFIRMED: "강제 확정",
-  ADMIN_REJECTED: "관리자 반려",
-  CANCELLED: "결제 취소",
+  READY: "결제대기",
+  PAID: "입금완료",
+  CONFIRMED: "확인완료",
+  DISPUTED: "이의접수",
+  ADMIN_HOLD: "지급보류",
+  ADMIN_FORCE_CONFIRMED: "강제확정",
+  ADMIN_REJECTED: "관리반려",
+  CANCELLED: "결제취소",
 };
 
 export const SETTLEMENT_STATUS_LABELS: Record<SettlementWorkflowStatus, string> = {
-  READY: "지급 대기",
-  WAIT: "지급 보류",
-  COMPLETED: "지급 완료",
+  READY: "지급대기",
+  WAIT: "지급보류",
+  COMPLETED: "지급완료",
 };
 
 export interface AdminSettlementOverview {
@@ -60,6 +60,7 @@ export interface AdminSettlementOverview {
   totalCount: number;
   completedPaymentCount: number;
   pendingPaymentCount: number;
+  payoutTargetCount: number;
   completedSettlementCount: number;
   pendingSettlementCount: number;
 }
@@ -75,6 +76,7 @@ const EMPTY_OVERVIEW: AdminSettlementOverview = {
   totalCount: 0,
   completedPaymentCount: 0,
   pendingPaymentCount: 0,
+  payoutTargetCount: 0,
   completedSettlementCount: 0,
   pendingSettlementCount: 0,
 };
@@ -205,22 +207,23 @@ export const calculateAdminSettlementOverview = (
     const settlementDone = isSettlementCompleted(settlement);
 
     acc.totalBillingAmount += billingAmount;
-    acc.totalPayoutAmount += payoutAmount;
-    acc.totalFeeAmount += feeAmount;
     acc.totalCount += 1;
 
     if (paymentDone) {
       acc.completedBillingAmount += billingAmount;
       acc.completedPaymentCount += 1;
+      acc.totalPayoutAmount += payoutAmount;
+      acc.totalFeeAmount += feeAmount;
+      acc.payoutTargetCount += 1;
     } else {
       acc.pendingBillingAmount += billingAmount;
       acc.pendingPaymentCount += 1;
     }
 
-    if (settlementDone) {
+    if (paymentDone && settlementDone) {
       acc.completedPayoutAmount += payoutAmount;
       acc.completedSettlementCount += 1;
-    } else {
+    } else if (paymentDone) {
       acc.pendingPayoutAmount += payoutAmount;
       acc.pendingSettlementCount += 1;
     }

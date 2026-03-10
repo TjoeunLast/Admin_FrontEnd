@@ -108,12 +108,26 @@ export interface ReportResponse {
   type: "REPORT" | "DISCUSS"; // DISCUSS가 1:1 문의
   email?: string; // 답변 받을 이메일
   title?: string; // 문의 제목
+  reporterUser?: {
+    userId: number;
+    nickname?: string;
+  } | null;
+  targetUser?: {
+    userId: number;
+    nickname?: string;
+  } | null;
 }
 
 export const reportApi = {
   // 1. 관리자용 전체 신고/문의 목록 조회
   getAll: async (): Promise<ReportResponse[]> => {
     return fetchAllReports();
+  },
+
+  // 관리자 신고 삭제
+  deleteReport: async (reportId: number): Promise<boolean> => {
+    const response = await client.delete(`/api/reports/admin/${reportId}`);
+    return response.data;
   },
 
   // 2. 상태 갱신 (접수됨, 처리 중, 처리 완료 등)

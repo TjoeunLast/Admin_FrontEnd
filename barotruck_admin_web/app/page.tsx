@@ -7,7 +7,6 @@ import { getUsers } from "./features/shared/api/user_api";
 import {
   paymentAdminApi,
   SettlementResponse,
-  SettlementStatusSummaryResponse,
 } from "./features/shared/api/payment_admin_api";
 import { DashboardCard } from "./features/dashboard/card";
 import { SettlementSummaryCard } from "./features/dashboard/settlement_summary_card";
@@ -22,30 +21,18 @@ export default function DashboardPage() {
   const [orders, setOrders] = useState<OrderListResponse[]>([]);
   const [users, setUsers] = useState<DashboardUser[]>([]);
   const [settlements, setSettlements] = useState<SettlementResponse[]>([]);
-  const [settlementSummary, setSettlementSummary] =
-    useState<SettlementStatusSummaryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSummaryLoading, setIsSummaryLoading] = useState(true);
+  const [settlementError, setSettlementError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadDashboardData = async () => {
-      setIsSummaryLoading(true);
-      const summaryTask = paymentAdminApi
-        .getSettlementStatusSummary()
-        .then((summary) => {
-          setSettlementSummary(summary);
-        })
-        .catch((error) => {
-          console.error("정산 요약 로딩 실패", error);
-          setSettlementSummary(null);
-        })
-        .finally(() => setIsSummaryLoading(false));
+      setSettlementError(null);
 
       try {
         const results = await Promise.allSettled([
           fetchOrders(),
           getUsers(),
-          paymentAdminApi.getSettlements("COMPLETED"),
+          paymentAdminApi.getSettlements(),
         ]);
 
         if (results[0].status === "fulfilled") {
@@ -56,17 +43,25 @@ export default function DashboardPage() {
         }
         if (results[2].status === "fulfilled") {
           setSettlements(results[2].value);
+        } else {
+          console.error("대시보드 정산 데이터 로딩 실패:", results[2].reason);
+          setSettlementError("정산 데이터를 불러오지 못했습니다.");
         }
       } catch (error) {
         console.error("데이터 로딩 실패", error);
       } finally {
         setIsLoading(false);
       }
-
-      await summaryTask;
     };
     loadDashboardData();
   }, []);
+
+  const settlementOverview = useMemo(
+    () => calculateAdminSettlementOverview(settlements),
+    [settlements]
+  );
+  const listPrimaryTextClass = "text-sm font-bold leading-6 text-slate-800";
+  const listSecondaryTextClass = "mt-0.5 text-xs leading-5 text-slate-500";
 
   const stats = useMemo(() => {
     const now = new Date();
@@ -83,7 +78,14 @@ export default function DashboardPage() {
       newOrders: newOrdersList,
       recentMemberCount: recentMembers,
       completedCount: todayCompleted.length,
-      settledList: settlements.slice(0, 5),
+      settledList: settlements
+        .filter((item) => isSettlementCompleted(item))
+        .sort((a, b) => {
+          const aTime = new Date(a.feeCompleteDate ?? a.feeDate ?? 0).getTime();
+          const bTime = new Date(b.feeCompleteDate ?? b.feeDate ?? 0).getTime();
+          return bTime - aTime;
+        })
+        .slice(0, 5),
     };
   }, [orders, users, settlements]);
 
@@ -125,8 +127,9 @@ export default function DashboardPage() {
       </section>
 
       <SettlementSummaryCard
-        summary={settlementSummary}
-        isLoading={isSummaryLoading}
+        overview={settlementOverview}
+        isLoading={isLoading}
+        errorMessage={settlementError}
       />
 
       {/* 2. 하단 리스트 영역 */}
@@ -180,14 +183,14 @@ export default function DashboardPage() {
               정산 히스토리
             </span>
           </div>
-          <div className="mt-5 space-y-4 divide-y divide-[#E2E8F0]/60">
+          <div className="mt-5 divide-y divide-[#E2E8F0]">
             {stats.settledList.map((item) => (
               <div
                 key={item.settlementId}
                 className="flex items-center justify-between gap-4 py-4"
               >
                 <div>
-                  <p className="text-sm font-bold text-slate-800">
+                  <p className={listPrimaryTextClass}>
                     {item.driverName} 차주님
                   </p>
                   <p className="text-xs text-slate-400 mt-0.5 font-medium">
@@ -195,8 +198,8 @@ export default function DashboardPage() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-bold text-slate-900">
-                    {item.totalPrice.toLocaleString()}원
+                  <p className="text-sm font-bold leading-6 text-slate-900">
+                    {getPayoutAmount(item).toLocaleString()}원
                   </p>
                   <span className="px-2 py-1 rounded bg-emerald-50 text-emerald-600 border border-emerald-100 text-[10px] font-black uppercase">
                     지급 완료
