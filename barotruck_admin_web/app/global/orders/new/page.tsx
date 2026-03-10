@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import apiClient from "@/app/features/shared/api/client";
 import {
-  fetchOrders,
-  fetchCancelledOrders,
+  fetchOrdersPage,
+  fetchCancelledOrdersPage,
   forceAllocateOrder,
   cancelOrder,
   fetchAdminSummary,
@@ -34,6 +34,10 @@ export default function AdminOrderListPage() {
   const [summary, setSummary] = useState<any>(null);
   const [viewMode, setViewMode] = useState<"all" | "cancelled">("all");
   const [isLoading, setIsLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [pageSize] = useState(20);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
 
   const [selectedOrder, setSelectedOrder] = useState<number | null>(null);
   const [cancelTargetId, setCancelTargetId] = useState<number | null>(null);
@@ -54,19 +58,27 @@ export default function AdminOrderListPage() {
     try {
       const summaryData = await fetchAdminSummary("month");
       setSummary(summaryData);
-      const orderData =
-        viewMode === "all" ? await fetchOrders() : await fetchCancelledOrders();
-      setOrders(orderData);
+      const orderPage =
+        viewMode === "all"
+          ? await fetchOrdersPage(page, pageSize)
+          : await fetchCancelledOrdersPage(page, pageSize);
+      setOrders(orderPage.content);
+      setTotalPages(orderPage.totalPages);
+      setTotalElements(orderPage.totalElements);
     } catch (error) {
       console.error(error);
     } finally {
       setIsLoading(false);
     }
-  }, [viewMode]);
+  }, [page, pageSize, viewMode]);
 
   useEffect(() => {
     loadPageData();
   }, [loadPageData]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [viewMode]);
 
   // 차주 목록 로드 함수
   const fetchDriverList = useCallback(async () => {
@@ -355,6 +367,39 @@ export default function AdminOrderListPage() {
             )}
           </tbody>
         </table>
+        {totalPages > 1 ? (
+          <div className="flex items-center justify-center gap-2 border-t border-[#e2e8f0] bg-[#f8fafc] px-6 py-4">
+            <button
+              onClick={() => setPage((prev) => Math.max(prev - 1, 0))}
+              disabled={page === 0}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-500 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              이전
+            </button>
+            {Array.from({ length: totalPages }, (_, index) => index).map((pageNumber) => (
+              <button
+                key={pageNumber}
+                onClick={() => setPage(pageNumber)}
+                className={`h-9 min-w-9 rounded-lg px-3 text-sm font-bold ${
+                  page === pageNumber
+                    ? "bg-slate-900 text-white"
+                    : "border border-slate-200 bg-white text-slate-500"
+                }`}
+              >
+                {pageNumber + 1}
+              </button>
+            ))}
+            <button
+              onClick={() =>
+                setPage((prev) => (prev + 1 < totalPages ? prev + 1 : prev))
+              }
+              disabled={totalPages === 0 || page + 1 >= totalPages}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-500 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              다음
+            </button>
+          </div>
+        ) : null}
       </div>
 
       {/* 강제 배차 모달 */}

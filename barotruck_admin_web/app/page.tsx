@@ -6,12 +6,15 @@ import { getUsers } from "./features/shared/api/user_api";
 import {
   paymentAdminApi,
   SettlementResponse,
-  SettlementStatusSummaryResponse,
 } from "./features/shared/api/payment_admin_api";
 import { DashboardCard } from "./features/dashboard/card";
 import { SettlementSummaryCard } from "./features/dashboard/settlement_summary_card";
 import { OrderListResponse } from "./features/orders/type";
-import axios from "axios";
+import {
+  calculateAdminSettlementOverview,
+  getPayoutAmount,
+  isSettlementCompleted,
+} from "./features/shared/lib/admin_settlement_overview";
 
 interface DashboardUser {
   enrollDate?: string;
@@ -22,38 +25,18 @@ export default function DashboardPage() {
   const [orders, setOrders] = useState<OrderListResponse[]>([]);
   const [users, setUsers] = useState<DashboardUser[]>([]);
   const [settlements, setSettlements] = useState<SettlementResponse[]>([]);
-  const [settlementSummary, setSettlementSummary] =
-    useState<SettlementStatusSummaryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSummaryLoading, setIsSummaryLoading] = useState(true);
-  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [settlementError, setSettlementError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadDashboardData = async () => {
-      setIsSummaryLoading(true);
-      setSummaryError(null);
-      const summaryTask = paymentAdminApi
-        .getSettlementStatusSummary()
-        .then((summary) => {
-          setSettlementSummary(summary);
-        })
-        .catch((error) => {
-          console.error("정산 요약 로딩 실패", error);
-          setSettlementSummary(null);
-          if (axios.isAxiosError(error) && error.response?.status === 403) {
-            setSummaryError("관리자 권한이 필요합니다.");
-            return;
-          }
-          setSummaryError("정산 요약을 불러오지 못했습니다.");
-        })
-        .finally(() => setIsSummaryLoading(false));
+      setSettlementError(null);
 
       try {
-        // Promise.all을 allSettled로 변경하여 일부 API 실패 시에도 전체가 중단되지 않도록 수정
         const results = await Promise.allSettled([
           fetchOrders(),
           getUsers(),
-          paymentAdminApi.getSettlements("COMPLETED"),
+          paymentAdminApi.getSettlements(),
         ]);
 
         if (results[0].status === "fulfilled") {
@@ -72,17 +55,23 @@ export default function DashboardPage() {
           setSettlements(results[2].value);
         } else {
           console.error("대시보드 정산 데이터 로딩 실패:", results[2].reason);
+          setSettlementError("정산 데이터를 불러오지 못했습니다.");
         }
       } catch (error) {
         console.error("데이터 로딩 실패", error);
       } finally {
         setIsLoading(false);
       }
-
-      await summaryTask;
     };
     loadDashboardData();
   }, []);
+
+  const settlementOverview = useMemo(
+    () => calculateAdminSettlementOverview(settlements),
+    [settlements]
+  );
+  const listPrimaryTextClass = "text-sm font-bold leading-6 text-slate-800";
+  const listSecondaryTextClass = "mt-0.5 text-xs leading-5 text-slate-500";
 
   const stats = useMemo(() => {
     const now = new Date();
@@ -99,7 +88,14 @@ export default function DashboardPage() {
       newOrders: newOrdersList,
       recentMemberCount: recentMembers,
       completedCount: todayCompleted.length,
-      settledList: settlements.slice(0, 5),
+      settledList: settlements
+        .filter((item) => isSettlementCompleted(item))
+        .sort((a, b) => {
+          const aTime = new Date(a.feeCompleteDate ?? a.feeDate ?? 0).getTime();
+          const bTime = new Date(b.feeCompleteDate ?? b.feeDate ?? 0).getTime();
+          return bTime - aTime;
+        })
+        .slice(0, 5),
     };
   }, [orders, users, settlements]);
 
@@ -143,12 +139,12 @@ export default function DashboardPage() {
       </section>
 
       <SettlementSummaryCard
-        summary={settlementSummary}
-        isLoading={isSummaryLoading}
-        errorMessage={summaryError}
+        overview={settlementOverview}
+        isLoading={isLoading}
+        errorMessage={settlementError}
       />
 
-      <section className="grid grid-cols-1 gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
@@ -168,10 +164,10 @@ export default function DashboardPage() {
                 className="flex items-center justify-between gap-4 py-4"
               >
                 <div>
-                  <p className="text-sm font-bold text-slate-800">
+                  <p className={listPrimaryTextClass}>
                     {order.startPlace} → {order.endPlace}
                   </p>
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <p className={listSecondaryTextClass}>
                     {order.cargoContent || "상세 정보 없음"}
                   </p>
                 </div>
@@ -190,25 +186,25 @@ export default function DashboardPage() {
               정산 히스토리
             </span>
           </div>
-          <div className="mt-5 space-y-4 divide-y divide-[#E2E8F0]/60">
+          <div className="mt-5 divide-y divide-[#E2E8F0]">
             {stats.settledList.map((item) => (
               <div
                 key={item.settlementId}
                 className="flex items-center justify-between gap-4 py-4"
               >
                 <div>
-                  <p className="text-sm font-bold text-slate-800">
+                  <p className={listPrimaryTextClass}>
                     {item.driverName} 차주님
                   </p>
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <p className={listSecondaryTextClass}>
                     {item.bankName} · {item.accountNum}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-bold text-slate-900">
-                    {item.totalPrice.toLocaleString()}원
+                  <p className="text-sm font-bold leading-6 text-slate-900">
+                    {getPayoutAmount(item).toLocaleString()}원
                   </p>
-                  <span className="text-[10px] font-bold text-emerald-600">
+                  <span className="mt-0.5 block text-xs font-bold leading-5 text-emerald-600">
                     지급 완료
                   </span>
                 </div>

@@ -210,7 +210,7 @@ export function DriverPayoutMonitorPanel({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h3 className="text-base font-bold text-slate-900">차주 지급 운영 패널</h3>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm font-medium text-slate-700">
             payout item, seller 상태, 최근 webhook 반영 시각, payout 실조회 연결 상태를 주문 단위로 확인합니다.
           </p>
         </div>
@@ -243,7 +243,7 @@ export function DriverPayoutMonitorPanel({
 
       <div className="mt-5 grid gap-4 xl:grid-cols-2 2xl:grid-cols-4">
         <div className="rounded-2xl bg-slate-50 p-4">
-          <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
+          <div className="text-xs font-bold uppercase tracking-wider text-slate-600">
             payout item 상태
           </div>
           <div className="mt-3 flex items-center gap-2">
@@ -254,9 +254,9 @@ export function DriverPayoutMonitorPanel({
             >
               {getPayoutStatusLabel(payoutStatus)}
             </span>
-            <span className="text-xs text-slate-400">order #{settlement.orderId}</span>
+            <span className="text-xs font-semibold text-slate-600">order #{settlement.orderId}</span>
           </div>
-          <div className="mt-4 space-y-2 text-sm text-slate-600">
+          <div className="mt-4 space-y-2 text-sm font-medium text-slate-800">
             <div>itemId {payoutItem?.itemId ?? "-"}</div>
             <div>batchId {payoutItem?.batchId ?? "-"}</div>
             <div>retryCount {payoutItem?.retryCount ?? "-"}</div>
@@ -265,14 +265,14 @@ export function DriverPayoutMonitorPanel({
             <div>payoutRef {payoutItem?.payoutRef ?? "-"}</div>
           </div>
           {payoutItemMessage ? (
-            <div className="mt-4 rounded-xl bg-white px-3 py-2 text-xs text-slate-500">
+            <div className="mt-4 rounded-xl bg-white px-3 py-2 text-xs font-medium text-slate-700">
               {payoutItemMessage}
             </div>
           ) : null}
         </div>
 
         <div className="rounded-2xl bg-slate-50 p-4">
-          <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
+          <div className="text-xs font-bold uppercase tracking-wider text-slate-600">
             seller 상태
           </div>
           <div className="mt-3">
@@ -284,7 +284,7 @@ export function DriverPayoutMonitorPanel({
               {sellerStatus ?? "연결 대기"}
             </span>
           </div>
-          <div className="mt-4 space-y-2 text-sm text-slate-600">
+          <div className="mt-4 space-y-2 text-sm font-medium text-slate-800">
             <div>sellerId {sellerId ?? "-"}</div>
             <div>sellerRef {sellerRef ?? "-"}</div>
             <div>차주 {settlement.driverName || `차주(${settlement.driverUserId})`}</div>
@@ -292,25 +292,25 @@ export function DriverPayoutMonitorPanel({
               계좌 {settlement.bankName || "-"} {settlement.accountNum || ""}
             </div>
           </div>
-          <div className="mt-4 rounded-xl bg-white px-3 py-2 text-xs text-slate-500">
+          <div className="mt-4 rounded-xl bg-white px-3 py-2 text-xs font-medium text-slate-700">
             {sellerMessage ?? "seller 상태 전용 필드가 아직 없으면 연결 대기로 표시합니다."}
           </div>
         </div>
 
         <div className="rounded-2xl bg-slate-50 p-4">
-          <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
+          <div className="text-xs font-bold uppercase tracking-wider text-slate-600">
             최근 webhook 반영
           </div>
           <div className="mt-3 text-xl font-black text-slate-900">
             {formatDateTime(webhookInfo.value)}
           </div>
-          <div className="mt-2 text-xs text-slate-400">{webhookInfo.sourceLabel}</div>
-          <div className="mt-4 space-y-2 text-sm text-slate-600">
+          <div className="mt-2 text-xs font-medium text-slate-600">{webhookInfo.sourceLabel}</div>
+          <div className="mt-4 space-y-2 text-sm font-medium text-slate-800">
             <div>pollingStatus {payoutStatus ?? "-"}</div>
             <div>webhookStatus {webhookStatus ?? "-"}</div>
             <div>정산 상태 {SETTLEMENT_STATUS_LABELS[settlementStatus]}</div>
           </div>
-          <div className="mt-4 rounded-xl bg-white px-3 py-2 text-xs text-slate-500">
+          <div className="mt-4 rounded-xl bg-white px-3 py-2 text-xs font-medium text-slate-700">
             {webhookInfo.usingFallback
               ? "webhook 시각 미노출 상태라 payout item 시간으로 대체 표시 중입니다."
               : "webhook 기준 값이 있으면 payout item 시간보다 우선 표시합니다."}
@@ -318,7 +318,7 @@ export function DriverPayoutMonitorPanel({
         </div>
 
         <div className="rounded-2xl bg-slate-50 p-4">
-          <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
+          <div className="text-xs font-bold uppercase tracking-wider text-slate-600">
             payout 실조회
           </div>
           <div className="mt-3 flex items-center gap-2">
@@ -327,15 +327,15 @@ export function DriverPayoutMonitorPanel({
             >
               {lookupFallback.badgeText}
             </span>
-            <span className="text-xs text-slate-400">실조회 후보</span>
+            <span className="text-xs font-semibold text-slate-600">실조회 후보</span>
           </div>
-          <div className="mt-4 space-y-2 text-sm text-slate-600">
+          <div className="mt-4 space-y-2 text-sm font-medium text-slate-800">
             <div>payoutRef {payoutItem?.payoutRef ?? "-"}</div>
             <div>internalStatus {payoutStatus ?? "-"}</div>
             <div>requestedAt {formatDateTime(payoutItem?.requestedAt)}</div>
             <div>completedAt {formatDateTime(payoutItem?.completedAt)}</div>
           </div>
-          <div className="mt-4 rounded-xl bg-white px-3 py-2 text-xs text-slate-500">
+          <div className="mt-4 rounded-xl bg-white px-3 py-2 text-xs font-medium text-slate-700">
             {lookupFallback.helperText}
           </div>
         </div>
