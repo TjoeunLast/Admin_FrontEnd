@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
@@ -39,6 +39,7 @@ export default function InquiryChatPage() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
 
   const stompClient = useRef<Client | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -108,6 +109,7 @@ export default function InquiryChatPage() {
       webSocketFactory: () => new SockJS(getBackendWebSocketUrl()),
       reconnectDelay: 5000,
       onConnect: () => {
+        setIsConnected(true);
         window.stompClient = stomp;
         stomp.subscribe(`/sub/chat/room/${roomId}`, (payload) => {
           const newMessage = JSON.parse(payload.body) as ChatMessageResponse;
@@ -118,12 +120,19 @@ export default function InquiryChatPage() {
           );
         });
       },
+      onWebSocketError: () => {
+        setIsConnected(false);
+      },
+      onDisconnect: () => {
+        setIsConnected(false);
+      },
     });
 
     stomp.activate();
     stompClient.current = stomp;
 
     return () => {
+      setIsConnected(false);
       void stomp.deactivate();
       window.stompClient = null;
     };
@@ -153,24 +162,28 @@ export default function InquiryChatPage() {
     setInput("");
   };
 
+  const title = useMemo(() => inquiry?.title || "1:1 문의 채팅", [inquiry?.title]);
+
   if (isLoading) {
     return (
-      <div className="p-20 text-center text-slate-400 font-medium italic">
-        채팅 정보를 불러오는 중입니다...
+      <div className="mx-auto max-w-[1200px] p-8">
+        <div className="rounded-2xl border border-slate-200 bg-white px-6 py-20 text-center text-slate-400 font-semibold">
+          채팅 정보를 불러오는 중입니다...
+        </div>
       </div>
     );
   }
 
   if (errorMessage) {
     return (
-      <div className="max-w-[1200px] mx-auto p-8 space-y-4">
+      <div className="mx-auto max-w-[1200px] p-8 space-y-4">
         <div className="rounded-2xl border border-red-100 bg-red-50 px-6 py-5 text-red-700 text-sm font-semibold">
           {errorMessage}
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => router.push(`/global/support/inquiry/${inquiryId}`)}
-            className="px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800"
+            className="px-4 py-2 rounded-xl bg-[#4E46E5] text-white text-sm font-bold hover:bg-[#4338CA]"
           >
             문의 상세로
           </button>
@@ -180,63 +193,87 @@ export default function InquiryChatPage() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-3xl border border-slate-200 overflow-hidden">
-      <div className="p-5 border-b border-slate-100 flex justify-between items-center gap-4">
-        <div>
-          <h2 className="font-bold text-lg text-slate-900">
-            {inquiry?.title || "1:1 문의 채팅"}
-          </h2>
-          <p className="text-xs text-slate-500">
-            문의 #{inquiry?.reportId ?? inquiryId} · 채팅방 #{roomId ?? inquiryId}
-          </p>
-        </div>
-        <button
-          onClick={() => router.push(`/global/support/inquiry/${inquiryId}`)}
-          className="text-sm px-4 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 font-bold"
-        >
-          문의 상세로
-        </button>
-      </div>
+    <div className="mx-auto max-w-[1200px] space-y-4 pb-20">
+      <section className="rounded-[24px] border border-slate-200 bg-white px-7 py-6 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <span className="inline-flex rounded-full bg-[#EDECFC] px-3 py-1 text-[11px] font-black tracking-[0.14em] text-[#4E46E5]">
+              INQUIRY CHAT
+            </span>
+            <h1 className="mt-3 text-[28px] font-black tracking-tight text-[#0F172A]">{title}</h1>
+            <p className="mt-2 text-sm text-slate-500">
+              문의 #{inquiry?.reportId ?? inquiryId} · 채팅방 #{roomId ?? inquiryId}
+            </p>
+          </div>
 
-      <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50 min-h-[520px]">
-        <div className="flex flex-col">
-          {messages.map((msg, idx) => (
-            <ChatBubble
-              key={msg.messageId || `msg-${idx}`}
-              content={msg.content}
-              senderRole={msg.senderId === currentUser?.userId ? "ADMIN" : "USER"}
-              timestamp={msg.createdAt || new Date().toISOString()}
-              senderName={msg.senderNickname}
-              type={msg.type}
+          <div className="flex items-center gap-2">
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-bold ${
+                isConnected
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                  : "bg-amber-50 text-amber-700 border border-amber-100"
+              }`}
+            >
+              {isConnected ? "연결됨" : "연결 중 또는 끊김"}
+            </span>
+            <button
+              onClick={() => router.push(`/global/support/inquiry/${inquiryId}`)}
+              className="px-4 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 text-sm font-bold"
+            >
+              문의 상세로
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-sm">
+        <div className="min-h-[520px] flex-1 overflow-y-auto bg-slate-50 p-6">
+          {messages.length === 0 ? (
+            <div className="flex h-[480px] items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white text-sm font-semibold text-slate-400">
+              아직 대화 내역이 없습니다.
+            </div>
+          ) : (
+            <div className="flex flex-col">
+              {messages.map((msg, idx) => (
+                <ChatBubble
+                  key={msg.messageId || `msg-${idx}`}
+                  content={msg.content}
+                  senderRole={msg.senderId === currentUser?.userId ? "ADMIN" : "USER"}
+                  timestamp={msg.createdAt || new Date().toISOString()}
+                  senderName={msg.senderNickname}
+                  type={msg.type}
+                />
+              ))}
+              <div ref={scrollRef} />
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-slate-200 bg-white p-4">
+          <div className="flex gap-2">
+            <textarea
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  handleSend();
+                }
+              }}
+              className="flex-1 rounded-xl border border-slate-200 p-3 resize-none outline-none focus:border-[#4E46E5]"
+              placeholder="메시지를 입력하세요..."
+              rows={2}
             />
-          ))}
-          <div ref={scrollRef} />
+            <button
+              onClick={handleSend}
+              disabled={!input.trim()}
+              className="px-4 py-2 rounded-xl bg-[#4E46E5] text-white text-sm font-bold hover:bg-[#4338CA] disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              전송
+            </button>
+          </div>
         </div>
-      </div>
-
-      <div className="p-4 border-t border-slate-100 bg-white">
-        <div className="flex gap-2">
-          <textarea
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                handleSend();
-              }
-            }}
-            className="flex-1 border border-slate-200 rounded-xl p-3 resize-none"
-            placeholder="메시지를 입력하세요..."
-            rows={2}
-          />
-          <button
-            onClick={handleSend}
-            className="bg-slate-900 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-800"
-          >
-            전송
-          </button>
-        </div>
-      </div>
+      </section>
     </div>
   );
 }

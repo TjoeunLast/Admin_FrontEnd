@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -9,49 +9,26 @@ function formatDate(value?: string) {
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString();
+  return date.toLocaleString("ko-KR");
 }
 
 function getStatusClass(status: string) {
   if (status === "RESOLVED") {
-    return "bg-bt-badge-complete-bg text-bt-badge-complete-text";
+    return "border border-emerald-100 bg-emerald-50 text-emerald-700";
   }
   if (status === "PROCESSING") {
-    return "bg-amber-50 text-amber-700";
+    return "border border-amber-100 bg-amber-50 text-amber-700";
   }
-  return "bg-bt-badge-request-bg text-bt-badge-request-text";
+  return "border border-[#DDD6FE] bg-[#EDECFC] text-[#4E46E5]";
 }
 
-function toPositiveId(value: unknown): number | null {
-  if (value === null || value === undefined || value === "") return null;
-  const id = Number(value);
-  return Number.isFinite(id) && id > 0 ? Math.trunc(id) : null;
-}
+const INQUIRY_STATUS_FLOW = ["PENDING", "PROCESSING", "RESOLVED"] as const;
 
-function resolveInquiryTargetUserId(inquiry: ReportResponse | null): number | null {
-  if (!inquiry) return null;
-
-  const source = inquiry as ReportResponse & Record<string, unknown>;
-  const reporterUserSnake = source.reporter_user as { userId?: number | string } | undefined;
-
-  // reporterId == userId 정책: reporter 계열 필드만 사용
-  const candidates = [
-    inquiry.reporterUser?.userId,
-    inquiry.reporterId,
-    inquiry.reporterUserId,
-    inquiry.reporterMemberId,
-    source.reporterUser?.userId,
-    reporterUserSnake?.userId,
-    source.reporter_id,
-    source.REPORTER_ID,
-  ];
-
-  for (const candidate of candidates) {
-    const id = toPositiveId(candidate);
-    if (id) return id;
-  }
-
-  return null;
+function getNextInquiryStatus(currentStatus: string) {
+  const currentIndex = INQUIRY_STATUS_FLOW.findIndex((status) => status === currentStatus);
+  if (currentIndex < 0) return INQUIRY_STATUS_FLOW[1];
+  const nextIndex = (currentIndex + 1) % INQUIRY_STATUS_FLOW.length;
+  return INQUIRY_STATUS_FLOW[nextIndex];
 }
 
 export default function InquiryDetailPage() {
@@ -64,6 +41,8 @@ export default function InquiryDetailPage() {
   const [inquiry, setInquiry] = useState<ReportResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [statusActionMessage, setStatusActionMessage] = useState<string | null>(null);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   const loadInquiryDetail = async () => {
     if (!Number.isFinite(inquiryId)) {
@@ -100,16 +79,46 @@ export default function InquiryDetailPage() {
     return `mailto:${inquiry.email}?subject=${encodeURIComponent(subject)}`;
   }, [inquiry]);
 
-  const targetUserId = useMemo(() => resolveInquiryTargetUserId(inquiry), [inquiry]);
-  const directRoomId = useMemo(() => toPositiveId(inquiry?.roomId ?? inquiry?.chatRoomId), [inquiry]);
+  const nextStatus = useMemo(
+    () => getNextInquiryStatus(inquiry?.status ?? "PENDING"),
+    [inquiry?.status],
+  );
+
+  const handleChangeStatus = async () => {
+    if (!inquiry || isUpdatingStatus) return;
+
+    try {
+      setIsUpdatingStatus(true);
+      setStatusActionMessage(null);
+
+      await reportApi.updateReportStatus(inquiry.reportId, nextStatus);
+
+      setInquiry((prev) => {
+        if (!prev) return prev;
+        return { ...prev, status: nextStatus };
+      });
+      setStatusActionMessage(`상태가 "${toReportStatusLabel(nextStatus)}"으로 변경되었습니다.`);
+    } catch (error) {
+      console.error("문의 상태 변경 실패:", error);
+      setStatusActionMessage("상태 변경에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
 
   if (isLoading) {
-    return <div className="p-20 text-center text-slate-400 font-medium italic">문의 상세를 불러오는 중입니다...</div>;
+    return (
+      <div className="mx-auto max-w-[1200px] p-8">
+        <div className="rounded-2xl border border-slate-200 bg-white px-6 py-20 text-center text-slate-400 font-semibold">
+          문의 상세를 불러오는 중입니다...
+        </div>
+      </div>
+    );
   }
 
   if (errorMessage) {
     return (
-      <div className="max-w-[1200px] mx-auto p-8 space-y-4">
+      <div className="mx-auto max-w-[1200px] p-8 space-y-4">
         <div className="rounded-2xl border border-red-100 bg-red-50 px-6 py-5 text-red-700 text-sm font-semibold">
           {errorMessage}
         </div>
@@ -122,7 +131,7 @@ export default function InquiryDetailPage() {
           </button>
           <button
             onClick={() => router.push("/global/support?tab=inquiry")}
-            className="px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800"
+            className="px-4 py-2 rounded-xl bg-[#4E46E5] text-white text-sm font-bold hover:bg-[#4338CA]"
           >
             목록으로
           </button>
@@ -132,88 +141,96 @@ export default function InquiryDetailPage() {
   }
 
   if (!inquiry) {
-    return <div className="p-20 text-center text-slate-400 font-medium">문의 정보를 찾을 수 없습니다.</div>;
+    return (
+      <div className="mx-auto max-w-[1200px] p-8">
+        <div className="rounded-2xl border border-slate-200 bg-white px-6 py-20 text-center text-slate-400 font-semibold">
+          문의 정보를 찾을 수 없습니다.
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="max-w-[1200px] mx-auto space-y-6 pb-20">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
+    <div className="mx-auto max-w-[1200px] space-y-6 pb-20">
+      <section className="rounded-[24px] border border-slate-200 bg-white px-7 py-6 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <span className="inline-flex rounded-full bg-[#EDECFC] px-3 py-1 text-[11px] font-black tracking-[0.14em] text-[#4E46E5]">
+              INQUIRY DETAIL
+            </span>
+            <h1 className="mt-3 text-[28px] font-black tracking-tight text-[#0F172A]">
+              {inquiry.title || "제목 없음"}
+            </h1>
+            <p className="mt-2 text-sm text-slate-500">문의 번호 #{inquiry.reportId}</p>
+          </div>
           <button
             onClick={() => router.push("/global/support?tab=inquiry")}
-            className="text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors"
+            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50"
           >
-            ← 목록으로
+            목록으로
           </button>
-          <h1 className="mt-3 text-2xl font-black text-slate-900 tracking-tight">{inquiry.title || "제목 없음"}</h1>
-          <p className="mt-1 text-sm text-slate-500">문의 번호 #{inquiry.reportId}</p>
         </div>
-      </header>
+      </section>
 
-      <section className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="px-8 py-6 border-b border-slate-100 flex flex-wrap items-center gap-3">
-          <span className={`px-3 py-1 rounded-lg text-xs font-black ${getStatusClass(inquiry.status)}`}>
+      <section className="overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-7 py-5">
+          <span className={`rounded-lg px-3 py-1.5 text-xs font-black ${getStatusClass(inquiry.status)}`}>
             {toReportStatusLabel(inquiry.status)}
           </span>
+          <div className="text-xs font-semibold text-slate-500">
+            등록일: <span className="font-bold text-slate-700">{formatDate(inquiry.createdAt)}</span>
+          </div>
         </div>
 
-        <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
+        <div className="grid grid-cols-1 gap-4 p-7 md:grid-cols-2">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-2">
             <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">문의자</p>
             <p className="text-base font-bold text-slate-900">{inquiry.reporterNickname || "-"}</p>
           </div>
-          <div className="space-y-2">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-2">
             <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">회신 이메일</p>
             <p className="text-base font-bold text-slate-900 break-all">{inquiry.email || "-"}</p>
           </div>
-          <div className="space-y-2">
-            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">등록일</p>
-            <p className="text-base font-bold text-slate-900">{formatDate(inquiry.createdAt)}</p>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-2">
+            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">문의 유형</p>
+            <p className="text-base font-bold text-slate-900">{inquiry.reportType || inquiry.type || "-"}</p>
           </div>
-          <div className="space-y-2">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-2">
             <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">관련 주문</p>
             <p className="text-base font-bold text-slate-900">{inquiry.orderId ? `#${inquiry.orderId}` : "-"}</p>
           </div>
         </div>
 
-        <div className="px-8 pb-6">
+        <div className="px-7 pb-7">
           <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mb-3">문의 내용</p>
-          <article className="rounded-2xl border border-slate-200 bg-slate-50/70 p-6 text-[15px] leading-7 text-slate-800 whitespace-pre-wrap break-words">
+          <article className="min-h-[220px] rounded-2xl border border-slate-200 bg-slate-50 p-6 text-[15px] leading-7 text-slate-800 whitespace-pre-wrap break-words">
             {inquiry.description || "본문이 없습니다."}
           </article>
         </div>
 
-        <div className="px-8 pb-8 flex flex-wrap items-center justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 px-7 py-5">
           <button
             onClick={() => {
               if (!mailtoLink) return;
               window.location.href = mailtoLink;
             }}
             disabled={!mailtoLink}
-            className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-bold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             이메일 답장
           </button>
           <button
-            onClick={() => {
-              if (targetUserId) {
-                router.push(`/global/chat/personal/${targetUserId}`);
-                return;
-              }
-              if (directRoomId) {
-                router.push(`/global/chat/room/${directRoomId}`);
-              }
-            }}
-            disabled={!targetUserId && !directRoomId}
-            className="px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
+            onClick={() => void handleChangeStatus()}
+            disabled={isUpdatingStatus}
+            className="px-4 py-2 rounded-xl bg-[#4E46E5] text-white text-sm font-bold hover:bg-[#4338CA] disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            채팅 시작
+            {isUpdatingStatus ? "변경 중..." : `${toReportStatusLabel(nextStatus)}로 변경`}
           </button>
         </div>
 
-        {!targetUserId && !directRoomId && (
-          <div className="px-8 pb-8 text-right text-xs font-semibold text-amber-600">
-            문의 데이터에 사용자 ID가 없어 채팅을 시작할 수 없습니다.
+        {statusActionMessage && (
+          <div className="px-7 pb-6 text-right text-xs font-semibold text-slate-600">
+            {statusActionMessage}
           </div>
         )}
       </section>
