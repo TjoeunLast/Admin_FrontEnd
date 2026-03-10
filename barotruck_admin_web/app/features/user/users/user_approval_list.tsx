@@ -1,6 +1,7 @@
 // user_approval_list.tsx
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 interface User {
@@ -32,15 +33,34 @@ const getRoleDetails = (role: string) => {
 
 export default function UserApprovalList({ searchKeyword, filterRole, users = [], isLoading }: UserApprovalListProps) {
   const router = useRouter();
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
 
-  if (isLoading) return <div className="p-10 text-center text-slate-400 font-medium">데이터 로드 중...</div>;
-
-  const filteredData = users.filter(user => {
+  const filteredData = useMemo(() => users.filter(user => {
     const keyword = searchKeyword.toLowerCase();
     const matchesKeyword = !searchKeyword || user.nickname?.toLowerCase().includes(keyword) || user.phone?.includes(keyword) || user.email?.toLowerCase().includes(keyword);
     const matchesRole = filterRole === "전체 회원" || (filterRole === "차주" && user.role === "DRIVER") || (filterRole === "화주" && user.role === "SHIPPER") || (filterRole === "관리자" && user.role === "ADMIN");
     return matchesKeyword && matchesRole;
-  });
+  }), [filterRole, searchKeyword, users]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterRole, searchKeyword, users.length]);
+
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredData.slice(startIndex, startIndex + itemsPerPage);
+  }, [currentPage, filteredData]);
+
+  if (isLoading) return <div className="p-10 text-center text-slate-400 font-medium">데이터 로드 중...</div>;
 
   return (
     <div className="bg-white rounded-[1.5rem] border border-slate-200 shadow-sm overflow-hidden">
@@ -57,8 +77,8 @@ export default function UserApprovalList({ searchKeyword, filterRole, users = []
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
-          {filteredData.length > 0 ? (
-            filteredData.map((user, index) => {
+          {paginatedData.length > 0 ? (
+            paginatedData.map((user, index) => {
               const roleInfo = getRoleDetails(user.role);
 
               // ✅ 핵심 수정: 'A'일 때 비활성 배지 표시
@@ -66,7 +86,7 @@ export default function UserApprovalList({ searchKeyword, filterRole, users = []
               
               return (
                 <tr key={user.userId || index} className="hover:bg-slate-50 cursor-pointer transition-colors" onClick={() => user.userId && router.push(`/global/users/${user.userId}`)}>
-                  <td className="p-4 text-slate-400 text-center font-medium">{index + 1}</td>
+                  <td className="p-4 text-slate-400 text-center font-medium">{(currentPage - 1) * itemsPerPage + index + 1}</td>
                   <td className="p-4 text-center">
                     <span className={`px-2 py-1 rounded-lg text-[10px] font-black border ${roleInfo.color}`}>{roleInfo.label}</span>
                   </td>
@@ -92,6 +112,37 @@ export default function UserApprovalList({ searchKeyword, filterRole, users = []
           )}
         </tbody>
       </table>
+      {totalPages > 1 ? (
+        <div className="flex items-center justify-center gap-2 border-t border-slate-100 bg-slate-50/40 px-6 py-4">
+          <button
+            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-500 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            이전
+          </button>
+          {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+            <button
+              key={page}
+              onClick={() => setCurrentPage(page)}
+              className={`h-9 min-w-9 rounded-lg px-3 text-sm font-bold ${
+                currentPage === page
+                  ? "bg-slate-900 text-white"
+                  : "border border-slate-200 bg-white text-slate-500"
+              }`}
+            >
+              {page}
+            </button>
+          ))}
+          <button
+            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-500 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            다음
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

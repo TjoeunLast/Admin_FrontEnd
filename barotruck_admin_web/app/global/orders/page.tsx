@@ -16,6 +16,8 @@ export default function Order_Page() {
     const [isLoading, setIsLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState('ALL');
     const [searchTerm, setSearchTerm] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 20;
     
     // ✅ 정렬 상태 추가
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'orderId', direction: 'desc' });
@@ -86,6 +88,23 @@ export default function Order_Page() {
 
         setFilteredOrders(result);
     }, [orders, statusFilter, searchTerm, sortConfig]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [statusFilter, searchTerm, sortConfig, orders.length]);
+
+    const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
+
+    const paginatedOrders = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        return filteredOrders.slice(startIndex, startIndex + itemsPerPage);
+    }, [currentPage, filteredOrders]);
+
+    useEffect(() => {
+        if (totalPages > 0 && currentPage > totalPages) {
+            setCurrentPage(totalPages);
+        }
+    }, [currentPage, totalPages]);
 
     // ✅ 정렬 핸들러
     const requestSort = (key: SortConfig['key']) => {
@@ -191,41 +210,80 @@ export default function Order_Page() {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {filteredOrders.map((order) => {
-                            const displayPrice = order.totalPrice || (
-                                (Number(order.basePrice) || 0) + (Number(order.laborFee) || 0)
-                            );
-                            return (
-                                <tr key={order.orderId} className="hover:bg-gray-50/50 transition-all group cursor-default">
-                                    <td className="p-4 text-center">
-                                        <Link href={`/global/orders/${order.orderId}`} className="text-sm font-bold text-blue-600 hover:underline">
-                                            {order.orderId}
-                                        </Link>
-                                    </td>
-                                    <td className="p-4">
-                                        <div className="flex items-center gap-2 justify-center">
-                                            <span className="font-semibold text-gray-800 text-sm">{order.startPlace}</span>
-                                            <span className="text-gray-300 text-xs font-light">→</span>
-                                            <span className="font-semibold text-gray-800 text-sm">{order.endPlace}</span>
-                                        </div>
-                                    </td>
-                                    <td className="p-4 text-center text-gray-700 font-medium text-sm truncate">{order.cargoContent || "일반 화물"}</td>
-                                    <td className="p-4 text-center text-gray-600 text-[13px] font-semibold">
-                                        {order.reqCarType} <span className="text-gray-300 font-normal mx-1">|</span> {order.reqTonnage}
-                                    </td>
-                                    <td className="p-4 text-right pr-8">
-                                        <span className="text-sm font-bold text-gray-900">{displayPrice.toLocaleString()}원</span>
-                                    </td>
-                                    <td className="p-4 text-center">
-                                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-black border ${getStatusClass(order.status)}`}>
-                                            {ORDER_DRIVING_STATUS_MAP[order.status] || order.status}
-                                        </span>
-                                    </td>
-                                </tr>
-                            );
-                        })}
+                        {paginatedOrders.length === 0 ? (
+                            <tr>
+                                <td colSpan={6} className="p-10 text-center text-gray-400">
+                                    표시할 주문이 없습니다.
+                                </td>
+                            </tr>
+                        ) : (
+                            paginatedOrders.map((order) => {
+                                const displayPrice = order.totalPrice || (
+                                    (Number(order.basePrice) || 0) + (Number(order.laborFee) || 0)
+                                );
+                                return (
+                                    <tr key={order.orderId} className="hover:bg-gray-50/50 transition-all group cursor-default">
+                                        <td className="p-4 text-center">
+                                            <Link href={`/global/orders/${order.orderId}`} className="text-sm font-bold text-blue-600 hover:underline">
+                                                {order.orderId}
+                                            </Link>
+                                        </td>
+                                        <td className="p-4">
+                                            <div className="flex items-center gap-2 justify-center">
+                                                <span className="font-semibold text-gray-800 text-sm">{order.startPlace}</span>
+                                                <span className="text-gray-300 text-xs font-light">→</span>
+                                                <span className="font-semibold text-gray-800 text-sm">{order.endPlace}</span>
+                                            </div>
+                                        </td>
+                                        <td className="p-4 text-center text-gray-700 font-medium text-sm truncate">{order.cargoContent || "일반 화물"}</td>
+                                        <td className="p-4 text-center text-gray-600 text-[13px] font-semibold">
+                                            {order.reqCarType} <span className="text-gray-300 font-normal mx-1">|</span> {order.reqTonnage}
+                                        </td>
+                                        <td className="p-4 text-right pr-8">
+                                            <span className="text-sm font-bold text-gray-900">{displayPrice.toLocaleString()}원</span>
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black border ${getStatusClass(order.status)}`}>
+                                                {ORDER_DRIVING_STATUS_MAP[order.status] || order.status}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                );
+                            })
+                        )}
                     </tbody>
                 </table>
+                {totalPages > 1 ? (
+                    <div className="flex items-center justify-center gap-2 border-t border-gray-100 bg-gray-50/60 px-6 py-4">
+                        <button
+                            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                            disabled={currentPage === 1}
+                            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-500 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                            이전
+                        </button>
+                        {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+                            <button
+                                key={page}
+                                onClick={() => setCurrentPage(page)}
+                                className={`h-9 min-w-9 rounded-lg px-3 text-sm font-bold ${
+                                    currentPage === page
+                                        ? 'bg-blue-600 text-white'
+                                        : 'border border-gray-200 bg-white text-gray-500'
+                                }`}
+                            >
+                                {page}
+                            </button>
+                        ))}
+                        <button
+                            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                            disabled={currentPage === totalPages}
+                            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-500 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                            다음
+                        </button>
+                    </div>
+                ) : null}
             </div>
         </div>
     )

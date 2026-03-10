@@ -8,8 +8,8 @@ import {
   cancelOrder, 
   fetchAdminSummary 
 } from "@/app/features/shared/api/order_api";
+import { fetchDriversForAllocation } from "@/app/features/shared/api/user_api";
 import { useRouter } from "next/navigation";
-import apiClient from "@/app/features/shared/api/client";
 
 // 상태별 뱃지 색상 정의
 const statusConfig: Record<string, string> = {
@@ -57,11 +57,8 @@ export default function AdminOrderListPage() {
   const fetchDriverList = async () => {
     setIsDriversLoading(true);
     try {
-      // 역할이 DRIVER인 사용자만 필터링하여 조회
-      const response = await apiClient.get("/api/v1/admin/user", {
-        params: { role: 'DRIVER' }
-      });
-      setAvailableDrivers(response.data);
+      const drivers = await fetchDriversForAllocation();
+      setAvailableDrivers(drivers);
     } catch (error) {
       console.error("차주 목록 로드 실패:", error);
       alert("차주 목록을 불러오지 못했습니다.");
