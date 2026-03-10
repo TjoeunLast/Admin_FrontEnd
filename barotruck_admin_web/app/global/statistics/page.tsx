@@ -97,14 +97,14 @@ export default function StatisticsPage() {
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-6 font-sans">
-      {/* 상단 헤더 */}
+      {/* 1. 상단 헤더: 주문 목록과 동일한 디자인 */}
       <header className="mb-8 pl-1">
         <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
           통계 분석 리포트
         </h1>
       </header>
 
-      {/* 상단 통계 위젯 */}
+      {/* 2. 상단 통계 위젯: 주문 목록과 동일한 카드 디자인 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-sm font-medium text-slate-500 mb-1">전체 매출</p>
@@ -141,7 +141,7 @@ export default function StatisticsPage() {
         </div>
       </div>
 
-      {/* 차트 섹션 */}
+      {/* 3. 차트 섹션: 주문 목록 테이블 영역과 유사한 카드 스타일 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* 지역별 물동량 */}
         <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">

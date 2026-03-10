@@ -206,7 +206,8 @@ export default function DriverSettlementPage() {
       const data = await paymentAdminApi.getSettlements();
       setSettlements(data || []);
     } catch (error) {
-      console.error("정산 데이터 로드 실패:", error);
+      const message = error instanceof Error ? error.message : "알 수 없는 오류";
+      console.error("정산 데이터 로드 실패:", message);
     } finally {
       setIsLoading(false);
     }
@@ -218,10 +219,9 @@ export default function DriverSettlementPage() {
 
   const overview = useMemo(
     () => calculateAdminSettlementOverview(settlements),
-    [settlements],
+    [settlements]
   );
-
-  const stats = useMemo(
+  const cards = useMemo(
     () => [
       {
         title: "차주 총 지급 대상액",
@@ -234,24 +234,33 @@ export default function DriverSettlementPage() {
       },
       {
         title: "차주 지급 대기액",
-        value: overview.pendingPayoutAmount,
-        label: "원",
-        color: "text-amber-600",
+        amount: overview.pendingPayoutAmount,
+        meta: `지급 대기 ${overview.pendingSettlementCount}건`,
+        className: "bg-white border border-[#e2e8f0] shadow-sm",
+        titleClassName: "text-sm text-[#64748b] font-medium",
+        amountClassName: "text-2xl font-black text-[#f97316] mt-1",
+        metaClassName: "text-xs text-slate-400 mt-2",
       },
       {
         title: "차주 지급 완료액",
-        value: overview.completedPayoutAmount,
-        label: "원",
-        color: "text-emerald-600",
+        amount: overview.completedPayoutAmount,
+        meta: `지급 완료 ${overview.completedSettlementCount}건`,
+        className: "bg-white border border-[#e2e8f0] shadow-sm",
+        titleClassName: "text-sm text-[#64748b] font-medium",
+        amountClassName: "text-2xl font-black text-[#10b981] mt-1",
+        metaClassName: "text-xs text-slate-400 mt-2",
       },
       {
         title: "플랫폼 수수료 수익",
-        value: overview.totalFeeAmount,
-        label: "원",
-        color: "text-blue-600",
+        amount: overview.totalFeeAmount,
+        meta: "결제/정산 데이터 기준",
+        className: "bg-[#eff6ff] border border-[#bfdbfe] shadow-sm",
+        titleClassName: "text-sm text-[#2563eb] font-bold",
+        amountClassName: "text-2xl font-black text-[#2563eb] mt-1",
+        metaClassName: "text-xs text-[#60a5fa] mt-2",
       },
     ],
-    [overview],
+    [overview]
   );
 
   const filteredSettlements = useMemo(() => {
@@ -261,15 +270,28 @@ export default function DriverSettlementPage() {
         (item.driverName || `차주(${item.driverUserId})`)
           .toLowerCase()
           .includes(searchTerm.trim().toLowerCase());
+
       const matchesStatus =
         statusFilter === "전체 상태" ||
         (statusFilter === "지급 완료" && isSettlementCompleted(item)) ||
         (statusFilter === "지급 대기" && !isSettlementCompleted(item));
+
       return matchesSearch && matchesStatus;
     });
   }, [searchTerm, settlements, statusFilter]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, settlements.length]);
+
   const totalPages = Math.ceil(filteredSettlements.length / itemsPerPage);
+
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
   const paginatedSettlements = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredSettlements.slice(startIndex, startIndex + itemsPerPage);
@@ -359,22 +381,17 @@ export default function DriverSettlementPage() {
     }));
   }, []);
 
-  const getStatusClass = (status: SettlementWorkflowStatus) => {
-    switch (status) {
-      case "COMPLETED":
-        return "bg-emerald-50 text-emerald-600 border-emerald-100";
-      case "WAIT":
-        return "bg-amber-50 text-amber-600 border-amber-100";
-      default:
-        return "bg-slate-50 text-slate-500 border-slate-200";
-    }
-  };
-
   const handlePayout = async (orderId: number) => {
     const settlement = settlements.find((item) => item.orderId === orderId);
-    if (!settlement) return;
+    if (!settlement) {
+      alert("정산 정보를 찾을 수 없습니다.");
+      return;
+    }
+
     const settlementStatus = getEffectiveSettlementStatus(settlement);
-    if (hasPaymentTracking(settlement) && !isPaymentCompleted(settlement)) {
+    const paymentLocked =
+      hasPaymentTracking(settlement) && !isPaymentCompleted(settlement);
+    if (paymentLocked) {
       alert("화주 입금이 완료된 뒤에만 지급 실행할 수 있습니다.");
       return;
     }
@@ -382,6 +399,7 @@ export default function DriverSettlementPage() {
       alert("지급 보류 상태입니다. 상태를 지급 대기로 바꾼 뒤 실행하세요.");
       return;
     }
+
     if (!confirm("해당 건의 지급을 확정하시겠습니까?")) return;
     try {
       setSubmittingOrderId(orderId);
@@ -401,7 +419,7 @@ export default function DriverSettlementPage() {
       const message = getErrorMessage(error, "지급 처리 중 오류가 발생했습니다.");
       alert(message);
     } finally {
-      setSubmittingOrderId(null);
+      setSubmittingOrderId((prev) => (prev === orderId ? null : prev));
     }
   };
 
@@ -441,19 +459,49 @@ export default function DriverSettlementPage() {
       const currentStatus = getEffectiveSettlementStatus(settlement);
       const nextStatus =
         selectedSettlementStatusByOrder[settlement.orderId] ?? currentStatus;
-      if (nextStatus === currentStatus) return;
-      let adminMemo: string | null = null;
+
+      if (nextStatus === currentStatus) {
+        alert("변경할 정산 상태를 선택하세요.");
+        return;
+      }
+
+      let message = "";
+      if (nextStatus === "WAIT") {
+        message = "지급 보류로 전환합니다. 서버가 결제/분쟁 상태를 함께 동기화합니다.";
+      } else if (nextStatus === "READY") {
+        message = "지급 대기로 전환합니다. 서버가 보류 상태를 해제하고 정산 상태를 동기화합니다.";
+      } else {
+        message = "지급 완료로 전환합니다.";
+      }
+
+      let adminMemo: string | null | undefined;
       if (nextStatus === "WAIT" || nextStatus === "READY") {
-        const input = window.prompt("메모를 입력하세요.", "");
-        if (input === null) return;
+        const input = window.prompt(
+          nextStatus === "WAIT"
+            ? "보류 사유를 입력하세요. 비워두면 기본 메모로 처리됩니다."
+            : "보류 해제 메모를 입력하세요. 비워두면 기본 메모로 처리됩니다.",
+          ""
+        );
+        if (input === null) {
+          return;
+        }
         adminMemo = input.trim() || null;
       }
+
+      if (
+        !confirm(
+          `주문 #${settlement.orderId} 정산 상태를 ${SETTLEMENT_STATUS_LABELS[nextStatus]}로 변경하시겠습니까?\n${message}`
+        )
+      ) {
+        return;
+      }
+
       try {
         setSubmittingOrderId(settlement.orderId);
         await paymentAdminApi.updateSettlementStatus(
           settlement.orderId,
           nextStatus,
-          adminMemo,
+          adminMemo
         );
         await loadSettlements();
         setSelectedSettlementStatusByOrder((prev) => {
@@ -469,125 +517,100 @@ export default function DriverSettlementPage() {
         const message = getErrorMessage(error, "정산 상태 변경 중 오류가 발생했습니다.");
         alert(message);
       } finally {
-        setSubmittingOrderId(null);
+        setSubmittingOrderId((prev) => (prev === settlement.orderId ? null : prev));
       }
     },
     [expandedOrderId, loadDriverOpsPanel, loadSettlements, selectedSettlementStatusByOrder]
   );
 
   return (
-    <div className="max-w-[1600px] mx-auto space-y-6 font-sans">
-      <header className="mb-8 pl-1 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-          정산 및 매출 관리
-        </h1>
-        <div className="flex gap-2 bg-slate-100 p-1 rounded-xl">
-          <button className="bg-white text-slate-900 px-4 py-2 rounded-lg font-bold text-sm shadow-sm">
+    <main className="space-y-8 p-6">
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-extrabold text-[#1e293b]">정산 및 매출 관리</h1>
+          <p className="text-sm text-[#64748b] mt-1">화주 청구 및 차주 지급 현황을 통합 관리합니다.</p>
+        </div>
+        <div className="bg-[#e2e8f0] p-1 rounded-xl flex gap-1 shadow-inner">
+          <button className="px-5 py-2 rounded-lg text-sm font-bold bg-white text-[#1e293b] shadow-sm">
             차주 정산
           </button>
           <Link href="/global/billing/settlement/shipper">
-            <button className="text-slate-500 px-4 py-2 rounded-lg font-bold text-sm hover:bg-white/50 transition-all">
+            <button className="px-5 py-2 rounded-lg text-sm font-bold text-[#64748b] hover:bg-white/50 transition-all">
               화주 정산
             </button>
           </Link>
         </div>
-      </header>
-
-      {/* 주문 목록 페이지와 동일한 카드 디자인 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-        {stats.map((s) => (
-          <div
-            key={s.title}
-            className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
-          >
-            <p className="text-sm font-medium text-slate-500 mb-1">{s.title}</p>
-            <div className="flex items-baseline gap-1">
-              <p className={`text-3xl font-bold ${s.color}`}>
-                {formatAmount(s.value)}
-              </p>
-              <span className="text-sm font-medium text-slate-400">
-                {s.label}
-              </span>
-            </div>
-          </div>
-        ))}
       </div>
 
-      {/* 필터 섹션 통일 */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 flex gap-4 items-end shadow-sm">
-        <div className="w-44">
-          <label className="text-xs font-bold text-slate-500 mb-2 block uppercase tracking-wider">
-            정산 상태
-          </label>
-          <select
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-all cursor-pointer"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+      <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+        {cards.map((card) => (
+          <div
+            key={card.title}
+            className={`${card.className} p-6 rounded-2xl`}
           >
-            <option value="전체 상태">전체 상태</option>
-            <option value="지급 대기">지급 대기</option>
-            <option value="지급 완료">지급 완료</option>
-          </select>
-        </div>
-        <div className="flex-1">
-          <label className="text-xs font-bold text-slate-500 mb-2 block uppercase tracking-wider">
-            차주 검색
-          </label>
-          <input
-            type="text"
-            placeholder="차주명을 입력하세요"
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-all"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="flex items-center gap-2 pb-2">
+            <div className={card.titleClassName}>{card.title}</div>
+            <div className={card.amountClassName}>₩{formatAmount(card.amount)}</div>
+            <div className={card.metaClassName}>{card.meta}</div>
+          </div>
+        ))}
+      </section>
+
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <input 
+          type="text" 
+          placeholder="차주명을 검색하세요" 
+          className="border border-[#e2e8f0] rounded-lg px-4 py-2 text-sm w-64 outline-none focus:border-blue-500"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+        <select
+          className="border border-[#e2e8f0] rounded-lg px-4 py-2 text-sm outline-none"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option>전체 상태</option>
+          <option>지급 대기</option>
+          <option>지급 완료</option>
+        </select>
+        <label className="flex items-center gap-2 rounded-lg border border-[#e2e8f0] bg-white px-3 py-2 text-sm text-slate-600">
           <input
             type="checkbox"
-            id="moreCol"
             checked={showPaymentColumns}
             onChange={(e) => setShowPaymentColumns(e.target.checked)}
           />
-          <label
-            htmlFor="moreCol"
-            className="text-sm font-bold text-slate-500 cursor-pointer"
-          >
-            상세 컬럼
-          </label>
-        </div>
+          추가 결제 컬럼 보기
+        </label>
       </div>
 
-      {/* 테이블 영역 통일 */}
-      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
-        <table className="w-full text-left border-collapse table-fixed">
-          <thead>
-            <tr className="bg-slate-50/50 border-b border-slate-200">
-              <th className="w-24 p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                차주
-              </th>
-              <th className="w-[20%] p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                계좌 정보
-              </th>
-              <th className="w-32 p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                완료일
-              </th>
-              <th className="w-32 p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                지급액
-              </th>
-              {showPaymentColumns && (
-                <th className="p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                  결제상태
-                </th>
-              )}
-              <th className="p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider w-28">
-                상태
-              </th>
-              <th className="p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider w-44">
-                관리
-              </th>
+      <div className="bg-white rounded-2xl border border-[#e2e8f0] shadow-sm">
+        <div className="overflow-x-auto">
+          <table
+            className={`w-full min-w-[1080px] text-sm ${
+              showPaymentColumns ? "xl:min-w-[1520px]" : ""
+            }`}
+          >
+          <thead className="bg-[#f8fafc] border-b-2 border-[#e2e8f0]">
+            <tr className="text-[#64748b] font-bold">
+              <th className="p-4 w-12"><input type="checkbox" /></th>
+              <th className="p-4 text-left min-w-[150px]">지급 대상(차주)</th>
+              <th className="p-4 text-left min-w-[170px]">은행/계좌번호</th>
+              <th className="p-4 min-w-[110px] whitespace-nowrap">운송 완료일</th>
+              <th className="p-4 min-w-[120px] text-right whitespace-nowrap">총 지급액</th>
+              {showPaymentColumns ? (
+                <>
+                  <th className="p-4 min-w-[110px] whitespace-nowrap">결제 상태</th>
+                  <th className="p-4 min-w-[90px] whitespace-nowrap">결제 수단</th>
+                  <th className="p-4 min-w-[90px] whitespace-nowrap">결제 시점</th>
+                  <th className="p-4 min-w-[100px] text-right whitespace-nowrap">수수료</th>
+                  <th className="p-4 min-w-[110px] text-right whitespace-nowrap">실지급액</th>
+                  <th className="p-4 min-w-[150px] whitespace-nowrap">결제 완료시각</th>
+                </>
+              ) : null}
+              <th className="p-4 min-w-[96px] whitespace-nowrap">상태</th>
+              <th className="p-4 min-w-[240px] text-right whitespace-nowrap">관리</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 text-center">
+          <tbody>
             {isLoading ? (
               <tr><td colSpan={tableColumnCount} className="p-10 text-slate-400">데이터를 불러오는 중...</td></tr>
             ) : paginatedSettlements.length === 0 ? (
@@ -808,6 +831,6 @@ export default function DriverSettlementPage() {
           </div>
         ) : null}
       </div>
-    </div>
+    </main>
   );
 }
