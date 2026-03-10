@@ -1,4 +1,4 @@
-// app/features/shared/api/report_api.ts
+﻿// app/features/shared/api/report_api.ts
 import client from "./client";
 
 export interface PagedResponse<T> {

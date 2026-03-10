@@ -2,8 +2,7 @@
 import Link from "next/link";
 import { useEffect, useState, useMemo } from "react";
 import {
-  fetchOrders,
-  fetchAdminSummary,
+  fetchOrdersPage,
 } from "./../../features/shared/api/order_api";
 import {
   OrderListResponse,
@@ -20,6 +19,10 @@ export default function Order_Page() {
   const [orders, setOrders] = useState<OrderListResponse[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<OrderListResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [pageSize] = useState(20);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -27,6 +30,13 @@ export default function Order_Page() {
     key: "orderId",
     direction: "desc",
   });
+
+  // 주소 요약 함수 (앞의 두 단어만 추출: 서울특별시 강남구...)
+  const formatAddress = (addr: string) => {
+    if (!addr) return "-";
+    const parts = addr.split(" ");
+    return parts.length > 1 ? `${parts[0]} ${parts[1]}` : parts[0];
+  };
 
   const stats = useMemo(() => {
     const total = orders.length;
@@ -41,9 +51,12 @@ export default function Order_Page() {
 
   useEffect(() => {
     const loadOrders = async () => {
+      setIsLoading(true);
       try {
-        const data = await fetchOrders();
-        setOrders(data);
+        const data = await fetchOrdersPage(page, pageSize);
+        setOrders(data.content);
+        setTotalPages(data.totalPages);
+        setTotalElements(data.totalElements);
       } catch (error) {
         console.error("주문 목록을 불러오는데 실패하였습니다.", error);
       } finally {
@@ -51,7 +64,7 @@ export default function Order_Page() {
       }
     };
     loadOrders();
-  }, []);
+  }, [page, pageSize]);
 
   useEffect(() => {
     let result = [...orders];
@@ -265,15 +278,22 @@ export default function Order_Page() {
                     </Link>
                   </td>
                   <td className="p-5">
-                    <div className="flex items-center gap-2 justify-center">
-                      <span className="font-bold text-slate-800 text-sm">
-                        {order.startPlace}
+                    <div className="flex items-center gap-3 justify-center">
+                      <span className="font-bold text-slate-800 text-[14px]">
+                        {formatAddress(order.startPlace)}
                       </span>
-                      <span className="text-slate-300 text-xs font-light">
-                        →
-                      </span>
-                      <span className="font-bold text-slate-800 text-sm">
-                        {order.endPlace}
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#CBD5E1"
+                        strokeWidth="4"
+                      >
+                        <path d="M5 12h14M12 5l7 7-7 7" />
+                      </svg>
+                      <span className="font-bold text-slate-800 text-[14px]">
+                        {formatAddress(order.endPlace)}
                       </span>
                     </div>
                   </td>
@@ -302,6 +322,39 @@ export default function Order_Page() {
             })}
           </tbody>
         </table>
+        {totalPages > 1 ? (
+          <div className="flex items-center justify-center gap-2 border-t border-[#e2e8f0] bg-[#f8fafc] px-6 py-4">
+            <button
+              onClick={() => setPage((prev) => Math.max(prev - 1, 0))}
+              disabled={page === 0}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-500 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              이전
+            </button>
+            {Array.from({ length: totalPages }, (_, index) => index).map((pageNumber) => (
+              <button
+                key={pageNumber}
+                onClick={() => setPage(pageNumber)}
+                className={`h-9 min-w-9 rounded-lg px-3 text-sm font-bold ${
+                  page === pageNumber
+                    ? "bg-slate-900 text-white"
+                    : "border border-slate-200 bg-white text-slate-500"
+                }`}
+              >
+                {pageNumber + 1}
+              </button>
+            ))}
+            <button
+              onClick={() =>
+                setPage((prev) => (prev + 1 < totalPages ? prev + 1 : prev))
+              }
+              disabled={totalPages === 0 || page + 1 >= totalPages}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-500 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              다음
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );

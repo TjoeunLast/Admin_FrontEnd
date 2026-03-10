@@ -11,11 +11,13 @@ import {
 import { getUserDetail } from "@/app/features/shared/api/user_api";
 import {
   calculateAdminSettlementOverview,
+  getEffectivePaymentStatus,
   getEffectiveSettlementStatus,
   getPayoutAmount,
   hasPaymentTracking,
   isPaymentCompleted,
   isSettlementCompleted,
+  PAYMENT_STATUS_LABELS,
   SETTLEMENT_STATUS_LABELS,
 } from "@/app/features/shared/lib/admin_settlement_overview";
 import {
@@ -33,12 +35,47 @@ const getSettlementStatusBadgeClass = (
   status: SettlementWorkflowStatus
 ): string => {
   if (status === "COMPLETED") {
-    return "bg-green-50 text-green-500";
+    return "bg-emerald-50 text-emerald-600";
   }
   if (status === "WAIT") {
     return "bg-amber-50 text-amber-700";
   }
   return "bg-orange-50 text-orange-500";
+};
+
+const getPaymentStatusBadgeClass = (status: string): string => {
+  if (status === "CONFIRMED" || status === "PAID" || status === "ADMIN_FORCE_CONFIRMED") {
+    return "bg-emerald-50 text-emerald-600";
+  }
+  if (status === "DISPUTED" || status === "ADMIN_HOLD") {
+    return "bg-amber-50 text-amber-700";
+  }
+  if (status === "ADMIN_REJECTED" || status === "CANCELLED") {
+    return "bg-rose-50 text-rose-600";
+  }
+  return "bg-slate-100 text-slate-600";
+};
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  CARD: "카드",
+  CASH: "현금",
+  TRANSFER: "이체",
+  BANK_TRANSFER: "이체",
+};
+
+const PAYMENT_TIMING_LABELS: Record<string, string> = {
+  PREPAID: "선결제",
+  POSTPAID: "후결제",
+};
+
+const getPaymentMethodLabel = (value?: string | null) => {
+  const normalized = String(value ?? "").trim().toUpperCase();
+  return PAYMENT_METHOD_LABELS[normalized] ?? value ?? "-";
+};
+
+const getPaymentTimingLabel = (value?: string | null) => {
+  const normalized = String(value ?? "").trim().toUpperCase();
+  return PAYMENT_TIMING_LABELS[normalized] ?? value ?? "-";
 };
 
 const getHttpStatus = (error: unknown): number | null => {
@@ -169,8 +206,7 @@ export default function DriverSettlementPage() {
       const data = await paymentAdminApi.getSettlements();
       setSettlements(data || []);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "알 수 없는 오류";
-      console.error("정산 데이터 로드 실패:", message);
+      console.error("정산 데이터 로드 실패:", error);
     } finally {
       setIsLoading(false);
     }
@@ -182,14 +218,15 @@ export default function DriverSettlementPage() {
 
   const overview = useMemo(
     () => calculateAdminSettlementOverview(settlements),
-    [settlements]
+    [settlements],
   );
-  const cards = useMemo(
+
+  const stats = useMemo(
     () => [
       {
         title: "차주 총 지급 대상액",
         amount: overview.totalPayoutAmount,
-        meta: `지급 대상 ${overview.totalCount}건`,
+        meta: `지급 대상 ${overview.payoutTargetCount}건`,
         className: "bg-[#0f172a] text-white shadow-sm",
         titleClassName: "text-sm text-slate-300 font-medium",
         amountClassName: "text-2xl font-black mt-1",
@@ -197,33 +234,24 @@ export default function DriverSettlementPage() {
       },
       {
         title: "차주 지급 대기액",
-        amount: overview.pendingPayoutAmount,
-        meta: `지급 대기 ${overview.pendingSettlementCount}건`,
-        className: "bg-white border border-[#e2e8f0] shadow-sm",
-        titleClassName: "text-sm text-[#64748b] font-medium",
-        amountClassName: "text-2xl font-black text-[#f97316] mt-1",
-        metaClassName: "text-xs text-slate-400 mt-2",
+        value: overview.pendingPayoutAmount,
+        label: "원",
+        color: "text-amber-600",
       },
       {
         title: "차주 지급 완료액",
-        amount: overview.completedPayoutAmount,
-        meta: `지급 완료 ${overview.completedSettlementCount}건`,
-        className: "bg-white border border-[#e2e8f0] shadow-sm",
-        titleClassName: "text-sm text-[#64748b] font-medium",
-        amountClassName: "text-2xl font-black text-[#10b981] mt-1",
-        metaClassName: "text-xs text-slate-400 mt-2",
+        value: overview.completedPayoutAmount,
+        label: "원",
+        color: "text-emerald-600",
       },
       {
         title: "플랫폼 수수료 수익",
-        amount: overview.totalFeeAmount,
-        meta: "결제/정산 데이터 기준",
-        className: "bg-[#eff6ff] border border-[#bfdbfe] shadow-sm",
-        titleClassName: "text-sm text-[#2563eb] font-bold",
-        amountClassName: "text-2xl font-black text-[#2563eb] mt-1",
-        metaClassName: "text-xs text-[#60a5fa] mt-2",
+        value: overview.totalFeeAmount,
+        label: "원",
+        color: "text-blue-600",
       },
     ],
-    [overview]
+    [overview],
   );
 
   const filteredSettlements = useMemo(() => {
@@ -233,34 +261,29 @@ export default function DriverSettlementPage() {
         (item.driverName || `차주(${item.driverUserId})`)
           .toLowerCase()
           .includes(searchTerm.trim().toLowerCase());
-
       const matchesStatus =
         statusFilter === "전체 상태" ||
         (statusFilter === "지급 완료" && isSettlementCompleted(item)) ||
         (statusFilter === "지급 대기" && !isSettlementCompleted(item));
-
       return matchesSearch && matchesStatus;
     });
   }, [searchTerm, settlements, statusFilter]);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, statusFilter, settlements.length]);
-
   const totalPages = Math.ceil(filteredSettlements.length / itemsPerPage);
-
-  useEffect(() => {
-    if (totalPages > 0 && currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
-
   const paginatedSettlements = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredSettlements.slice(startIndex, startIndex + itemsPerPage);
   }, [currentPage, filteredSettlements]);
 
   const formatAmount = (value: number) => new Intl.NumberFormat("ko-KR").format(value);
+  const formatCompactDate = (value?: string | null) =>
+    value
+      ? new Date(value).toLocaleDateString("ko-KR", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        })
+      : "-";
   const formatCompactDateTime = (value?: string | null) =>
     value
       ? new Date(value).toLocaleString("ko-KR", {
@@ -336,17 +359,22 @@ export default function DriverSettlementPage() {
     }));
   }, []);
 
+  const getStatusClass = (status: SettlementWorkflowStatus) => {
+    switch (status) {
+      case "COMPLETED":
+        return "bg-emerald-50 text-emerald-600 border-emerald-100";
+      case "WAIT":
+        return "bg-amber-50 text-amber-600 border-amber-100";
+      default:
+        return "bg-slate-50 text-slate-500 border-slate-200";
+    }
+  };
+
   const handlePayout = async (orderId: number) => {
     const settlement = settlements.find((item) => item.orderId === orderId);
-    if (!settlement) {
-      alert("정산 정보를 찾을 수 없습니다.");
-      return;
-    }
-
+    if (!settlement) return;
     const settlementStatus = getEffectiveSettlementStatus(settlement);
-    const paymentLocked =
-      hasPaymentTracking(settlement) && !isPaymentCompleted(settlement);
-    if (paymentLocked) {
+    if (hasPaymentTracking(settlement) && !isPaymentCompleted(settlement)) {
       alert("화주 입금이 완료된 뒤에만 지급 실행할 수 있습니다.");
       return;
     }
@@ -354,7 +382,6 @@ export default function DriverSettlementPage() {
       alert("지급 보류 상태입니다. 상태를 지급 대기로 바꾼 뒤 실행하세요.");
       return;
     }
-
     if (!confirm("해당 건의 지급을 확정하시겠습니까?")) return;
     try {
       setSubmittingOrderId(orderId);
@@ -374,7 +401,7 @@ export default function DriverSettlementPage() {
       const message = getErrorMessage(error, "지급 처리 중 오류가 발생했습니다.");
       alert(message);
     } finally {
-      setSubmittingOrderId((prev) => (prev === orderId ? null : prev));
+      setSubmittingOrderId(null);
     }
   };
 
@@ -414,49 +441,19 @@ export default function DriverSettlementPage() {
       const currentStatus = getEffectiveSettlementStatus(settlement);
       const nextStatus =
         selectedSettlementStatusByOrder[settlement.orderId] ?? currentStatus;
-
-      if (nextStatus === currentStatus) {
-        alert("변경할 정산 상태를 선택하세요.");
-        return;
-      }
-
-      let message = "";
-      if (nextStatus === "WAIT") {
-        message = "지급 보류로 전환합니다. 서버가 결제/분쟁 상태를 함께 동기화합니다.";
-      } else if (nextStatus === "READY") {
-        message = "지급 대기로 전환합니다. 서버가 보류 상태를 해제하고 정산 상태를 동기화합니다.";
-      } else {
-        message = "지급 완료로 전환합니다.";
-      }
-
-      let adminMemo: string | null | undefined;
+      if (nextStatus === currentStatus) return;
+      let adminMemo: string | null = null;
       if (nextStatus === "WAIT" || nextStatus === "READY") {
-        const input = window.prompt(
-          nextStatus === "WAIT"
-            ? "보류 사유를 입력하세요. 비워두면 기본 메모로 처리됩니다."
-            : "보류 해제 메모를 입력하세요. 비워두면 기본 메모로 처리됩니다.",
-          ""
-        );
-        if (input === null) {
-          return;
-        }
+        const input = window.prompt("메모를 입력하세요.", "");
+        if (input === null) return;
         adminMemo = input.trim() || null;
       }
-
-      if (
-        !confirm(
-          `주문 #${settlement.orderId} 정산 상태를 ${SETTLEMENT_STATUS_LABELS[nextStatus]}로 변경하시겠습니까?\n${message}`
-        )
-      ) {
-        return;
-      }
-
       try {
         setSubmittingOrderId(settlement.orderId);
         await paymentAdminApi.updateSettlementStatus(
           settlement.orderId,
           nextStatus,
-          adminMemo
+          adminMemo,
         );
         await loadSettlements();
         setSelectedSettlementStatusByOrder((prev) => {
@@ -472,100 +469,125 @@ export default function DriverSettlementPage() {
         const message = getErrorMessage(error, "정산 상태 변경 중 오류가 발생했습니다.");
         alert(message);
       } finally {
-        setSubmittingOrderId((prev) => (prev === settlement.orderId ? null : prev));
+        setSubmittingOrderId(null);
       }
     },
     [expandedOrderId, loadDriverOpsPanel, loadSettlements, selectedSettlementStatusByOrder]
   );
 
   return (
-    <main className="space-y-8 p-6">
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-3xl font-extrabold text-[#1e293b]">정산 및 매출 관리</h1>
-          <p className="text-sm text-[#64748b] mt-1">화주 청구 및 차주 지급 현황을 통합 관리합니다.</p>
-        </div>
-        <div className="bg-[#e2e8f0] p-1 rounded-xl flex gap-1 shadow-inner">
-          <button className="px-5 py-2 rounded-lg text-sm font-bold bg-white text-[#1e293b] shadow-sm">
+    <div className="max-w-[1600px] mx-auto space-y-6 font-sans">
+      <header className="mb-8 pl-1 flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+          정산 및 매출 관리
+        </h1>
+        <div className="flex gap-2 bg-slate-100 p-1 rounded-xl">
+          <button className="bg-white text-slate-900 px-4 py-2 rounded-lg font-bold text-sm shadow-sm">
             차주 정산
           </button>
           <Link href="/global/billing/settlement/shipper">
-            <button className="px-5 py-2 rounded-lg text-sm font-bold text-[#64748b] hover:bg-white/50 transition-all">
+            <button className="text-slate-500 px-4 py-2 rounded-lg font-bold text-sm hover:bg-white/50 transition-all">
               화주 정산
             </button>
           </Link>
         </div>
-      </div>
+      </header>
 
-      <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-        {cards.map((card) => (
+      {/* 주문 목록 페이지와 동일한 카드 디자인 */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        {stats.map((s) => (
           <div
-            key={card.title}
-            className={`${card.className} p-6 rounded-2xl`}
+            key={s.title}
+            className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
           >
-            <div className={card.titleClassName}>{card.title}</div>
-            <div className={card.amountClassName}>₩{formatAmount(card.amount)}</div>
-            <div className={card.metaClassName}>{card.meta}</div>
+            <p className="text-sm font-medium text-slate-500 mb-1">{s.title}</p>
+            <div className="flex items-baseline gap-1">
+              <p className={`text-3xl font-bold ${s.color}`}>
+                {formatAmount(s.value)}
+              </p>
+              <span className="text-sm font-medium text-slate-400">
+                {s.label}
+              </span>
+            </div>
           </div>
         ))}
-      </section>
+      </div>
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <input 
-          type="text" 
-          placeholder="차주명을 검색하세요" 
-          className="border border-[#e2e8f0] rounded-lg px-4 py-2 text-sm w-64 outline-none focus:border-blue-500"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        <select
-          className="border border-[#e2e8f0] rounded-lg px-4 py-2 text-sm outline-none"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          <option>전체 상태</option>
-          <option>지급 대기</option>
-          <option>지급 완료</option>
-        </select>
-        <label className="flex items-center gap-2 rounded-lg border border-[#e2e8f0] bg-white px-3 py-2 text-sm text-slate-600">
+      {/* 필터 섹션 통일 */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 flex gap-4 items-end shadow-sm">
+        <div className="w-44">
+          <label className="text-xs font-bold text-slate-500 mb-2 block uppercase tracking-wider">
+            정산 상태
+          </label>
+          <select
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-all cursor-pointer"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="전체 상태">전체 상태</option>
+            <option value="지급 대기">지급 대기</option>
+            <option value="지급 완료">지급 완료</option>
+          </select>
+        </div>
+        <div className="flex-1">
+          <label className="text-xs font-bold text-slate-500 mb-2 block uppercase tracking-wider">
+            차주 검색
+          </label>
+          <input
+            type="text"
+            placeholder="차주명을 입력하세요"
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-all"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <div className="flex items-center gap-2 pb-2">
           <input
             type="checkbox"
+            id="moreCol"
             checked={showPaymentColumns}
             onChange={(e) => setShowPaymentColumns(e.target.checked)}
           />
-          추가 결제 컬럼 보기
-        </label>
+          <label
+            htmlFor="moreCol"
+            className="text-sm font-bold text-slate-500 cursor-pointer"
+          >
+            상세 컬럼
+          </label>
+        </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-[#e2e8f0] shadow-sm">
-        <div className="overflow-x-auto">
-          <table
-            className={`w-full min-w-[980px] text-sm text-center ${
-              showPaymentColumns ? "xl:min-w-[1440px]" : ""
-            }`}
-          >
-          <thead className="bg-[#f8fafc] border-b-2 border-[#e2e8f0]">
-            <tr className="text-[#64748b] font-bold">
-              <th className="p-4 w-12"><input type="checkbox" /></th>
-              <th className="p-4">지급 대상(차주)</th>
-              <th className="p-4">은행/계좌번호</th>
-              <th className="p-4">운송 완료일</th>
-              <th className="p-4">총 지급액</th>
-              {showPaymentColumns ? (
-                <>
-                  <th className="p-4">결제 상태</th>
-                  <th className="p-4">결제 수단</th>
-                  <th className="p-4">결제 시점</th>
-                  <th className="p-4">수수료</th>
-                  <th className="p-4">실지급액</th>
-                  <th className="p-4">결제 완료시각</th>
-                </>
-              ) : null}
-              <th className="p-4">상태</th>
-              <th className="p-4">관리</th>
+      {/* 테이블 영역 통일 */}
+      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+        <table className="w-full text-left border-collapse table-fixed">
+          <thead>
+            <tr className="bg-slate-50/50 border-b border-slate-200">
+              <th className="w-24 p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                차주
+              </th>
+              <th className="w-[20%] p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                계좌 정보
+              </th>
+              <th className="w-32 p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                완료일
+              </th>
+              <th className="w-32 p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                지급액
+              </th>
+              {showPaymentColumns && (
+                <th className="p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  결제상태
+                </th>
+              )}
+              <th className="p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider w-28">
+                상태
+              </th>
+              <th className="p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider w-44">
+                관리
+              </th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-slate-100 text-center">
             {isLoading ? (
               <tr><td colSpan={tableColumnCount} className="p-10 text-slate-400">데이터를 불러오는 중...</td></tr>
             ) : paginatedSettlements.length === 0 ? (
@@ -573,6 +595,7 @@ export default function DriverSettlementPage() {
             ) : (
               paginatedSettlements.map((s) => {
                 const settlementStatus = getEffectiveSettlementStatus(s);
+                const paymentStatus = getEffectivePaymentStatus(s);
                 const settlementDone = isSettlementCompleted(s);
                 const settlementHeld = settlementStatus === "WAIT";
                 const paymentLocked =
@@ -586,46 +609,66 @@ export default function DriverSettlementPage() {
                 return (
                   <Fragment key={s.settlementId}>
                     <tr key={s.settlementId} className="border-b border-[#f1f5f9] hover:bg-[#f8fafc] transition-all">
-                      <td className="p-4"><input type="checkbox" /></td>
-                      <td className="p-4 text-center font-bold">
-                        {s.driverName || `차주(${s.driverUserId})`} 
+                      <td className="p-4 text-center align-top"><input type="checkbox" /></td>
+                      <td className="p-4 align-top">
+                        <div className="text-sm font-bold text-slate-900">
+                          {s.driverName || `차주(${s.driverUserId})`}
+                        </div>
+                        <div className="mt-1 text-xs text-slate-400">
+                          주문 #{s.orderId}
+                        </div>
                       </td>
-                      <td className="p-4 text-center text-slate-500">
+                      <td className="p-4 align-top text-slate-500">
                         {s.bankName && s.accountNum 
-                          ? `${s.bankName} ${s.accountNum}` 
-                          : "계좌 정보 없음"}
+                          ? (
+                            <div className="space-y-1">
+                              <div className="text-sm font-medium text-slate-700">{s.bankName}</div>
+                              <div className="text-xs text-slate-500">{s.accountNum}</div>
+                            </div>
+                          )
+                          : <span className="text-xs text-slate-400">계좌 정보 없음</span>}
                       </td>
-                      <td className="p-4 text-slate-500">
-                        {s.feeDate ? new Date(s.feeDate).toLocaleDateString() : "-"}
+                      <td className="p-4 align-top whitespace-nowrap text-center text-sm text-slate-500">
+                        {formatCompactDate(s.feeDate)}
                       </td>
-                      <td className="p-4 font-black text-slate-900">
+                      <td className="p-4 align-top text-right font-black tabular-nums text-slate-900">
                         {formatAmount(getPayoutAmount(s))}원
                       </td>
                       {showPaymentColumns ? (
                         <>
-                          <td className="p-4 text-slate-600">{s.paymentStatus || "-"}</td>
-                          <td className="p-4 text-slate-600">{s.paymentMethod || "-"}</td>
-                          <td className="p-4 text-slate-600">{s.paymentTiming || "-"}</td>
-                          <td className="p-4 text-slate-600">
+                          <td className="p-4 align-top text-center">
+                            <span
+                              className={`inline-flex min-w-[72px] justify-center rounded-full px-3 py-1 text-[11px] font-bold ${getPaymentStatusBadgeClass(paymentStatus)}`}
+                            >
+                              {PAYMENT_STATUS_LABELS[paymentStatus]}
+                            </span>
+                          </td>
+                          <td className="p-4 align-top text-center text-sm text-slate-600">
+                            {getPaymentMethodLabel(s.paymentMethod)}
+                          </td>
+                          <td className="p-4 align-top text-center text-sm text-slate-600">
+                            {getPaymentTimingLabel(s.paymentTiming)}
+                          </td>
+                          <td className="p-4 align-top text-right tabular-nums text-sm text-slate-600">
                             {s.paymentFeeAmount != null ? `${formatAmount(s.paymentFeeAmount)}원` : "-"}
                           </td>
-                          <td className="p-4 text-slate-600">
+                          <td className="p-4 align-top text-right tabular-nums text-sm text-slate-600">
                             {s.paymentNetAmount != null ? `${formatAmount(s.paymentNetAmount)}원` : "-"}
                           </td>
-                          <td className="p-4 text-slate-600">
-                            {s.paidAt ? new Date(s.paidAt).toLocaleString() : "-"}
+                          <td className="p-4 align-top whitespace-nowrap text-center text-sm text-slate-600">
+                            {formatCompactDateTime(s.paidAt)}
                           </td>
                         </>
                       ) : null}
-                      <td className="p-4">
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${
+                      <td className="p-4 align-top text-center">
+                        <span className={`inline-flex min-w-[72px] justify-center rounded-full px-3 py-1 text-[11px] font-bold ${
                           getSettlementStatusBadgeClass(settlementStatus)
                         }`}>
                           {SETTLEMENT_STATUS_LABELS[settlementStatus]}
                         </span>
                       </td>
-                      <td className="p-4">
-                        <div className="flex flex-col items-center gap-2">
+                      <td className="p-4 align-top">
+                        <div className="flex flex-col items-end gap-2">
                           <select
                             value={selectedSettlementStatus}
                             onChange={(e) =>
@@ -634,7 +677,7 @@ export default function DriverSettlementPage() {
                                 [s.orderId]: e.target.value as SettlementWorkflowStatus,
                               }))
                             }
-                            className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium text-slate-700"
+                            className="min-w-[104px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700"
                           >
                             {SETTLEMENT_STATUS_OPTIONS.map((option) => (
                               <option key={option} value={option}>
@@ -642,11 +685,11 @@ export default function DriverSettlementPage() {
                               </option>
                             ))}
                           </select>
-                          <div className="flex items-center justify-center gap-2">
+                          <div className="flex flex-wrap justify-end gap-2">
                             <button
                               onClick={() => void handleApplySettlementStatus(s)}
                               disabled={isSubmitting || selectedSettlementStatus === settlementStatus}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                              className={`min-w-[78px] rounded-lg border px-3 py-2 text-xs font-bold transition-all ${
                                 isSubmitting || selectedSettlementStatus === settlementStatus
                                   ? "bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed"
                                   : "bg-white border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white"
@@ -657,7 +700,7 @@ export default function DriverSettlementPage() {
                             <button 
                               onClick={() => void handlePayout(s.orderId)}
                               disabled={settlementDone || settlementHeld || paymentLocked || isSubmitting}
-                              className={`px-4 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                              className={`min-w-[78px] rounded-lg border px-4 py-2 text-xs font-bold transition-all ${
                                 settlementDone
                                   ? "bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed"
                                   : settlementHeld
@@ -670,62 +713,44 @@ export default function DriverSettlementPage() {
                               }`}
                             >
                               {settlementDone
-                                ? "지급 완료"
+                                ? "지급완료"
                                 : settlementHeld
-                                  ? "지급 보류"
+                                  ? "지급보류"
                                   : paymentLocked
-                                    ? "입금 대기"
+                                    ? "입금대기"
                                     : isSubmitting
-                                      ? "처리중..."
-                                      : "지급 실행"}
+                                      ? "처리중"
+                                      : "지급실행"}
                             </button>
                           </div>
-                          <button
-                            onClick={() => {
-                              if (isOpsExpanded) {
-                                setExpandedOrderId(null);
-                                return;
-                              }
-                              setExpandedOrderId(s.orderId);
-                              void loadDriverOpsPanel(s);
-                            }}
-                            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600 transition-all hover:bg-slate-100"
-                          >
-                            {isOpsExpanded ? "운영 패널 닫기" : "지급 운영 보기"}
-                          </button>
-                          {isOpsExpanded ? (
+                          <div className="flex flex-wrap justify-end gap-2">
                             <button
-                              onClick={() => void handleSyncPayout(s)}
-                              disabled={isSubmitting}
-                              className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-all ${
-                                isSubmitting
-                                  ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
-                                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
-                              }`}
+                              onClick={() => {
+                                if (isOpsExpanded) {
+                                  setExpandedOrderId(null);
+                                  return;
+                                }
+                                setExpandedOrderId(s.orderId);
+                                void loadDriverOpsPanel(s);
+                              }}
+                              className="min-w-[92px] rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600 transition-all hover:bg-slate-100"
                             >
-                              {isSubmitting ? "동기화중..." : "지급 상태 동기화"}
+                              {isOpsExpanded ? "패널닫기" : "운영보기"}
                             </button>
-                          ) : null}
-                          {opsState ? (
-                            <div className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-left text-[11px] text-slate-500">
-                              <div>payout {opsState.payoutItem?.status ?? "미생성"}</div>
-                              <div>
-                                seller{" "}
-                                {opsState.sellerInfo?.sellerStatus ??
-                                  opsState.payoutItem?.sellerStatus ??
-                                  "연결 대기"}
-                              </div>
-                              <div>
-                                webhook{" "}
-                                {formatCompactDateTime(
-                                  opsState.payoutItem?.lastWebhookProcessedAt ??
-                                    opsState.payoutItem?.lastWebhookReceivedAt ??
-                                    opsState.payoutItem?.completedAt ??
-                                    opsState.payoutItem?.requestedAt
-                                )}
-                              </div>
-                            </div>
-                          ) : null}
+                            {isOpsExpanded ? (
+                              <button
+                                onClick={() => void handleSyncPayout(s)}
+                                disabled={isSubmitting}
+                                className={`min-w-[92px] rounded-lg border px-3 py-2 text-xs font-bold transition-all ${
+                                  isSubmitting
+                                    ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
+                                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+                                }`}
+                              >
+                                {isSubmitting ? "동기화중" : "상태동기화"}
+                              </button>
+                            ) : null}
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -783,6 +808,6 @@ export default function DriverSettlementPage() {
           </div>
         ) : null}
       </div>
-    </main>
+    </div>
   );
 }
