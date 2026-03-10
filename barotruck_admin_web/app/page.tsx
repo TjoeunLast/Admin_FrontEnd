@@ -11,7 +11,7 @@ import {
 import { DashboardCard } from "./features/dashboard/card";
 import { SettlementSummaryCard } from "./features/dashboard/settlement_summary_card";
 import { OrderListResponse } from "./features/orders/type";
-import { BarChart, Home, Users } from "lucide-react";
+import { Home } from "lucide-react";
 
 interface DashboardUser {
   enrollDate?: string;
@@ -42,14 +42,30 @@ export default function DashboardPage() {
         .finally(() => setIsSummaryLoading(false));
 
       try {
-        const [orderData, userData, settlementData] = await Promise.all([
+        // Promise.all을 allSettled로 변경하여 일부 API 실패 시에도 전체가 중단되지 않도록 수정
+        const results = await Promise.allSettled([
           fetchOrders(),
           getUsers(),
           paymentAdminApi.getSettlements("COMPLETED"),
         ]);
-        setOrders(orderData);
-        setUsers(userData);
-        setSettlements(settlementData);
+
+        if (results[0].status === "fulfilled") {
+          setOrders(results[0].value);
+        } else {
+          console.error("대시보드 주문 데이터 로딩 실패:", results[0].reason);
+        }
+
+        if (results[1].status === "fulfilled") {
+          setUsers(results[1].value);
+        } else {
+          console.error("대시보드 사용자 데이터 로딩 실패:", results[1].reason);
+        }
+
+        if (results[2].status === "fulfilled") {
+          setSettlements(results[2].value);
+        } else {
+          console.error("대시보드 정산 데이터 로딩 실패:", results[2].reason);
+        }
       } catch (error) {
         console.error("데이터 로딩 실패", error);
       } finally {
@@ -62,102 +78,131 @@ export default function DashboardPage() {
   }, []);
 
   const stats = useMemo(() => {
-    const today = new Date().toISOString().split("T")[0];
+    const now = new Date();
+    const koreaTime = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    const today = koreaTime.toISOString().split("T")[0];
+
     const newOrdersList = orders.filter((o) => o.status === "REQUESTED");
     const recentMembers = users.filter(
-      (u) => u.enrollDate?.includes(today) || u.enrolldate?.includes(today)
+      (u) => u.enrollDate?.includes(today) || u.enrolldate?.includes(today),
     ).length;
     const todayCompleted = orders.filter((o) => o.status === "ACCEPTED");
 
     return {
       newOrders: newOrdersList,
-      recentMemberCount: recentMembers || users.length,
+      recentMemberCount: recentMembers,
       completedCount: todayCompleted.length,
       settledList: settlements.slice(0, 5),
     };
   }, [orders, users, settlements]);
 
   if (isLoading)
-    return <div className="min-h-screen p-10 text-center text-sm text-[#475569]">관제 데이터를 연결 중입니다...</div>;
+    return (
+      <div className="min-h-screen p-10 text-center text-sm text-[#475569]">
+        관제 데이터를 연결 중입니다...
+      </div>
+    );
 
   return (
-    <div className="min-h-screen space-y-8 bg-gradient-to-b from-[#f8fafc] to-[#fbfbff] p-6 font-sans">
-      <header className="space-y-2 rounded-[26px] border border-[#E2E8F0] bg-white/70 px-6 py-5 shadow-[0_10px_40px_rgba(15,23,42,0.08)] backdrop-blur">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#F1F5F9] text-[#4E46E5]">
-            <Home size={24} strokeWidth={2.2} />
-          </div>
+    <div className="space-y-6 font-sans">
+      <header className="mb-8 pl-1">
+        <div className="flex items-center gap-3 mb-2">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[#94A3B8]">LIVE MONITORING</p>
-            <h1 className="text-3xl font-black text-[#0F172A]">통합 관제 대시보드</h1>
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+              통합 관제 대시보드
+            </h1>
           </div>
         </div>
-        <p className="text-sm text-[#64748B]">
-          최근 주문·회원·정산 흐름을 한 화면에서 확인하고 필요하면 빠르게 설정으로 이동해 보세요.
-        </p>
       </header>
-
       <section className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        <DashboardCard title="신규 오더" value={stats.newOrders.length} label="건" colorClass="text-[#4E46E5]" />
-        <DashboardCard title="오늘 신규 회원" value={stats.recentMemberCount} label="명" colorClass="text-[#0f766e]" />
-        <DashboardCard title="오늘 배차 완료" value={stats.completedCount} label="건" colorClass="text-[#0F172A]" />
+        <DashboardCard
+          title="신규 오더"
+          value={stats.newOrders.length}
+          label="건"
+          colorClass="text-[#4E46E5]"
+        />
+        <DashboardCard
+          title="오늘 신규 회원"
+          value={stats.recentMemberCount}
+          label="명"
+          colorClass="text-[#0f766e]"
+        />
+        <DashboardCard
+          title="오늘 배차 완료"
+          value={stats.completedCount}
+          label="건"
+          colorClass="text-[#0F172A]"
+        />
       </section>
 
-      <SettlementSummaryCard summary={settlementSummary} isLoading={isSummaryLoading} />
+      <SettlementSummaryCard
+        summary={settlementSummary}
+        isLoading={isSummaryLoading}
+      />
 
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="rounded-[26px] border border-[#E2E8F0] bg-white/70 p-6 shadow-[0_10px_30px_rgba(15,23,42,0.07)]">
-          <div className="flex items-center justify-between">
-            <div className="flex gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#E0F2FE] text-[#0E7490]">
-                <BarChart size={18} strokeWidth={2.2} />
-              </div>
-              <div>
-                <p className="text-sm font-black uppercase tracking-[0.3em] text-[#94A3B8]">배차 대기</p>
-                <h2 className="text-xl font-black text-[#0F172A]">신규 오더 현황</h2>
-              </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg font-bold text-slate-800">
+                신규 오더 현황
+              </h2>
+              <span className="px-2.5 py-0.5 rounded-md bg-slate-100 text-xs font-bold text-slate-500">
+                배차 대기
+              </span>
             </div>
-            <span className="rounded-full bg-[#F8FAFC] px-3 py-1 text-xs font-bold text-[#4E46E5]">
-              최대 5개
-            </span>
+            <span className="text-xs font-medium text-slate-400">최근 5건</span>
           </div>
           <div className="mt-5 divide-y divide-[#E2E8F0]">
             {stats.newOrders.slice(0, 5).map((order) => (
-              <div key={order.orderId} className="flex items-center justify-between gap-4 py-4">
+              <div
+                key={order.orderId}
+                className="flex items-center justify-between gap-4 py-4"
+              >
                 <div>
-                  <p className="text-base font-bold text-[#0F172A]">{order.startPlace} → {order.endPlace}</p>
-                  <p className="text-xs font-semibold text-[#94A3B8]">{order.cargoContent || "상세 정보 없음"}</p>
+                  <p className="text-sm font-bold text-slate-800">
+                    {order.startPlace} → {order.endPlace}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {order.cargoContent || "상세 정보 없음"}
+                  </p>
                 </div>
-                <span className="rounded-full bg-[#EDECFC] px-3 py-1 text-[11px] font-bold text-[#4E46E5]">
-                  배차 대기
+                <span className="px-2 py-1 rounded bg-indigo-50 text-[11px] font-bold text-indigo-600">
+                  대기중
                 </span>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="rounded-[26px] border border-[#E2E8F0] bg-white/70 p-6 shadow-[0_10px_30px_rgba(15,23,42,0.07)]">
-          <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#DCFCE7] text-[#15803D]">
-              <Users size={18} strokeWidth={2.2} />
-            </div>
-            <div>
-              <p className="text-sm font-black uppercase tracking-[0.3em] text-[#94A3B8]">정산 히스토리</p>
-              <h2 className="text-xl font-black text-[#0F172A]">최근 지급 내역</h2>
-            </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-bold text-slate-800">최근 지급 내역</h2>
+            <span className="text-xs font-medium text-slate-400">
+              정산 히스토리
+            </span>
           </div>
           <div className="mt-5 space-y-4 divide-y divide-[#E2E8F0]/60">
             {stats.settledList.map((item) => (
-              <div key={item.settlementId} className="flex items-center justify-between gap-4 py-4">
+              <div
+                key={item.settlementId}
+                className="flex items-center justify-between gap-4 py-4"
+              >
                 <div>
-                  <p className="text-sm font-black text-[#0F172A]">{item.driverName} 차주님</p>
-                  <p className="text-xs text-[#94A3B8]">
+                  <p className="text-sm font-bold text-slate-800">
+                    {item.driverName} 차주님
+                  </p>
+                  <p className="text-xs text-slate-500 mt-0.5">
                     {item.bankName} · {item.accountNum}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-base font-black text-[#0F172A]">{item.totalPrice.toLocaleString()}원</p>
-                  <span className="text-[11px] font-bold text-[#047857]">지급 완료</span>
+                  <p className="text-sm font-bold text-slate-900">
+                    {item.totalPrice.toLocaleString()}원
+                  </p>
+                  <span className="text-[10px] font-bold text-emerald-600">
+                    지급 완료
+                  </span>
                 </div>
               </div>
             ))}
