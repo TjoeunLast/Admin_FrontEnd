@@ -124,6 +124,12 @@ export const reportApi = {
     return fetchAllReports();
   },
 
+  // 관리자 신고 삭제
+  deleteReport: async (reportId: number): Promise<boolean> => {
+    const response = await client.delete(`/api/reports/admin/${reportId}`);
+    return response.data;
+  },
+
   // 2. 상태 갱신 (접수됨, 처리 중, 처리 완료 등)
   updateReportStatus: async (
     reportId: number,

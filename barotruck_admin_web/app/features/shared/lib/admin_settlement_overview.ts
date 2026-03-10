@@ -33,20 +33,20 @@ const SETTLEMENT_STATUSES = new Set<SettlementWorkflowStatus>([
 ]);
 
 export const PAYMENT_STATUS_LABELS: Record<TransportPaymentStatus, string> = {
-  READY: "결제 준비",
-  PAID: "결제 완료",
-  CONFIRMED: "차주 확인",
-  DISPUTED: "이의 제기",
-  ADMIN_HOLD: "관리자 보류",
-  ADMIN_FORCE_CONFIRMED: "강제 확정",
-  ADMIN_REJECTED: "관리자 반려",
-  CANCELLED: "결제 취소",
+  READY: "결제대기",
+  PAID: "입금완료",
+  CONFIRMED: "확인완료",
+  DISPUTED: "이의접수",
+  ADMIN_HOLD: "지급보류",
+  ADMIN_FORCE_CONFIRMED: "강제확정",
+  ADMIN_REJECTED: "관리반려",
+  CANCELLED: "결제취소",
 };
 
 export const SETTLEMENT_STATUS_LABELS: Record<SettlementWorkflowStatus, string> = {
-  READY: "지급 대기",
-  WAIT: "지급 보류",
-  COMPLETED: "지급 완료",
+  READY: "지급대기",
+  WAIT: "지급보류",
+  COMPLETED: "지급완료",
 };
 
 export interface AdminSettlementOverview {
