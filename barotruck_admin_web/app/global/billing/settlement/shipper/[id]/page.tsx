@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, use, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   fetchOrderDetail,
@@ -47,7 +47,7 @@ const getHttpStatus = (error: unknown): number | null => {
   return typeof response?.status === "number" ? response.status : null;
 };
 
-export default function ShipperDetailPage({
+function ShipperDetailPageContent({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -469,5 +469,15 @@ export default function ShipperDetailPage({
         onSubmit={handleCreateDispute}
       />
     </main>
+  );
+}
+
+export default function ShipperDetailPage(props: {
+  params: Promise<{ id: string }>;
+}) {
+  return (
+    <Suspense fallback={<div className="p-6 text-slate-400">정산 상세를 불러오는 중...</div>}>
+      <ShipperDetailPageContent {...props} />
+    </Suspense>
   );
 }

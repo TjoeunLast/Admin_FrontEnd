@@ -37,7 +37,7 @@ export const settlementApi = {
     getAll: async (status?: string): Promise<SettlementResponse[]> => {
         // ★ 중요: client의 baseURL이 'http://localhost:8080/api/v1'이라면 
         // 아래 경로는 "/settlements/me"로 수정해야 합니다.
-        const response = await client.get<ApiResponse<SettlementResponse[]>>("/api/v1/settlements/me", {
+        const response = await client.get<ApiResponse<SettlementResponse[]>>("/api/v1/settlements/admin/list", {
             params: { status }
         });
         

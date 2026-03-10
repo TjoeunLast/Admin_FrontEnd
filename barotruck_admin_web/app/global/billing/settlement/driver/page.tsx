@@ -287,10 +287,6 @@ export default function DriverSettlementPage() {
         </label>
       </div>
 
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-        차주 정산 상태는 서버의 관리자 정산 상태 API로 전환됩니다. `지급 보류`, `지급 대기`, `지급 완료`를 변경하면 백엔드가 결제/분쟁 상태도 같이 정리합니다.
-      </div>
-
       <div className="bg-white rounded-2xl border border-[#e2e8f0] overflow-hidden shadow-sm">
         <table className="w-full text-sm text-center">
           <thead className="bg-[#f8fafc] border-b-2 border-[#e2e8f0]">
