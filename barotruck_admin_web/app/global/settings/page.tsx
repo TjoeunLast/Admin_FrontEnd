@@ -2,6 +2,14 @@
 
 import { useEffect, useState } from "react";
 import {
+  Bell,
+  CreditCard,
+  Megaphone,
+  Settings2,
+  Truck,
+  Users,
+} from "lucide-react";
+import {
   paymentAdminApi,
   FeePolicyResponse,
 } from "@/app/features/shared/api/payment_admin_api";
@@ -19,33 +27,64 @@ const DEFAULT_POLICY: FeePolicyResponse = {
   updatedAt: null,
 };
 
-export default function System_Setting_Page() {
-  const [formData, setFormData] = useState({
-    level0Rate: toPercent(DEFAULT_POLICY.level0Rate),
-    level1Rate: toPercent(DEFAULT_POLICY.level1Rate),
-    level2Rate: toPercent(DEFAULT_POLICY.level2Rate),
-    level3PlusRate: toPercent(DEFAULT_POLICY.level3PlusRate),
-    firstPaymentPromoRate: toPercent(DEFAULT_POLICY.firstPaymentPromoRate),
-    minFee: DEFAULT_POLICY.minFee,
-    dispatchTimeout: 15,       // 배차 수락 제한 시간
-    trackingInterval: '1분 (실시간)', // 위치 공유 간격
-    allowPush: true,           // 웹 푸시 알림
-    allowSms: false,           // 중요 장애 SMS
-    operationStatus: '정상 운영' // 서비스 운영 상태 (예시 추가)
-  });
+type SettingsForm = {
+  level0Rate: number;
+  level1Rate: number;
+  level2Rate: number;
+  level3PlusRate: number;
+  firstPaymentPromoRate: number;
+  minFee: number;
+  operationMode: string;
+  signupApproval: string;
+  minimumAppVersion: string;
+  forceUpdate: boolean;
+  showNoticeBanner: boolean;
+  noticeMessage: string;
+  allowReservationOrder: boolean;
+  allowUrgentDispatch: boolean;
+  autoCancelWindow: string;
+  dispatchPriority: string;
+  allowBrowserPush: boolean;
+  allowNightAlert: boolean;
+  inquiryPriority: string;
+  supportNotice: string;
+};
+
+const INITIAL_SETTINGS: SettingsForm = {
+  level0Rate: toPercent(DEFAULT_POLICY.level0Rate),
+  level1Rate: toPercent(DEFAULT_POLICY.level1Rate),
+  level2Rate: toPercent(DEFAULT_POLICY.level2Rate),
+  level3PlusRate: toPercent(DEFAULT_POLICY.level3PlusRate),
+  firstPaymentPromoRate: toPercent(DEFAULT_POLICY.firstPaymentPromoRate),
+  minFee: DEFAULT_POLICY.minFee,
+  operationMode: "정상 운영",
+  signupApproval: "관리자 승인 후 활성화",
+  minimumAppVersion: "1.0.0",
+  forceUpdate: false,
+  showNoticeBanner: true,
+  noticeMessage: "현재 서비스는 정상 운영 중입니다.",
+  allowReservationOrder: true,
+  allowUrgentDispatch: true,
+  autoCancelWindow: "24시간",
+  dispatchPriority: "직접 배차 우선",
+  allowBrowserPush: true,
+  allowNightAlert: true,
+  inquiryPriority: "결제/정산 문의 우선",
+  supportNotice: "야간 장애 이슈는 우선 대응 대상으로 분류합니다.",
+};
+
+const sectionCardClass =
+  "rounded-[22px] border border-[#E2E8F0] bg-white p-6 shadow-[0_2px_10px_rgba(15,23,42,0.05)]";
+
+const fieldClass =
+  "w-full rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 text-sm font-semibold text-[#0F172A] outline-none transition focus:border-[#4E46E5] focus:ring-2 focus:ring-[#EDECFC]";
+
+const labelClass = "mb-2 block text-xs font-bold uppercase tracking-[0.16em] text-[#64748B]";
+
+export default function SystemSettingPage() {
+  const [formData, setFormData] = useState<SettingsForm>(INITIAL_SETTINGS);
   const [isPolicyLoading, setIsPolicyLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target as HTMLInputElement;
-    const val =
-      type === 'checkbox'
-        ? (e.target as HTMLInputElement).checked
-        : type === 'number'
-          ? Number(value)
-          : value;
-    setFormData(prev => ({ ...prev, [name]: val }));
-  };
 
   const applyPolicyToForm = (policy: FeePolicyResponse) => {
     setFormData((prev) => ({
@@ -74,8 +113,23 @@ export default function System_Setting_Page() {
       }
     };
 
-    loadPolicy();
+    void loadPolicy();
   }, []);
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    const target = e.target as HTMLInputElement;
+    const nextValue =
+      target.type === "checkbox"
+        ? target.checked
+        : target.type === "number"
+          ? Number(value)
+          : value;
+
+    setFormData((prev) => ({ ...prev, [name]: nextValue }));
+  };
 
   const handleSaveFeePolicy = async () => {
     try {
@@ -99,155 +153,493 @@ export default function System_Setting_Page() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-20">
-      {/* 1. 상단 헤더 */}
-      <div className="flex justify-between items-end border-b border-slate-200 pb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-[#1e293b]">⚙️ 시스템 제어 센터</h1>
-          <p className="text-sm text-[#64748b] mt-1">운송 정책 및 전역 시스템 설정을 관리합니다.</p>
-        </div>
-        <button
-          onClick={handleSaveFeePolicy}
-          disabled={isPolicyLoading || isSaving}
-          className="bg-[#3b82f6] text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-600 transition-all shadow-lg active:scale-95 disabled:bg-slate-300 disabled:cursor-not-allowed"
-        >
-          {isSaving ? "저장 중..." : "수수료 정책 저장"}
-        </button>
-      </div>
-
-      {/* 2. 그리드 레이아웃: 개인 정보 카드를 빼고 정책 중심으로 재배치 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        
-        {/* 카드 1: 정산 정책 */}
-        <section className="bg-white p-6 rounded-2xl border border-[#e2e8f0] shadow-sm flex flex-col">
-          <div className="flex items-center gap-2 mb-6">
-            <span className="text-lg text-emerald-500">💰</span>
-            <h2 className="font-bold text-[#1e293b]">정산 정책</h2>
+    <div className="mx-auto max-w-7xl space-y-6 pb-20">
+      <section className="rounded-[24px] border border-[#E2E8F0] bg-white px-7 py-7 shadow-[0_2px_10px_rgba(15,23,42,0.05)]">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-3xl space-y-3">
+            <span className="inline-flex w-fit rounded-full bg-[#EDECFC] px-3 py-1 text-xs font-bold tracking-[0.16em] text-[#4E46E5]">
+              APP SETTINGS
+            </span>
+            <div>
+              <h1 className="text-[28px] font-black tracking-tight text-[#0F172A]">시스템 설정</h1>
+              <p className="mt-2 text-sm leading-6 text-[#64748B]">
+                앱 운영자가 자주 보는 공통 설정만 모았습니다. 수수료 정책은 실제 API와 연결되어 있고,
+                나머지 항목은 운영 기준을 정리하기 쉽게 재구성했습니다.
+              </p>
+            </div>
           </div>
+
+          <div className="flex flex-wrap gap-2">
+            <span className="rounded-full bg-[#DCFCE7] px-3 py-2 text-xs font-bold text-[#15803D]">
+              실저장: 레벨별 수수료 정책
+            </span>
+            <span className="rounded-full bg-[#F1F5F9] px-3 py-2 text-xs font-bold text-[#64748B]">
+              운영 UI: 앱 관리 기준 정리
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        <div className={`${sectionCardClass} space-y-6`}>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#EDE9FE]">
+                <CreditCard size={22} color="#4E46E5" strokeWidth={2.2} />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-xl font-black tracking-tight text-[#0F172A]">수수료 정책</h2>
+                  <span className="rounded-full bg-[#EDECFC] px-3 py-1 text-[11px] font-bold text-[#4E46E5]">
+                    payment API 연동
+                  </span>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-[#64748B]">
+                  레벨별 수수료와 첫 결제 프로모션, 최소 수수료를 관리합니다.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={handleSaveFeePolicy}
+              disabled={isPolicyLoading || isSaving}
+              className="rounded-2xl bg-[#4E46E5] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#4840D3] disabled:cursor-not-allowed disabled:bg-[#CBD5E1]"
+            >
+              {isSaving ? "저장 중..." : "수수료 정책 저장"}
+            </button>
+          </div>
+
           {isPolicyLoading ? (
-            <div className="flex-grow rounded-xl bg-slate-50 p-6 text-sm text-slate-400">
+            <div className="rounded-[20px] border border-[#E2E8F0] bg-[#F8FAFC] px-5 py-10 text-sm font-semibold text-[#94A3B8]">
               수수료 정책을 불러오는 중입니다.
             </div>
           ) : (
-            <div className="space-y-4 flex-grow">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex justify-between items-center p-4 bg-slate-50 rounded-xl">
-                  <span className="text-sm font-medium text-slate-600">레벨 0</span>
-                  <div className="flex items-center gap-2">
-                    <input type="number" step="0.1" name="level0Rate" value={formData.level0Rate} onChange={handleChange} className="w-14 text-right font-bold text-blue-600 bg-transparent outline-none" />
-                    <span className="text-sm font-bold">%</span>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center p-4 bg-slate-50 rounded-xl">
-                  <span className="text-sm font-medium text-slate-600">레벨 1</span>
-                  <div className="flex items-center gap-2">
-                    <input type="number" step="0.1" name="level1Rate" value={formData.level1Rate} onChange={handleChange} className="w-14 text-right font-bold text-blue-600 bg-transparent outline-none" />
-                    <span className="text-sm font-bold">%</span>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center p-4 bg-slate-50 rounded-xl">
-                  <span className="text-sm font-medium text-slate-600">레벨 2</span>
-                  <div className="flex items-center gap-2">
-                    <input type="number" step="0.1" name="level2Rate" value={formData.level2Rate} onChange={handleChange} className="w-14 text-right font-bold text-blue-600 bg-transparent outline-none" />
-                    <span className="text-sm font-bold">%</span>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center p-4 bg-slate-50 rounded-xl">
-                  <span className="text-sm font-medium text-slate-600">레벨 3+</span>
-                  <div className="flex items-center gap-2">
-                    <input type="number" step="0.1" name="level3PlusRate" value={formData.level3PlusRate} onChange={handleChange} className="w-14 text-right font-bold text-blue-600 bg-transparent outline-none" />
-                    <span className="text-sm font-bold">%</span>
-                  </div>
-                </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <SettingNumber
+                  label="레벨 0 수수료"
+                  name="level0Rate"
+                  value={formData.level0Rate}
+                  onChange={handleChange}
+                  suffix="%"
+                  step="0.1"
+                />
+                <SettingNumber
+                  label="레벨 1 수수료"
+                  name="level1Rate"
+                  value={formData.level1Rate}
+                  onChange={handleChange}
+                  suffix="%"
+                  step="0.1"
+                />
+                <SettingNumber
+                  label="레벨 2 수수료"
+                  name="level2Rate"
+                  value={formData.level2Rate}
+                  onChange={handleChange}
+                  suffix="%"
+                  step="0.1"
+                />
+                <SettingNumber
+                  label="레벨 3+ 수수료"
+                  name="level3PlusRate"
+                  value={formData.level3PlusRate}
+                  onChange={handleChange}
+                  suffix="%"
+                  step="0.1"
+                />
               </div>
-              <div className="flex justify-between items-center p-4 bg-slate-50 rounded-xl">
-                <span className="text-sm font-medium text-slate-600">첫 결제 프로모션</span>
-                <div className="flex items-center gap-2">
-                  <input type="number" step="0.1" name="firstPaymentPromoRate" value={formData.firstPaymentPromoRate} onChange={handleChange} className="w-14 text-right font-bold text-blue-600 bg-transparent outline-none" />
-                  <span className="text-sm font-bold">%</span>
-                </div>
-              </div>
-              <div className="flex justify-between items-center p-4 bg-slate-50 rounded-xl">
-                <span className="text-sm font-medium text-slate-600">최소 수수료</span>
-                <div className="flex items-center gap-2">
-                  <input type="number" step="100" name="minFee" value={formData.minFee} onChange={handleChange} className="w-24 text-right font-bold text-blue-600 bg-transparent outline-none" />
-                  <span className="text-sm font-bold">원</span>
-                </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_1fr]">
+                <SettingNumber
+                  label="첫 결제 프로모션"
+                  name="firstPaymentPromoRate"
+                  value={formData.firstPaymentPromoRate}
+                  onChange={handleChange}
+                  suffix="%"
+                  step="0.1"
+                />
+                <SettingNumber
+                  label="최소 수수료"
+                  name="minFee"
+                  value={formData.minFee}
+                  onChange={handleChange}
+                  suffix="원"
+                  step="100"
+                />
               </div>
             </div>
           )}
-          <p className="mt-4 text-[11px] text-slate-400 leading-relaxed">
-            * 이 카드의 값은 관리자 payment 수수료 정책 API와 직접 연동됩니다.
-          </p>
-        </section>
 
-        {/* 카드 2: 배차 운영 */}
-        <section className="bg-white p-6 rounded-2xl border border-[#e2e8f0] shadow-sm flex flex-col">
-          <div className="flex items-center gap-2 mb-6">
-            <span className="text-lg text-orange-500">🚚</span>
-            <h2 className="font-bold text-[#1e293b]">배차 운영</h2>
+          <div className="rounded-[18px] bg-[#F8FAFC] px-4 py-3 text-sm leading-6 text-[#64748B]">
+            화주 레벨 정책은 앱 화면보다 결제/정산 백엔드 로직에서 직접 반영됩니다.
           </div>
-          <div className="space-y-6">
-            <div className="space-y-3">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">배차 수락 제한 시간</label>
-              <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-xl">
-                <input type="range" name="dispatchTimeout" min="5" max="60" step="5" value={formData.dispatchTimeout} onChange={handleChange} className="flex-grow h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-500" />
-                <span className="text-sm font-bold w-10 text-right text-blue-600">{formData.dispatchTimeout}분</span>
+        </div>
+
+        <div className={`${sectionCardClass} space-y-5`}>
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#E0E7FF]">
+              <Settings2 size={22} color="#4E46E5" strokeWidth={2.2} />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-xl font-black tracking-tight text-[#0F172A]">앱 운영 정책</h2>
+                <span className="rounded-full bg-[#F1F5F9] px-3 py-1 text-[11px] font-bold text-[#64748B]">
+                  운영 기준
+                </span>
               </div>
-            </div>
-            <div className="space-y-3">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">위치 공유 주기</label>
-              <select name="trackingInterval" value={formData.trackingInterval} onChange={handleChange} className="w-full p-3 border border-[#e2e8f0] rounded-xl text-sm bg-slate-50 font-medium outline-none focus:ring-1 focus:ring-blue-500">
-                <option>1분 (실시간)</option>
-                <option>5분 (일반)</option>
-                <option>10분 (절전)</option>
-              </select>
+              <p className="mt-2 text-sm leading-6 text-[#64748B]">
+                앱 상태, 가입 승인, 버전 운영처럼 전체 서비스 톤을 잡는 공통 기준입니다.
+              </p>
             </div>
           </div>
-        </section>
 
-        {/* 카드 3: 서비스 상태 (새로 추가하거나 기존 알림 카드를 배치) */}
-        <section className="bg-white p-6 rounded-2xl border border-[#e2e8f0] shadow-sm flex flex-col">
-          <div className="flex items-center gap-2 mb-6">
-            <span className="text-lg text-blue-500">🌐</span>
-            <h2 className="font-bold text-[#1e293b]">서비스 가용성</h2>
-          </div>
-          <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 mb-4">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-semibold text-blue-700">현재 시스템 상태</span>
-              <span className="px-2 py-1 bg-blue-500 text-white text-[10px] rounded-full font-bold">정상</span>
-            </div>
-          </div>
-          <p className="text-xs text-slate-500 leading-relaxed">
-            현재 전국의 모든 배차 및 위치 추적 서버가 정상 작동 중입니다. 점검 예약이 필요한 경우 시스템 관리자에게 문의하세요.
-          </p>
-        </section>
+          <SettingSelect
+            label="서비스 상태"
+            name="operationMode"
+            value={formData.operationMode}
+            onChange={handleChange}
+            options={["정상 운영", "점검 예정", "긴급 점검"]}
+          />
+          <SettingSelect
+            label="회원가입 승인 방식"
+            name="signupApproval"
+            value={formData.signupApproval}
+            onChange={handleChange}
+            options={["관리자 승인 후 활성화", "즉시 가입 허용", "서류 검수 후 활성화"]}
+          />
+          <SettingText
+            label="최소 지원 앱 버전"
+            name="minimumAppVersion"
+            value={formData.minimumAppVersion}
+            onChange={handleChange}
+          />
+          <SettingToggle
+            label="강제 업데이트 적용"
+            description="최소 지원 버전 미만 사용자는 앱 업데이트를 먼저 요구합니다."
+            name="forceUpdate"
+            checked={formData.forceUpdate}
+            onChange={handleChange}
+          />
+          <SettingToggle
+            label="상단 운영 배너 노출"
+            description="점검, 공지, 중요 정책 변경 시 홈 상단 공지 배너를 노출하는 기준입니다."
+            name="showNoticeBanner"
+            checked={formData.showNoticeBanner}
+            onChange={handleChange}
+          />
+          <SettingTextarea
+            label="운영 배너 문구"
+            name="noticeMessage"
+            value={formData.noticeMessage}
+            onChange={handleChange}
+            rows={3}
+          />
+        </div>
+      </section>
 
-        {/* 카드 4: 업무 알림 설정 (하단에 넓게 배치) */}
-        <section className="bg-white p-6 rounded-2xl border border-[#e2e8f0] shadow-sm lg:col-span-3">
-          <div className="flex items-center gap-2 mb-6">
-            <span className="text-lg text-purple-500">🔔</span>
-            <h2 className="font-bold text-[#1e293b]">전역 알림 설정</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex items-center justify-between p-4 border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors">
-              <div className="space-y-0.5">
-                <p className="text-sm font-bold text-slate-700">실시간 브라우저 푸시</p>
-                <p className="text-[11px] text-slate-400">관리자 대시보드 내 신규 주문 및 문의 발생 알림 활성화</p>
+      <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <div className={`${sectionCardClass} space-y-5`}>
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#EFF6FF]">
+              <Truck size={22} color="#2563EB" strokeWidth={2.2} />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-xl font-black tracking-tight text-[#0F172A]">주문 / 배차 기준</h2>
+                <span className="rounded-full bg-[#F1F5F9] px-3 py-1 text-[11px] font-bold text-[#64748B]">
+                  운영 기준
+                </span>
               </div>
-              <input type="checkbox" name="allowPush" checked={formData.allowPush} onChange={handleChange} className="w-5 h-5 accent-blue-500" />
-            </div>
-            <div className="flex items-center justify-between p-4 border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors">
-              <div className="space-y-0.5">
-                <p className="text-sm font-bold text-slate-700">긴급 SMS 알림</p>
-                <p className="text-[11px] text-slate-400">시스템 장애 및 보안 이슈 발생 시 등록된 비상 연락처로 발송</p>
-              </div>
-              <input type="checkbox" name="allowSms" checked={formData.allowSms} onChange={handleChange} className="w-5 h-5 accent-blue-500" />
+              <p className="mt-2 text-sm leading-6 text-[#64748B]">
+                화주 주문 접수와 배차 흐름에서 관리자가 가장 자주 기준을 바꾸는 항목들입니다.
+              </p>
             </div>
           </div>
-        </section>
 
-      </div>
+          <SettingToggle
+            label="예약 주문 허용"
+            description="즉시 주문만 받을지, 예약 주문까지 받을지 정하는 운영 기준입니다."
+            name="allowReservationOrder"
+            checked={formData.allowReservationOrder}
+            onChange={handleChange}
+          />
+          <SettingToggle
+            label="긴급 / 바로배차 허용"
+            description="긴급 주문 카테고리를 열어둘지 여부를 관리합니다."
+            name="allowUrgentDispatch"
+            checked={formData.allowUrgentDispatch}
+            onChange={handleChange}
+          />
+          <SettingSelect
+            label="미배정 주문 정리 기준"
+            name="autoCancelWindow"
+            value={formData.autoCancelWindow}
+            onChange={handleChange}
+            options={["24시간", "48시간", "관리자 수동 정리"]}
+          />
+          <SettingSelect
+            label="배차 우선 순위"
+            name="dispatchPriority"
+            value={formData.dispatchPriority}
+            onChange={handleChange}
+            options={["직접 배차 우선", "신청 많은 순 우선", "등록 시각 순 우선"]}
+          />
+
+          <div className="rounded-[18px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-black text-[#0F172A]">결제 준비 만료 기준</p>
+                <p className="mt-1 text-sm leading-6 text-[#64748B]">
+                  현재 백엔드 기준 토스 결제 준비 상태는 30분 후 만료 처리됩니다.
+                </p>
+              </div>
+              <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-[#4E46E5] ring-1 ring-[#E2E8F0]">
+                30분 고정
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className={`${sectionCardClass} space-y-5`}>
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#F4FCE7]">
+              <Bell size={22} color="#65A30D" strokeWidth={2.2} />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-xl font-black tracking-tight text-[#0F172A]">알림 / 고객지원</h2>
+                <span className="rounded-full bg-[#F1F5F9] px-3 py-1 text-[11px] font-bold text-[#64748B]">
+                  운영 기준
+                </span>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-[#64748B]">
+                관리자 대응 우선순위와 사용자 알림 기본 방향을 한 화면에서 정리합니다.
+              </p>
+            </div>
+          </div>
+
+          <SettingToggle
+            label="관리자 브라우저 푸시 사용"
+            description="신규 문의, 결제 이슈, 운영 알림을 관리자 화면에서 바로 받습니다."
+            name="allowBrowserPush"
+            checked={formData.allowBrowserPush}
+            onChange={handleChange}
+          />
+          <SettingToggle
+            label="야간 장애 알림 유지"
+            description="심야 시간에도 긴급 장애나 결제 실패 알림을 계속 받을지 여부입니다."
+            name="allowNightAlert"
+            checked={formData.allowNightAlert}
+            onChange={handleChange}
+          />
+          <SettingSelect
+            label="문의 응답 우선순위"
+            name="inquiryPriority"
+            value={formData.inquiryPriority}
+            onChange={handleChange}
+            options={["결제/정산 문의 우선", "장애/오류 문의 우선", "전체 동일"]}
+          />
+          <SettingTextarea
+            label="고객지원 운영 메모"
+            name="supportNotice"
+            value={formData.supportNotice}
+            onChange={handleChange}
+            rows={4}
+          />
+        </div>
+      </section>
+
+      <section className={`${sectionCardClass} space-y-4`}>
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FEF3E2]">
+            <Megaphone size={22} color="#D97706" strokeWidth={2.2} />
+          </div>
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-xl font-black tracking-tight text-[#0F172A]">관리 포인트</h2>
+              <span className="rounded-full bg-[#FEF3E2] px-3 py-1 text-[11px] font-bold text-[#B45309]">
+                운영자가 자주 보는 항목
+              </span>
+            </div>
+            <p className="mt-2 text-sm leading-6 text-[#64748B]">
+              앱을 실제로 운영할 때 시스템 설정 페이지에서 자주 확인해야 하는 기준들입니다.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <InfoCard
+            icon={<Users size={18} color="#4E46E5" strokeWidth={2.2} />}
+            title="가입 정책"
+            description="화주/차주 가입 승인 기준, 강제 업데이트, 공지 노출 여부처럼 앱 진입 조건을 관리합니다."
+          />
+          <InfoCard
+            icon={<Truck size={18} color="#2563EB" strokeWidth={2.2} />}
+            title="주문 기준"
+            description="예약 주문 허용 여부, 긴급 배차 노출, 미배정 주문 정리 기준 같은 운영선을 맞춥니다."
+          />
+          <InfoCard
+            icon={<Bell size={18} color="#15803D" strokeWidth={2.2} />}
+            title="고객 대응"
+            description="문의 우선순위, 브라우저 푸시, 야간 알림 등 운영팀 대응 속도에 직접 영향을 주는 항목입니다."
+          />
+        </div>
+      </section>
     </div>
+  );
+}
+
+function SettingNumber({
+  label,
+  name,
+  value,
+  onChange,
+  suffix,
+  step,
+}: {
+  label: string;
+  name: string;
+  value: number;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  suffix: string;
+  step: string;
+}) {
+  return (
+    <label className="block rounded-[20px] border border-[#E2E8F0] bg-[#F8FAFC] p-4">
+      <span className={labelClass}>{label}</span>
+      <div className="flex items-center gap-3">
+        <input
+          type="number"
+          name={name}
+          value={value}
+          step={step}
+          onChange={onChange}
+          className="w-full bg-transparent text-base font-black text-[#0F172A] outline-none"
+        />
+        <span className="text-sm font-bold text-[#64748B]">{suffix}</span>
+      </div>
+    </label>
+  );
+}
+
+function SettingText({
+  label,
+  name,
+  value,
+  onChange,
+}: {
+  label: string;
+  name: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}) {
+  return (
+    <label className="block">
+      <span className={labelClass}>{label}</span>
+      <input className={fieldClass} name={name} value={value} onChange={onChange} />
+    </label>
+  );
+}
+
+function SettingSelect({
+  label,
+  name,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  name: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  options: string[];
+}) {
+  return (
+    <label className="block">
+      <span className={labelClass}>{label}</span>
+      <select className={fieldClass} name={name} value={value} onChange={onChange}>
+        {options.map((option) => (
+          <option key={option}>{option}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function SettingTextarea({
+  label,
+  name,
+  value,
+  onChange,
+  rows,
+}: {
+  label: string;
+  name: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  rows: number;
+}) {
+  return (
+    <label className="block">
+      <span className={labelClass}>{label}</span>
+      <textarea
+        className={`${fieldClass} resize-none`}
+        name={name}
+        value={value}
+        rows={rows}
+        onChange={onChange}
+      />
+    </label>
+  );
+}
+
+function SettingToggle({
+  label,
+  description,
+  name,
+  checked,
+  onChange,
+}: {
+  label: string;
+  description: string;
+  name: string;
+  checked: boolean;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}) {
+  return (
+    <label className="flex items-start justify-between gap-4 rounded-[20px] border border-[#E2E8F0] bg-[#F8FAFC] p-4">
+      <div>
+        <div className="text-sm font-black text-[#0F172A]">{label}</div>
+        <p className="mt-1 text-sm leading-6 text-[#64748B]">{description}</p>
+      </div>
+      <input
+        type="checkbox"
+        name={name}
+        checked={checked}
+        onChange={onChange}
+        className="mt-1 h-5 w-5 shrink-0 accent-[#4E46E5]"
+      />
+    </label>
+  );
+}
+
+function InfoCard({
+  icon,
+  title,
+  description,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <article className="rounded-[20px] border border-[#E2E8F0] bg-[#F8FAFC] p-5">
+      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white ring-1 ring-[#E2E8F0]">
+        {icon}
+      </div>
+      <h3 className="mt-4 text-base font-black text-[#0F172A]">{title}</h3>
+      <p className="mt-2 text-sm leading-6 text-[#64748B]">{description}</p>
+    </article>
   );
 }
