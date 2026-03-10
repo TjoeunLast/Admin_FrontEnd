@@ -9,7 +9,18 @@ import {
   cancelOrder, 
   fetchAdminSummary 
 } from "@/app/features/shared/api/order_api";
-import { OrderListResponse, ORDER_DRIVING_STATUS_MAP } from "@/app/features/orders/type";
+import { fetchDriversForAllocation } from "@/app/features/shared/api/user_api";
+import { useRouter } from "next/navigation";
+
+// 상태별 뱃지 색상 정의
+const statusConfig: Record<string, string> = {
+  REQUESTED: "bg-amber-100 text-amber-700 border-amber-200",
+  ACCEPTED: "bg-blue-100 text-blue-700 border-blue-200",
+  LOADING: "bg-indigo-100 text-indigo-700 border-indigo-200",
+  IN_TRANSIT: "bg-purple-100 text-purple-700 border-purple-200",
+  COMPLETED: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  CANCELLED: "bg-rose-100 text-rose-700 border-rose-200",
+};
 
 export default function AdminOrderListPage() {
   const [orders, setOrders] = useState<OrderListResponse[]>([]);
@@ -26,6 +37,21 @@ export default function AdminOrderListPage() {
       ]);
       setOrders(Array.isArray(orderData) ? orderData : []);
       setSummary(summaryData);
+      const orderData = viewMode === "all" ? await fetchOrders() : await fetchCancelledOrders();
+      setOrders(orderData);
+    } catch (error) { console.error(error); }
+  };
+
+  useEffect(() => {
+    loadPageData();
+  }, [viewMode]);
+
+  // 2. 차주 목록 불러오기 (AdminUserController 활용)
+  const fetchDriverList = async () => {
+    setIsDriversLoading(true);
+    try {
+      const drivers = await fetchDriversForAllocation();
+      setAvailableDrivers(drivers);
     } catch (error) {
       console.error("데이터 로드 실패:", error);
     } finally {
