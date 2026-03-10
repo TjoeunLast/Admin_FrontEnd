@@ -56,6 +56,16 @@ const getPaymentStatusBadgeClass = (status: string): string => {
   return "bg-slate-100 text-slate-600";
 };
 
+type SettlementSummaryCard = {
+  title: string;
+  amount: number;
+  meta: string;
+  className: string;
+  titleClassName: string;
+  amountClassName: string;
+  metaClassName: string;
+};
+
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   CARD: "카드",
   CASH: "현금",
@@ -221,13 +231,16 @@ export default function DriverSettlementPage() {
     () => calculateAdminSettlementOverview(settlements),
     [settlements]
   );
-  const cards = useMemo(
+  const cards = useMemo<SettlementSummaryCard[]>(
     () => [
       {
         title: "차주 총 지급 대상액",
-        value: overview.totalPayoutAmount,
-        label: "원",
-        color: "text-slate-900",
+        amount: overview.totalPayoutAmount,
+        meta: `지급 대상 ${overview.payoutTargetCount}건`,
+        className: "bg-white border border-[#e2e8f0] shadow-sm",
+        titleClassName: "text-sm text-[#64748b] font-medium",
+        amountClassName: "text-2xl font-black text-[#1e293b] mt-1",
+        metaClassName: "text-xs text-slate-400 mt-2",
       },
       {
         title: "차주 지급 대기액",

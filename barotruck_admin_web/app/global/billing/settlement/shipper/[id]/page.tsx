@@ -644,7 +644,7 @@ function ShipperDetailPageContent({
         onClose={() => setIsCancelModalOpen(false)}
         onSubmit={handleSubmitCancel}
       />
-    </div>
+    </main>
   );
 }
 

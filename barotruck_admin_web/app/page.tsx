@@ -15,11 +15,6 @@ import {
 import { DashboardCard } from "./features/dashboard/card";
 import { SettlementSummaryCard } from "./features/dashboard/settlement_summary_card";
 import { OrderListResponse } from "./features/orders/type";
-import {
-  calculateAdminSettlementOverview,
-  getPayoutAmount,
-  isSettlementCompleted,
-} from "./features/shared/lib/admin_settlement_overview";
 
 interface DashboardUser {
   enrollDate?: string;
