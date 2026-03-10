@@ -1,354 +1,268 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
-  getUserDetail,
   deleteUser,
+  getUserDetail,
   restoreUser,
 } from "@/app/features/shared/api/user_api";
-import { fetchOrders } from "@/app/features/shared/api/order_api";
+import UserProfileCard, {
+  UserDetail,
+} from "@/app/features/user/users/user_profile_card";
+
+const toPositiveId = (value: unknown): number | null => {
+  if (value === null || value === undefined || value === "") return null;
+  const id = Number(value);
+  return Number.isFinite(id) && id > 0 ? Math.trunc(id) : null;
+};
 
 export default function MemberDetailPage() {
   const params = useParams();
   const router = useRouter();
 
-  const [user, setUser] = useState<any>(null);
-  const [orderStats, setOrderStats] = useState({
-    waiting: 0,
-    confirmed: 0,
-    ing: 0,
-    completed: 0,
-  });
+  const rawUserId = Array.isArray(params?.userId)
+    ? params.userId[0]
+    : params?.userId;
+  const targetUserId = toPositiveId(rawUserId);
+
+  const [user, setUser] = useState<UserDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const MAIN_COLOR = "#4E46E5";
-  const currentUserId = params?.userId;
+  const loadData = async () => {
+    if (!targetUserId) {
+      setUser(null);
+      setIsLoading(false);
+      return;
+    }
 
-  const loadData = useCallback(async () => {
-    if (!currentUserId) return;
     try {
       setIsLoading(true);
-      const userData = await getUserDetail(Number(currentUserId));
-      setUser(userData);
-
-      const allOrders = await fetchOrders();
-      const userOrders = allOrders.filter(
-        (o: any) =>
-          o.driverNo === Number(currentUserId) ||
-          o.user?.userId === Number(currentUserId),
-      );
-
-      setOrderStats({
-        waiting: userOrders.filter((o: any) => o.status === "REQUESTED").length,
-        confirmed: userOrders.filter((o: any) => o.status === "ACCEPTED")
-          .length,
-        ing: userOrders.filter((o: any) =>
-          ["LOADING", "IN_TRANSIT", "UNLOADING"].includes(o.status),
-        ).length,
-        completed: userOrders.filter((o: any) => o.status === "COMPLETED")
-          .length,
-      });
+      const data = await getUserDetail(targetUserId);
+      setUser(data as UserDetail);
     } catch (error) {
-      console.error("❌ 데이터 로드 실패:", error);
+      console.error("회원 상세 로드 실패:", error);
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
-  }, [currentUserId]);
+  };
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    void loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetUserId]);
+
+  const isDeleted = useMemo(() => {
+    const deletedFlag =
+      (user as (UserDetail & { delFlag?: string }) | null)?.delFlag ??
+      user?.delflag ??
+      "";
+    return String(deletedFlag).toUpperCase() === "A";
+  }, [user]);
+
+  const handleStartChat = () => {
+    if (!targetUserId) {
+      alert("유효하지 않은 사용자 ID입니다.");
+      return;
+    }
+    router.push(`/global/chat/personal/${targetUserId}`);
+  };
 
   const handleDeleteAccount = async () => {
-    if (!window.confirm("정말 이 계정을 비활성화 처리하시겠습니까?")) return;
+    if (!targetUserId) return;
+    if (!window.confirm("해당 계정을 삭제(탈퇴) 처리하시겠습니까?")) return;
+
     try {
-      await deleteUser(Number(currentUserId));
-      alert("비활성화되었습니다.");
-      loadData();
-    } catch {
-      alert("오류 발생");
+      await deleteUser(targetUserId);
+      alert("계정 삭제 처리가 완료되었습니다.");
+      await loadData();
+    } catch (error) {
+      console.error("계정 삭제 실패:", error);
+      alert("삭제 처리 중 오류가 발생했습니다.");
     }
   };
 
   const handleRestoreAccount = async () => {
-    if (!window.confirm("이 계정을 다시 활성화하시겠습니까?")) return;
+    if (!targetUserId) return;
+    if (!window.confirm("삭제된 계정을 복구하시겠습니까?")) return;
+
     try {
-      await restoreUser(Number(currentUserId));
-      alert("활성화되었습니다.");
-      loadData();
-    } catch {
-      alert("오류 발생");
+      await restoreUser(targetUserId);
+      alert("계정 복구가 완료되었습니다.");
+      await loadData();
+    } catch (error) {
+      console.error("계정 복구 실패:", error);
+      alert("복구 처리 중 오류가 발생했습니다.");
     }
   };
 
-  if (isLoading)
+  if (isLoading) {
     return (
-      <div className="p-20 text-center font-bold text-slate-300 text-xl">
-        데이터 로딩 중...
+      <div className="p-20 text-center text-slate-400 font-medium italic">
+        회원 정보를 불러오는 중입니다...
       </div>
     );
-  if (!user)
-    return (
-      <div className="p-20 text-center font-bold text-rose-500 text-xl">
-        회원 정보 없음
-      </div>
-    );
+  }
 
-  const isDeleted = user.delflag?.toUpperCase() === "A";
-  const isDriver = user.isOwner === "DRIVER";
+  if (!user) {
+    return (
+      <div className="p-20 text-center text-slate-400">
+        해당 회원 정보를 찾을 수 없습니다.
+      </div>
+    );
+  }
 
   return (
-    <div className="w-full space-y-6">
-      {/* 1. 헤더 (오더 상세 스타일 반영) */}
-      <div className="flex items-center gap-3 py-2 border-b border-slate-100">
+    <div className="max-w-[1200px] mx-auto space-y-6 pb-24 px-4">
+      <header className="flex justify-between items-center py-2">
         <button
           onClick={() => router.back()}
-          className="p-1.5 hover:bg-slate-50 rounded-lg text-slate-400"
+          className="group inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-slate-800 transition-colors"
         >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="3"
-          >
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
-        </button>
-        <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-          회원 상세
-          <span
-            className="flex items-center gap-1.5 ml-1"
-            style={{ color: MAIN_COLOR }}
-          >
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
-            </svg>
-            {user.nickname || user.name || "이름 없음"}
+          <span className="text-xl group-hover:-translate-x-1 transition-transform">
+            ←
           </span>
-        </h1>
-
-        {/* 우측 상태 뱃지 및 액션 버튼 */}
-        <div className="ml-auto flex items-center gap-3">
-          {/* 활성화/비활성화 전환 버튼 */}
+          목록으로 돌아가기
+        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleStartChat}
+            className="px-5 py-2.5 bg-slate-900 text-white hover:bg-slate-800 rounded-xl text-sm font-bold transition-all"
+          >
+            채팅 시작
+          </button>
           {!isDeleted ? (
             <button
               onClick={handleDeleteAccount}
-              className="px-5 py-3 bg-rose-600 text-white text-xs font-black rounded-lg hover:bg-rose-700 transition-colors shadow-sm"
+              className="px-5 py-2.5 bg-red-50 text-red-500 hover:bg-red-100 rounded-xl text-sm font-bold border border-red-100 transition-all"
             >
-              계정 정지
+              계정 삭제하기
             </button>
           ) : (
             <button
               onClick={handleRestoreAccount}
-              className="px-5 py-3 bg-emerald-600 text-white text-xs font-black rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
+              className="px-5 py-2.5 bg-blue-600 text-white hover:bg-blue-700 rounded-xl text-sm font-bold shadow-lg shadow-blue-100 transition-all"
             >
-              계정 정상
+              계정 복구하기
             </button>
           )}
         </div>
-      </div>
+      </header>
 
-      <div className="grid grid-cols-12 gap-6">
-        {/* [좌측] 실시간 활동 현황 */}
-        <div className="col-span-12 lg:col-span-4 space-y-4 font-sans">
-          <section className="bg-white p-7 rounded-2xl border border-slate-100 shadow-sm relative text-black">
-            <div className="flex items-center justify-between mb-6">
-              <p className="text-sm font-black text-slate-800 pl-3">
-                활동 현황
-              </p>
-              <button
-                onClick={() => router.push(`/users/${currentUserId}/orders`)}
-                className="p-1.5 hover:bg-slate-50 rounded-lg text-slate-400 transition-colors"
-                title="전체 오더 보기"
-              >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                >
-                  <path d="M9 18l6-6-6-6" />
-                </svg>
-              </button>
+      <section className="bg-white rounded-[2rem] border border-slate-200 shadow-sm p-8 flex items-center justify-between relative overflow-hidden">
+        <div
+          className={`absolute left-0 top-0 bottom-0 w-2 ${
+            !isDeleted ? "bg-blue-500" : "bg-slate-300"
+          }`}
+        />
+        <div className="flex items-center gap-6">
+          <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-2xl shadow-inner">
+            {user.isOwner === "DRIVER" ? "D" : "S"}
+          </div>
+          <div>
+            <span
+              className={`text-[11px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${
+                !isDeleted
+                  ? "bg-blue-50 text-blue-500"
+                  : "bg-slate-100 text-slate-500"
+              }`}
+            >
+              {!isDeleted ? "Active Account" : "Deleted Account"}
+            </span>
+            <h1 className="text-2xl font-black text-slate-900 mt-1">
+              {user.nickname}{" "}
+              <span className="text-slate-400 font-normal text-lg">
+                회원 정보
+              </span>
+            </h1>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-xs text-slate-400 font-bold mb-1">MEMBER ID</p>
+          <p className="text-xl font-black text-slate-800">#{user.userId}</p>
+        </div>
+      </section>
+
+      <div className="grid grid-cols-12 gap-8">
+        <div className="col-span-8 space-y-6">
+          <section className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-8 border-b border-slate-50">
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <span className="w-1.5 h-5 bg-blue-500 rounded-full" /> 기본 인적
+                사항
+              </h2>
             </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <StatusBox
-                label="승인대기"
-                count={orderStats.waiting}
-                color="text-amber-500"
+            <div className="p-8 grid grid-cols-2 gap-6">
+              <InfoBlock
+                label="나이 / 성별"
+                value={`${user.age ?? "-"} / ${user.gender ?? "-"}`}
               />
-              <StatusBox
-                label="배차확정"
-                count={orderStats.confirmed}
-                color="text-blue-500"
-              />
-              <StatusBox
-                label="운송중"
-                count={orderStats.ing}
-                color="text-indigo-600"
-              />
-              <StatusBox
-                label="운송완료"
-                count={orderStats.completed}
-                color="text-emerald-500"
-              />
-            </div>
-
-            <div className="mt-6 pt-6 border-t border-slate-50 flex justify-around text-center">
-              <div>
-                <p className="text-[11px] font-bold text-slate-300 uppercase mb-1">
-                  {isDriver ? "총 운송 완료" : "총 오더 등록"}
-                </p>
-                <p className="text-xl font-black text-slate-800">
-                  {orderStats.completed}
-                  <span className="text-sm ml-0.5 text-slate-400">건</span>
-                </p>
-              </div>
-              <div className="w-px h-10 bg-slate-100"></div>
-              <div>
-                <p className="text-[11px] font-bold text-slate-300 uppercase mb-1">
-                  평균 평점
-                </p>
-                <p className="text-xl font-black text-amber-500">
-                  {user.ratingAvg || "5.0"}★
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-4 w-full py-3 bg-slate-100 rounded-xl text-center border border-slate-200">
-              <p className="text-xs font-bold text-slate-500">
-                회원 유형 <span className="mx-2 text-slate-300">|</span>
-                <span className="text-sm font-black text-indigo-600">
-                  {isDriver ? "차주 회원" : "화주 회원"}
-                </span>
-              </p>
+              <InfoBlock label="가입일" value={user.enrolldate || "-"} />
+              <InfoBlock label="이메일" value={user.email || "-"} />
+              <InfoBlock label="연락처" value={user.phone || "-"} />
             </div>
           </section>
+
+          {user.isOwner === "DRIVER" ? (
+            <section className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
+              <div className="p-8 border-b border-slate-50">
+                <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <span className="w-1.5 h-5 bg-amber-400 rounded-full" /> 차주
+                  운행 정보
+                </h2>
+              </div>
+              <div className="p-8 grid grid-cols-2 gap-6">
+                <InfoBlock
+                  label="차량 정보"
+                  value={`${user.carType ?? "-"} ${user.tonnage ?? "-"}톤`}
+                />
+                <InfoBlock label="차량 번호" value={user.carNum || "-"} />
+                <InfoBlock label="은행" value={user.bankName || "-"} />
+                <InfoBlock label="계좌" value={user.accountNum || "-"} />
+              </div>
+            </section>
+          ) : (
+            <section className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
+              <div className="p-8 border-b border-slate-50">
+                <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <span className="w-1.5 h-5 bg-indigo-500 rounded-full" /> 화주
+                  사업자 정보
+                </h2>
+              </div>
+              <div className="p-8 grid grid-cols-2 gap-6">
+                <InfoBlock label="회사명" value={user.companyName || "-"} />
+                <InfoBlock
+                  label="사업자등록번호"
+                  value={user.bizRegNum || "-"}
+                />
+                <InfoBlock label="대표자명" value={user.representative || "-"} />
+                <InfoBlock
+                  label="총 운행 건수"
+                  value={`${user.totalOperationCount ?? 0} 건`}
+                />
+              </div>
+            </section>
+          )}
         </div>
 
-        {/* [우측] 상세 정보 테이블 */}
-        <div className="col-span-12 lg:col-span-8 space-y-6">
-          <section className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
-            <div className="px-6 py-4 border-b border-slate-50 bg-slate-50/30">
-              <p className="text-sm font-black text-slate-800">
-                회원 인적 사항 및 계정 정보
-              </p>
-            </div>
-            <div className="divide-y divide-slate-50 text-black">
-              <div className="grid grid-cols-1 md:grid-cols-2">
-                <TableItem label="닉네임" value={user.nickname} />
-                <TableItem label="성함(실명)" value={user.name} />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2">
-                <TableItem label="연락처" value={user.phone} />
-                <TableItem label="이메일" value={user.email} />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2">
-                <TableItem
-                  label="나이/성별"
-                  value={`${user.age || "-"}세 / ${user.gender === "M" ? "남성" : "여성"}`}
-                />
-                <TableItem label="가입 일자" value={user.enrolldate} />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 border-b-0">
-                <TableItem
-                  label="계정 상태"
-                  value={!isDeleted ? "정상" : "정지"}
-                  isStatus
-                  status={!isDeleted}
-                />
-                <TableItem label="고유 번호" value={user.userId} />
-              </div>
-            </div>
-          </section>
-
-          <section className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm text-black">
-            <div className="px-6 py-4 border-b border-slate-50 bg-slate-50/30">
-              <p className="text-sm font-black text-slate-800">
-                {isDriver ? "차량 및 정산 정보" : "사업자 및 회사 정보"}
-              </p>
-            </div>
-            <div className="divide-y divide-slate-50 text-black">
-              {isDriver ? (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 text-black">
-                    <TableItem label="차량 번호" value={user.carNum} />
-                    <TableItem label="등록 차종" value={user.carType} />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 text-black">
-                    <TableItem
-                      label="적재 톤수"
-                      value={user.tonnage ? `${user.tonnage}톤` : "-"}
-                    />
-                    <TableItem label="은행명" value={user.bankName} />
-                  </div>
-                  <TableItem label="계좌 번호" value={user.accountNum} />
-                  <TableItem label="활동 지역" value={user.address} />
-                </>
-              ) : (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 text-black">
-                    <TableItem label="회사 명칭" value={user.companyName} />
-                    <TableItem label="사업자 번호" value={user.bizRegNum} />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 text-black">
-                    <TableItem label="대표자" value={user.representative} />
-                    <TableItem
-                      label="사업자 구분"
-                      value={
-                        user.isCorporate === "Y" ? "법인 사업자" : "개인/일반"
-                      }
-                    />
-                  </div>
-                  <TableItem label="사업장 주소" value={user.bizAddress} />
-                </>
-              )}
-            </div>
-          </section>
+        <div className="col-span-4 space-y-6">
+          <UserProfileCard user={user} />
         </div>
       </div>
     </div>
   );
 }
 
-function StatusBox({ label, count, color }: any) {
+function InfoBlock({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-slate-50/50 border border-slate-100 p-4 rounded-xl text-center">
-      <p className="text-[11px] font-bold text-slate-400 mb-1">{label}</p>
-      <p className={`text-2xl font-black ${color}`}>{count}</p>
-    </div>
-  );
-}
-
-function TableItem({ label, value, isStatus = false, status = true }: any) {
-  return (
-    <div className="flex border-r last:border-r-0 border-slate-50 hover:bg-slate-50/30 transition-colors">
-      <div className="w-32 min-w-[128px] bg-slate-50/20 px-5 py-4 text-[11px] font-black text-slate-400 uppercase border-r border-slate-50 flex items-center">
+    <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
+      <p className="text-[11px] text-slate-400 font-bold mb-1 uppercase">
         {label}
-      </div>
-      <div
-        className={`px-6 py-4 text-[15px] font-bold flex items-center flex-1 break-all ${
-          isStatus ? (status ? "text-blue-500" : "text-rose-500") : "text-black"
-        }`}
-      >
+      </p>
+      <p className="text-sm font-bold text-slate-700 break-words">
         {value || "-"}
-      </div>
+      </p>
     </div>
   );
 }
