@@ -31,6 +31,7 @@ export interface SettlementResponse {
   accountNum?: string;
   shipperName: string;
   bizNumber: string;
+  orderStatus?: string | null;
   paymentId?: number | null;
   paymentMethod?: string | null;
   paymentTiming?: string | null;
@@ -44,6 +45,11 @@ export interface SettlementResponse {
   confirmedAt?: string | null;
   totalPrice: number;
   status: string;
+  payoutStatus?: string | null;
+  payoutFailureReason?: string | null;
+  payoutRef?: string | null;
+  payoutRequestedAt?: string | null;
+  payoutCompletedAt?: string | null;
   feeDate: string;
   feeCompleteDate?: string | null;
 }
@@ -70,6 +76,14 @@ export type PayoutItemStatus =
   | "COMPLETED"
   | "FAILED"
   | "RETRYING";
+export type OrderWorkflowStatus =
+  | "REQUESTED"
+  | "ACCEPTED"
+  | "LOADING"
+  | "IN_TRANSIT"
+  | "UNLOADING"
+  | "COMPLETED"
+  | "CANCELLED";
 export type PaymentDisputeStatus =
   | "PENDING"
   | "ADMIN_HOLD"

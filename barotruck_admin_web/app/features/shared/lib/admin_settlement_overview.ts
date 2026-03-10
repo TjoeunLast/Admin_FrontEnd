@@ -1,4 +1,6 @@
 import {
+  OrderWorkflowStatus,
+  PayoutItemStatus,
   SettlementResponse,
   SettlementWorkflowStatus,
   TransportPaymentStatus,
@@ -31,6 +33,22 @@ const SETTLEMENT_STATUSES = new Set<SettlementWorkflowStatus>([
   "WAIT",
   "COMPLETED",
 ]);
+const PAYOUT_STATUSES = new Set<PayoutItemStatus>([
+  "READY",
+  "REQUESTED",
+  "COMPLETED",
+  "FAILED",
+  "RETRYING",
+]);
+const ORDER_STATUSES = new Set<OrderWorkflowStatus>([
+  "REQUESTED",
+  "ACCEPTED",
+  "LOADING",
+  "IN_TRANSIT",
+  "UNLOADING",
+  "COMPLETED",
+  "CANCELLED",
+]);
 
 export const PAYMENT_STATUS_LABELS: Record<TransportPaymentStatus, string> = {
   READY: "결제대기",
@@ -49,6 +67,24 @@ export const SETTLEMENT_STATUS_LABELS: Record<SettlementWorkflowStatus, string> 
   COMPLETED: "지급완료",
 };
 
+export const PAYOUT_STATUS_LABELS: Record<PayoutItemStatus, string> = {
+  READY: "지급준비",
+  REQUESTED: "지급요청",
+  COMPLETED: "지급완료",
+  FAILED: "지급실패",
+  RETRYING: "재시도중",
+};
+
+export const ORDER_STATUS_LABELS: Record<OrderWorkflowStatus, string> = {
+  REQUESTED: "접수완료",
+  ACCEPTED: "배차완료",
+  LOADING: "상차진행",
+  IN_TRANSIT: "운송중",
+  UNLOADING: "하차진행",
+  COMPLETED: "운송완료",
+  CANCELLED: "주문취소",
+};
+
 export interface AdminSettlementOverview {
   totalBillingAmount: number;
   completedBillingAmount: number;
@@ -63,6 +99,14 @@ export interface AdminSettlementOverview {
   payoutTargetCount: number;
   completedSettlementCount: number;
   pendingSettlementCount: number;
+}
+
+export interface AdminSettlementQueueItem {
+  key: string;
+  title: string;
+  amount: number;
+  count: number;
+  tone: "slate" | "blue" | "amber" | "rose" | "emerald";
 }
 
 const EMPTY_OVERVIEW: AdminSettlementOverview = {
@@ -152,6 +196,29 @@ export const getEffectiveSettlementStatus = (
   return "READY";
 };
 
+export const getEffectiveOrderStatus = (
+  settlement: SettlementResponse
+): OrderWorkflowStatus | null => {
+  const rawStatus = normalizeStatus(settlement.orderStatus) as OrderWorkflowStatus;
+  return ORDER_STATUSES.has(rawStatus) ? rawStatus : null;
+};
+
+export const getEffectivePayoutStatus = (
+  settlement: SettlementResponse
+): PayoutItemStatus | null => {
+  const rawStatus = normalizeStatus(settlement.payoutStatus) as PayoutItemStatus;
+  if (PAYOUT_STATUSES.has(rawStatus)) {
+    return rawStatus;
+  }
+  if (isSettlementCompleted(settlement)) {
+    return "COMPLETED";
+  }
+  if (isPaymentCompleted(settlement)) {
+    return "READY";
+  }
+  return null;
+};
+
 export const hasPaymentTracking = (settlement: SettlementResponse): boolean =>
   Boolean(
     settlement.paymentId ||
@@ -230,4 +297,105 @@ export const calculateAdminSettlementOverview = (
 
     return acc;
   }, { ...EMPTY_OVERVIEW });
+};
+
+export const calculateAdminSettlementQueues = (
+  settlements: SettlementResponse[]
+): AdminSettlementQueueItem[] => {
+  const summary = {
+    paymentReady: { count: 0, amount: 0 },
+    driverConfirmWait: { count: 0, amount: 0 },
+    settlementReady: { count: 0, amount: 0 },
+    payoutRequested: { count: 0, amount: 0 },
+    payoutFailed: { count: 0, amount: 0 },
+    holdOrDispute: { count: 0, amount: 0 },
+  };
+
+  settlements.forEach((settlement) => {
+    const billingAmount = getBillingAmount(settlement);
+    const payoutAmount = getPayoutAmount(settlement);
+    const paymentStatus = getEffectivePaymentStatus(settlement);
+    const settlementStatus = getEffectiveSettlementStatus(settlement);
+    const payoutStatus = getEffectivePayoutStatus(settlement);
+
+    if (paymentStatus === "READY") {
+      summary.paymentReady.count += 1;
+      summary.paymentReady.amount += billingAmount;
+    }
+
+    if (paymentStatus === "PAID") {
+      summary.driverConfirmWait.count += 1;
+      summary.driverConfirmWait.amount += billingAmount;
+    }
+
+    if (settlementStatus === "READY" && (!payoutStatus || payoutStatus === "READY")) {
+      summary.settlementReady.count += 1;
+      summary.settlementReady.amount += payoutAmount;
+    }
+
+    if (payoutStatus === "REQUESTED" || payoutStatus === "RETRYING") {
+      summary.payoutRequested.count += 1;
+      summary.payoutRequested.amount += payoutAmount;
+    }
+
+    if (payoutStatus === "FAILED") {
+      summary.payoutFailed.count += 1;
+      summary.payoutFailed.amount += payoutAmount;
+    }
+
+    if (
+      settlementStatus === "WAIT" ||
+      paymentStatus === "DISPUTED" ||
+      paymentStatus === "ADMIN_HOLD" ||
+      paymentStatus === "ADMIN_REJECTED"
+    ) {
+      summary.holdOrDispute.count += 1;
+      summary.holdOrDispute.amount += billingAmount;
+    }
+  });
+
+  return [
+    {
+      key: "paymentReady",
+      title: "결제대기",
+      amount: summary.paymentReady.amount,
+      count: summary.paymentReady.count,
+      tone: "slate",
+    },
+    {
+      key: "driverConfirmWait",
+      title: "확인대기",
+      amount: summary.driverConfirmWait.amount,
+      count: summary.driverConfirmWait.count,
+      tone: "blue",
+    },
+    {
+      key: "settlementReady",
+      title: "지급준비",
+      amount: summary.settlementReady.amount,
+      count: summary.settlementReady.count,
+      tone: "amber",
+    },
+    {
+      key: "payoutRequested",
+      title: "지급요청",
+      amount: summary.payoutRequested.amount,
+      count: summary.payoutRequested.count,
+      tone: "blue",
+    },
+    {
+      key: "payoutFailed",
+      title: "지급실패",
+      amount: summary.payoutFailed.amount,
+      count: summary.payoutFailed.count,
+      tone: "rose",
+    },
+    {
+      key: "holdOrDispute",
+      title: "보류/분쟁",
+      amount: summary.holdOrDispute.amount,
+      count: summary.holdOrDispute.count,
+      tone: "amber",
+    },
+  ];
 };
