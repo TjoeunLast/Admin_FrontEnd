@@ -31,13 +31,6 @@ export default function Order_Page() {
     direction: "desc",
   });
 
-  // 주소 요약 함수 (앞의 두 단어만 추출: 서울특별시 강남구...)
-  const formatAddress = (addr: string) => {
-    if (!addr) return "-";
-    const parts = addr.split(" ");
-    return parts.length > 1 ? `${parts[0]} ${parts[1]}` : parts[0];
-  };
-
   const stats = useMemo(() => {
     const total = orders.length;
     const active = orders.filter(
@@ -278,22 +271,15 @@ export default function Order_Page() {
                     </Link>
                   </td>
                   <td className="p-5">
-                    <div className="flex items-center gap-3 justify-center">
-                      <span className="font-bold text-slate-800 text-[14px]">
-                        {formatAddress(order.startPlace)}
+                    <div className="flex items-center gap-2 justify-center">
+                      <span className="font-bold text-slate-800 text-sm">
+                        {order.startPlace}
                       </span>
-                      <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="#CBD5E1"
-                        strokeWidth="4"
-                      >
-                        <path d="M5 12h14M12 5l7 7-7 7" />
-                      </svg>
-                      <span className="font-bold text-slate-800 text-[14px]">
-                        {formatAddress(order.endPlace)}
+                      <span className="text-slate-300 text-xs font-light">
+                        →
+                      </span>
+                      <span className="font-bold text-slate-800 text-sm">
+                        {order.endPlace}
                       </span>
                     </div>
                   </td>

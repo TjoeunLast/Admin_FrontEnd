@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import Link from "next/link";
 import { fetchOrders } from "./features/shared/api/order_api";
 import { getUsers } from "./features/shared/api/user_api";
 import {
@@ -11,6 +10,11 @@ import {
 import { DashboardCard } from "./features/dashboard/card";
 import { SettlementSummaryCard } from "./features/dashboard/settlement_summary_card";
 import { OrderListResponse } from "./features/orders/type";
+import {
+  calculateAdminSettlementOverview,
+  getPayoutAmount,
+  isSettlementCompleted,
+} from "./features/shared/lib/admin_settlement_overview";
 
 interface DashboardUser {
   enrollDate?: string;
@@ -37,10 +41,16 @@ export default function DashboardPage() {
 
         if (results[0].status === "fulfilled") {
           setOrders(results[0].value);
+        } else {
+          console.error("대시보드 주문 데이터 로딩 실패:", results[0].reason);
         }
+
         if (results[1].status === "fulfilled") {
           setUsers(results[1].value);
+        } else {
+          console.error("대시보드 사용자 데이터 로딩 실패:", results[1].reason);
         }
+
         if (results[2].status === "fulfilled") {
           setSettlements(results[2].value);
         } else {
@@ -99,12 +109,14 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6 font-sans">
       <header className="mb-8 pl-1">
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-          통합 관제 대시보드
-        </h1>
+        <div className="flex items-center gap-3 mb-2">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+              통합 관제 대시보드
+            </h1>
+          </div>
+        </div>
       </header>
-
-      {/* 1. 상단 카드 섹션: 요청하신 대로 수치에 색상 포인트 적용 */}
       <section className="grid grid-cols-1 gap-6 md:grid-cols-3">
         <DashboardCard
           title="신규 오더"
@@ -116,13 +128,13 @@ export default function DashboardPage() {
           title="오늘 신규 회원"
           value={stats.recentMemberCount}
           label="명"
-          colorClass="text-emerald-600"
+          colorClass="text-[#0f766e]"
         />
         <DashboardCard
           title="오늘 배차 완료"
           value={stats.completedCount}
           label="건"
-          colorClass="text-slate-900"
+          colorClass="text-[#0F172A]"
         />
       </section>
 
@@ -132,8 +144,7 @@ export default function DashboardPage() {
         errorMessage={settlementError}
       />
 
-      {/* 2. 하단 리스트 영역 */}
-      <section className="grid grid-cols-1 gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
@@ -148,30 +159,22 @@ export default function DashboardPage() {
           </div>
           <div className="mt-5 divide-y divide-[#E2E8F0]">
             {stats.newOrders.slice(0, 5).map((order) => (
-              <Link
+              <div
                 key={order.orderId}
-                href={`/global/orders/${order.orderId}`}
-                className="flex items-center justify-between gap-4 py-4 hover:bg-slate-50 transition-colors"
+                className="flex items-center justify-between gap-4 py-4"
               >
-                <div className="flex items-center gap-4">
-                  <span className="text-xs font-black text-indigo-600">
-                    #{order.orderId}
-                  </span>
-                  <div>
-                    <p className="text-sm font-bold text-slate-800">
-                      {order.startPlace} → {order.endPlace}
-                    </p>
-                    <p className="text-xs text-slate-500 mt-0.5 font-medium">
-                      {order.reqCarType} · {order.reqTonnage} ·{" "}
-                      {order.driveMode || "일반운송"}
-                    </p>
-                  </div>
+                <div>
+                  <p className={listPrimaryTextClass}>
+                    {order.startPlace} → {order.endPlace}
+                  </p>
+                  <p className={listSecondaryTextClass}>
+                    {order.cargoContent || "상세 정보 없음"}
+                  </p>
                 </div>
-                {/* 오더 목록과 동일한 뱃지 스타일 적용 */}
-                <span className="px-3 py-1.5 rounded-lg bg-amber-50 text-amber-600 border border-amber-100 text-[10px] font-black uppercase">
-                  배차대기
+                <span className="px-2 py-1 rounded bg-indigo-50 text-[11px] font-bold text-indigo-600">
+                  대기중
                 </span>
-              </Link>
+              </div>
             ))}
           </div>
         </div>
@@ -193,7 +196,7 @@ export default function DashboardPage() {
                   <p className={listPrimaryTextClass}>
                     {item.driverName} 차주님
                   </p>
-                  <p className="text-xs text-slate-400 mt-0.5 font-medium">
+                  <p className={listSecondaryTextClass}>
                     {item.bankName} · {item.accountNum}
                   </p>
                 </div>
@@ -201,7 +204,7 @@ export default function DashboardPage() {
                   <p className="text-sm font-bold leading-6 text-slate-900">
                     {getPayoutAmount(item).toLocaleString()}원
                   </p>
-                  <span className="px-2 py-1 rounded bg-emerald-50 text-emerald-600 border border-emerald-100 text-[10px] font-black uppercase">
+                  <span className="mt-0.5 block text-xs font-bold leading-5 text-emerald-600">
                     지급 완료
                   </span>
                 </div>
