@@ -18,11 +18,13 @@ import {
 } from "@/app/features/shared/api/payment_admin_api";
 import {
   getBillingAmount,
+  getEffectiveOrderStatus,
   getEffectivePaymentStatus,
   getEffectiveSettlementStatus,
   getFeeAmount,
   getPayoutAmount,
   isPaymentCompleted,
+  ORDER_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
   SETTLEMENT_STATUS_LABELS,
 } from "@/app/features/shared/lib/admin_settlement_overview";
@@ -32,6 +34,11 @@ import { PaymentDisputeResolutionPanel } from "@/app/features/shared/components/
 import { PaymentDebugContextPanel } from "@/app/features/shared/components/payment_debug_context_panel";
 import { PaymentTossOpsPanel } from "@/app/features/shared/components/payment_toss_ops_panel";
 import { TossPaymentCancelModal } from "@/app/features/shared/components/toss_payment_cancel_modal";
+import {
+  SettlementTimeline,
+  type SettlementTimelineItem,
+} from "@/app/features/shared/components/settlement_timeline";
+import { StatusChip } from "@/app/features/shared/components/status_chip";
 
 const formatAmount = (value?: number | null) =>
   new Intl.NumberFormat("ko-KR").format(value ?? 0);
@@ -41,6 +48,28 @@ const formatDateTime = (value?: string | null) =>
 
 const requiresTransferProof = (settlement: SettlementResponse) =>
   String(settlement.paymentMethod ?? "").toUpperCase() === "TRANSFER";
+
+const getOrderStatusTone = (status?: string | null) => {
+  const normalized = String(status ?? "").toUpperCase();
+  if (normalized === "COMPLETED") return "emerald" as const;
+  if (normalized === "CANCELLED") return "rose" as const;
+  if (normalized === "REQUESTED") return "slate" as const;
+  return "blue" as const;
+};
+
+const getRecommendationToneClass = (tone: "emerald" | "amber" | "rose" | "blue") => {
+  switch (tone) {
+    case "emerald":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    case "amber":
+      return "border-amber-200 bg-amber-50 text-amber-800";
+    case "rose":
+      return "border-rose-200 bg-rose-50 text-rose-700";
+    case "blue":
+    default:
+      return "border-blue-200 bg-blue-50 text-blue-700";
+  }
+};
 
 const getHttpStatus = (error: unknown): number | null => {
   if (typeof error !== "object" || error === null || !("response" in error)) {
@@ -234,6 +263,104 @@ function ShipperDetailPageContent({
   const settlementStatus = useMemo(
     () => (settlement ? getEffectiveSettlementStatus(settlement) : "READY"),
     [settlement]
+  );
+  const orderStatus = useMemo(
+    () => (settlement ? getEffectiveOrderStatus(settlement) : null),
+    [settlement]
+  );
+  const recommendation = useMemo(() => {
+    if (tossComparison?.mismatch) {
+      return {
+        tone: "rose" as const,
+        title: "PG 비교 결과 불일치",
+        description:
+          tossComparison.mismatchReason ||
+          "내부 결제 상태와 Toss 실조회 상태가 다릅니다. PG 실조회 / 취소 운영 패널에서 먼저 동기화를 검토하세요.",
+      };
+    }
+    if (paymentStatus === "READY") {
+      return {
+        tone: "blue" as const,
+        title: "입금 반영 대기",
+        description: "아직 결제가 반영되지 않았습니다. 입금 반영 또는 결제 상태 변경이 먼저 필요합니다.",
+      };
+    }
+    if (paymentStatus === "PAID" && settlementStatus === "READY") {
+      return {
+        tone: "emerald" as const,
+        title: "지급 준비 완료",
+        description: "화주 입금이 끝났습니다. 차주 확인 및 지급 요청 단계로 넘길 수 있는 상태입니다.",
+      };
+    }
+    if (paymentStatus === "DISPUTED" || paymentStatus === "ADMIN_HOLD") {
+      return {
+        tone: "amber" as const,
+        title: "분쟁 또는 보류 처리 우선",
+        description: "분쟁 상태를 먼저 정리해야 이후 지급 흐름이 꼬이지 않습니다. 분쟁 처리 패널을 확인하세요.",
+      };
+    }
+    return {
+      tone: "blue" as const,
+      title: "운영 모니터링 상태",
+      description: "현재 상태를 유지하며 PG 실조회, 분쟁, 정산 이력을 함께 점검하는 구간입니다.",
+    };
+  }, [paymentStatus, settlementStatus, tossComparison]);
+  const timelineItems = useMemo<SettlementTimelineItem[]>(
+    () => [
+      {
+        key: "order-created",
+        title: "주문 생성",
+        value: formatDateTime(orderDetail?.createdAt),
+        description: `주문 상태 ${orderDetail?.status || "-"}`,
+        tone: "blue" as const,
+      },
+      {
+        key: "transport-state",
+        title: "운송 상태",
+        value: orderStatus ? ORDER_STATUS_LABELS[orderStatus] : orderDetail?.status || "-",
+        description: `${orderDetail?.startPlace || "-"} → ${orderDetail?.endPlace || "-"}`,
+        tone: orderStatus === "COMPLETED" ? "emerald" : "blue",
+      },
+      {
+        key: "payment-paid",
+        title: "결제 승인",
+        value: formatDateTime(settlement?.paidAt),
+        description: `현재 결제 상태 ${PAYMENT_STATUS_LABELS[paymentStatus]}`,
+        tone: isPaymentCompleted(settlement as SettlementResponse) ? "emerald" : "slate",
+      },
+      {
+        key: "driver-confirmed",
+        title: "차주 확인",
+        value: formatDateTime(settlement?.confirmedAt),
+        description: "차주 확인 시점이 없으면 결제만 완료된 상태입니다.",
+        tone: settlement?.confirmedAt ? "emerald" : "amber",
+      },
+      {
+        key: "settlement-complete",
+        title: "정산 완료",
+        value: formatDateTime(settlement?.feeCompleteDate),
+        description: `현재 정산 상태 ${SETTLEMENT_STATUS_LABELS[settlementStatus]}`,
+        tone: settlementStatus === "COMPLETED" ? "emerald" : settlementStatus === "WAIT" ? "amber" : "slate",
+      },
+      {
+        key: "payout-status",
+        title: "차주 지급",
+        value: settlement?.payoutCompletedAt
+          ? formatDateTime(settlement.payoutCompletedAt)
+          : settlement?.payoutRequestedAt
+            ? `요청 ${formatDateTime(settlement.payoutRequestedAt)}`
+            : "지급 대기",
+        description: settlement?.payoutFailureReason || settlement?.payoutRef || "지급 원장이 아직 생성되지 않았습니다.",
+        tone: settlement?.payoutCompletedAt
+          ? "emerald"
+          : settlement?.payoutFailureReason
+            ? "rose"
+            : settlement?.payoutRequestedAt
+              ? "blue"
+              : "slate",
+      },
+    ],
+    [orderDetail, orderStatus, paymentStatus, settlement, settlementStatus]
   );
 
   const handleMarkPaid = useCallback(async () => {
@@ -467,6 +594,87 @@ function ShipperDetailPageContent({
         </div>
       </section>
 
+      <section
+        className={`rounded-3xl border px-5 py-4 ${getRecommendationToneClass(
+          recommendation.tone
+        )}`}
+      >
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="text-xs font-black uppercase tracking-wider opacity-80">다음 액션 추천</div>
+            <div className="mt-2 text-lg font-black">{recommendation.title}</div>
+            <div className="mt-2 text-sm leading-6">{recommendation.description}</div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {orderStatus ? (
+              <StatusChip
+                label={ORDER_STATUS_LABELS[orderStatus]}
+                tone={getOrderStatusTone(orderStatus)}
+                minWidthClassName="min-w-[84px]"
+              />
+            ) : null}
+            <StatusChip
+              label={PAYMENT_STATUS_LABELS[paymentStatus]}
+              tone={paymentStatus === "READY" ? "slate" : paymentStatus === "DISPUTED" || paymentStatus === "ADMIN_HOLD" ? "amber" : "emerald"}
+              minWidthClassName="min-w-[84px]"
+            />
+            <StatusChip
+              label={SETTLEMENT_STATUS_LABELS[settlementStatus]}
+              tone={settlementStatus === "COMPLETED" ? "emerald" : settlementStatus === "WAIT" ? "amber" : "slate"}
+              minWidthClassName="min-w-[84px]"
+            />
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
+        <SettlementTimeline items={timelineItems} />
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-bold text-slate-900">운영 체크 포인트</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            PG 실조회, 분쟁 처리, 정산/지급 단계에서 바로 확인해야 할 참조값입니다.
+          </p>
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            <div className="rounded-2xl bg-slate-50 p-5">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-400">결제 원장</div>
+              <div className="mt-3 space-y-2 text-sm text-slate-600">
+                <div>paymentId {settlement.paymentId ?? "-"}</div>
+                <div>pgTid {settlement.pgTid ?? "-"}</div>
+                <div>proofUrl {settlement.proofUrl ?? "-"}</div>
+                <div>입금 완료 {formatDateTime(settlement.paidAt)}</div>
+              </div>
+            </div>
+            <div className="rounded-2xl bg-slate-50 p-5">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-400">정산 / 지급</div>
+              <div className="mt-3 space-y-2 text-sm text-slate-600">
+                <div>정산 ID #{settlement.settlementId}</div>
+                <div>지급 참조 {settlement.payoutRef ?? "-"}</div>
+                <div>지급 요청 {formatDateTime(settlement.payoutRequestedAt)}</div>
+                <div>지급 완료 {formatDateTime(settlement.payoutCompletedAt)}</div>
+              </div>
+            </div>
+            <div className="rounded-2xl bg-slate-50 p-5">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-400">화주 / 차주</div>
+              <div className="mt-3 space-y-2 text-sm text-slate-600">
+                <div>화주 {settlement.shipperName}</div>
+                <div>차주 {settlement.driverName || "-"}</div>
+                <div>사업자번호 {settlement.bizNumber}</div>
+                <div>계좌 {settlement.bankName || "-"} {settlement.accountNum || ""}</div>
+              </div>
+            </div>
+            <div className="rounded-2xl bg-slate-50 p-5">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-400">예외 신호</div>
+              <div className="mt-3 space-y-2 text-sm text-slate-600">
+                <div>PG mismatch {tossComparison?.mismatch ? "있음" : "없음"}</div>
+                <div>분쟁 상태 {disputeStatus?.status ?? "없음"}</div>
+                <div>지급 실패 사유 {settlement.payoutFailureReason || "-"}</div>
+                <div>최근 오류 {tossLookupErrorMessage || disputeErrorMessage || "-"}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <PaymentQuickActions
         settlement={settlement}
         isBusy={isMutating || isCancelSubmitting}
@@ -509,9 +717,17 @@ function ShipperDetailPageContent({
                 주문 상세 API와 정산 API를 조합해 표시합니다.
               </p>
             </div>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-              주문 상태 {orderDetail.status}
-            </span>
+            {orderStatus ? (
+              <StatusChip
+                label={ORDER_STATUS_LABELS[orderStatus]}
+                tone={getOrderStatusTone(orderStatus)}
+                minWidthClassName="min-w-[88px]"
+              />
+            ) : (
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                주문 상태 {orderDetail.status}
+              </span>
+            )}
           </div>
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
