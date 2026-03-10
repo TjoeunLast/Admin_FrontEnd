@@ -2,6 +2,105 @@
 import apiClient from '../../shared/api/client';
 import { AssignedDriverInfoResponse, OrderListResponse } from '../../orders/type';
 
+export interface PagedResponse<T> {
+    content: T[];
+    number: number;
+    size: number;
+    totalElements: number;
+    totalPages: number;
+    numberOfElements: number;
+    first: boolean;
+    last: boolean;
+    empty: boolean;
+}
+
+const DEFAULT_PAGE_FETCH_SIZE = 100;
+
+const isPagedResponse = <T,>(value: unknown): value is PagedResponse<T> => {
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+        return false;
+    }
+
+    const candidate = value as Partial<PagedResponse<T>>;
+    return (
+        Array.isArray(candidate.content) &&
+        typeof candidate.number === 'number' &&
+        typeof candidate.size === 'number' &&
+        typeof candidate.totalElements === 'number' &&
+        typeof candidate.totalPages === 'number'
+    );
+};
+
+const normalizePagedResponse = <T,>(payload: PagedResponse<T> | T[]): PagedResponse<T> => {
+    if (Array.isArray(payload)) {
+        return {
+            content: payload,
+            number: 0,
+            size: payload.length,
+            totalElements: payload.length,
+            totalPages: payload.length > 0 ? 1 : 0,
+            numberOfElements: payload.length,
+            first: true,
+            last: true,
+            empty: payload.length === 0,
+        };
+    }
+
+    if (isPagedResponse<T>(payload)) {
+        return payload;
+    }
+
+    return {
+        content: [],
+        number: 0,
+        size: 0,
+        totalElements: 0,
+        totalPages: 0,
+        numberOfElements: 0,
+        first: true,
+        last: true,
+        empty: true,
+    };
+};
+
+const fetchPagedData = async <T,>(
+    url: string,
+    params?: Record<string, unknown>
+): Promise<PagedResponse<T>> => {
+    const response = await apiClient.get<PagedResponse<T> | T[]>(url, { params });
+    return normalizePagedResponse(response.data);
+};
+
+const fetchAllPagedData = async <T,>(
+    url: string,
+    params?: Record<string, unknown>
+): Promise<T[]> => {
+    const firstPage = await fetchPagedData<T>(url, {
+        ...params,
+        page: 0,
+        size: DEFAULT_PAGE_FETCH_SIZE,
+    });
+
+    if (firstPage.totalPages <= 1) {
+        return firstPage.content;
+    }
+
+    const remainingPages = await Promise.all(
+        Array.from({ length: firstPage.totalPages - 1 }, (_, index) =>
+            fetchPagedData<T>(url, {
+                ...params,
+                page: index + 1,
+                size: DEFAULT_PAGE_FETCH_SIZE,
+            })
+        )
+    );
+
+    return [
+        ...firstPage.content,
+        ...remainingPages.flatMap((page) => page.content),
+    ];
+};
+
 export interface OrderUserSummary {
     userId: number;
     email?: string | null;
@@ -71,8 +170,11 @@ export interface AdminOrderDetailResponse extends OrderListResponse {
 
 // 1. 전체 주문 목록 불러오기
 export const fetchOrders = async () => {
-    const response = await apiClient.get<OrderListResponse[]>('/api/v1/admin/orders');
-    return response.data;
+    return fetchAllPagedData<OrderListResponse>('/api/v1/admin/orders');
+};
+
+export const fetchOrdersPage = async (page: number = 0, size: number = 20) => {
+    return fetchPagedData<OrderListResponse>('/api/v1/admin/orders', { page, size });
 };
 
 // 2. 특정 주문 상세 정보 불러오기
@@ -116,8 +218,11 @@ export const forceAllocateOrder = async (
 
 // 6. 취소된 오더 목록 조회
 export const fetchCancelledOrders = async () => {
-    const response = await apiClient.get<OrderListResponse[]>('/api/v1/admin/orders/cancelled');
-    return response.data;
+    return fetchAllPagedData<OrderListResponse>('/api/v1/admin/orders/cancelled');
+};
+
+export const fetchCancelledOrdersPage = async (page: number = 0, size: number = 20) => {
+    return fetchPagedData<OrderListResponse>('/api/v1/admin/orders/cancelled', { page, size });
 };
 
 // 7. 오더 취소 실행 (관리자 권한)
