@@ -21,8 +21,6 @@ import {
   PAYMENT_STATUS_LABELS,
   SETTLEMENT_STATUS_LABELS,
 } from "@/app/features/shared/lib/admin_settlement_overview";
-import { SettlementQueueCards } from "@/app/features/shared/components/settlement_queue_cards";
-import { SettlementOpsFilterBar } from "@/app/features/shared/components/settlement_ops_filter_bar";
 import { StatusChip } from "@/app/features/shared/components/status_chip";
 
 const ITEMS_PER_PAGE = 20;
@@ -60,14 +58,31 @@ const PAYMENT_TIMING_LABELS: Record<string, string> = {
   POSTPAID: "후결제",
 };
 
-const formatAmount = (value: number) => `₩${new Intl.NumberFormat("ko-KR").format(value || 0)}`;
-const formatDateTime = (value?: string | null) => (value ? new Date(value).toLocaleString() : "-");
+const formatAmount = (value: number) =>
+  new Intl.NumberFormat("ko-KR").format(value || 0);
+const formatDateTime = (value?: string | null) =>
+  value ? new Date(value).toLocaleString() : "-";
 const getPaymentMethodLabel = (value?: string | null) =>
-  PAYMENT_METHOD_LABELS[String(value ?? "").trim().toUpperCase()] ?? value ?? "-";
+  PAYMENT_METHOD_LABELS[
+    String(value ?? "")
+      .trim()
+      .toUpperCase()
+  ] ??
+  value ??
+  "-";
 const getPaymentTimingLabel = (value?: string | null) =>
-  PAYMENT_TIMING_LABELS[String(value ?? "").trim().toUpperCase()] ?? value ?? "-";
+  PAYMENT_TIMING_LABELS[
+    String(value ?? "")
+      .trim()
+      .toUpperCase()
+  ] ??
+  value ??
+  "-";
 const getLastSyncedAt = (settlement: SettlementResponse) =>
-  settlement.confirmedAt ?? settlement.paidAt ?? settlement.feeCompleteDate ?? settlement.feeDate;
+  settlement.confirmedAt ??
+  settlement.paidAt ??
+  settlement.feeCompleteDate ??
+  settlement.feeDate;
 
 const getOrderStatusTone = (status?: string | null) => {
   const normalized = String(status ?? "").toUpperCase();
@@ -79,11 +94,17 @@ const getOrderStatusTone = (status?: string | null) => {
 
 const getPaymentStatusTone = (status?: string | null) => {
   const normalized = String(status ?? "").toUpperCase();
-  if (normalized === "PAID" || normalized === "CONFIRMED" || normalized === "ADMIN_FORCE_CONFIRMED") {
+  if (
+    normalized === "PAID" ||
+    normalized === "CONFIRMED" ||
+    normalized === "ADMIN_FORCE_CONFIRMED"
+  ) {
     return "emerald" as const;
   }
-  if (normalized === "DISPUTED" || normalized === "ADMIN_HOLD") return "amber" as const;
-  if (normalized === "ADMIN_REJECTED" || normalized === "CANCELLED") return "rose" as const;
+  if (normalized === "DISPUTED" || normalized === "ADMIN_HOLD")
+    return "amber" as const;
+  if (normalized === "ADMIN_REJECTED" || normalized === "CANCELLED")
+    return "rose" as const;
   return "slate" as const;
 };
 
@@ -107,10 +128,11 @@ export default function ShipperSettlementPage() {
   const [paymentFilter, setPaymentFilter] = useState("전체 결제");
   const [currentPage, setCurrentPage] = useState(1);
   const [showPaymentColumns, setShowPaymentColumns] = useState(false);
-  const [submittingOrderId, setSubmittingOrderId] = useState<number | null>(null);
-  const [selectedPaymentStatusByOrder, setSelectedPaymentStatusByOrder] = useState<
-    Record<number, TransportPaymentStatus>
-  >({});
+  const [submittingOrderId, setSubmittingOrderId] = useState<number | null>(
+    null,
+  );
+  const [selectedPaymentStatusByOrder, setSelectedPaymentStatusByOrder] =
+    useState<Record<number, TransportPaymentStatus>>({});
 
   const loadSettlements = useCallback(async () => {
     try {
@@ -127,16 +149,42 @@ export default function ShipperSettlementPage() {
     void loadSettlements();
   }, [loadSettlements]);
 
-  const overview = useMemo(() => calculateAdminSettlementOverview(settlements), [settlements]);
-  const queueItems = useMemo(() => calculateAdminSettlementQueues(settlements), [settlements]);
+  const overview = useMemo(
+    () => calculateAdminSettlementOverview(settlements),
+    [settlements],
+  );
+  const queueItems = useMemo(
+    () => calculateAdminSettlementQueues(settlements),
+    [settlements],
+  );
   const cards = useMemo(
     () => [
-      { title: "화주 총 청구액", amount: overview.totalBillingAmount, meta: `청구 ${overview.totalCount}건`, tone: "text-slate-900" },
-      { title: "화주 입금액", amount: overview.completedBillingAmount, meta: `입금 완료 ${overview.completedPaymentCount}건`, tone: "text-emerald-600" },
-      { title: "화주 미수금", amount: overview.pendingBillingAmount, meta: `미입금 ${overview.pendingPaymentCount}건`, tone: "text-rose-600" },
-      { title: "플랫폼 수수료 수익", amount: overview.totalFeeAmount, meta: "입금 완료 기준", tone: "text-blue-600" },
+      {
+        title: "화주 총 청구액",
+        amount: overview.totalBillingAmount,
+        meta: `청구 ${overview.totalCount}건`,
+        tone: "text-slate-900",
+      },
+      {
+        title: "화주 입금액",
+        amount: overview.completedBillingAmount,
+        meta: `입금 완료 ${overview.completedPaymentCount}건`,
+        tone: "text-emerald-600",
+      },
+      {
+        title: "화주 미수금",
+        amount: overview.pendingBillingAmount,
+        meta: `미입금 ${overview.pendingPaymentCount}건`,
+        tone: "text-rose-600",
+      },
+      {
+        title: "플랫폼 수수료 수익",
+        amount: overview.totalFeeAmount,
+        meta: "입금 완료 기준",
+        tone: "text-[#4E46E5]",
+      },
     ],
-    [overview]
+    [overview],
   );
 
   const filteredSettlements = useMemo(() => {
@@ -156,7 +204,9 @@ export default function ShipperSettlementPage() {
       const matchesPayment =
         paymentFilter === "전체 결제" ||
         (paymentFilter === "추적없음"
-          ? !settlement.paymentStatus && !settlement.paymentMethod && !settlement.pgTid
+          ? !settlement.paymentStatus &&
+            !settlement.paymentMethod &&
+            !settlement.pgTid
           : PAYMENT_STATUS_LABELS[paymentStatus] === paymentFilter);
       return matchesSearch && matchesSettlement && matchesPayment;
     });
@@ -166,7 +216,10 @@ export default function ShipperSettlementPage() {
     setCurrentPage(1);
   }, [filteredSettlements.length, paymentFilter, searchTerm, statusFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredSettlements.length / ITEMS_PER_PAGE));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredSettlements.length / ITEMS_PER_PAGE),
+  );
   const paginatedSettlements = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
     return filteredSettlements.slice(start, start + ITEMS_PER_PAGE);
@@ -175,17 +228,26 @@ export default function ShipperSettlementPage() {
   const handleApplyPaymentStatus = useCallback(
     async (settlement: SettlementResponse) => {
       const currentStatus = getEffectivePaymentStatus(settlement);
-      const nextStatus = selectedPaymentStatusByOrder[settlement.orderId] ?? currentStatus;
-      if (nextStatus === currentStatus) return alert("변경할 결제 상태를 선택하세요.");
+      const nextStatus =
+        selectedPaymentStatusByOrder[settlement.orderId] ?? currentStatus;
+      if (nextStatus === currentStatus)
+        return alert("변경할 결제 상태를 선택하세요.");
 
       let adminMemo: string | null | undefined;
       if (needsPaymentMemo(nextStatus)) {
-        const input = window.prompt("관리 메모를 입력하세요. 비워두면 메모 없이 처리됩니다.", "");
+        const input = window.prompt(
+          "관리 메모를 입력하세요. 비워두면 메모 없이 처리됩니다.",
+          "",
+        );
         if (input === null) return;
         adminMemo = input.trim() || null;
       }
 
-      if (!confirm(`주문 #${settlement.orderId} 결제 상태를 ${PAYMENT_STATUS_LABELS[nextStatus]}로 변경하시겠습니까?`)) {
+      if (
+        !confirm(
+          `주문 #${settlement.orderId} 결제 상태를 ${PAYMENT_STATUS_LABELS[nextStatus]}로 변경하시겠습니까?`,
+        )
+      ) {
         return;
       }
 
@@ -206,29 +268,43 @@ export default function ShipperSettlementPage() {
         });
         alert("결제 상태가 변경되었습니다.");
       } catch (error) {
-        alert(error instanceof Error ? error.message : "결제 상태 변경 중 오류가 발생했습니다.");
+        alert(
+          error instanceof Error
+            ? error.message
+            : "결제 상태 변경 중 오류가 발생했습니다.",
+        );
       } finally {
-        setSubmittingOrderId((prev) => (prev === settlement.orderId ? null : prev));
+        setSubmittingOrderId((prev) =>
+          prev === settlement.orderId ? null : prev,
+        );
       }
     },
-    [loadSettlements, selectedPaymentStatusByOrder]
+    [loadSettlements, selectedPaymentStatusByOrder],
   );
 
   const handleQuickMarkPaid = useCallback(
     async (settlement: SettlementResponse) => {
       if (getEffectivePaymentStatus(settlement) !== "READY") {
-        return alert("결제 준비 상태에서만 빠른 입금 반영을 사용할 수 있습니다.");
+        return alert(
+          "결제 준비 상태에서만 빠른 입금 반영을 사용할 수 있습니다.",
+        );
       }
 
       let proofUrl = settlement.proofUrl ?? null;
       if (requiresTransferProof(settlement)) {
-        const input = window.prompt("계좌이체 결제는 증빙 URL이 필요합니다. URL을 입력하세요.", settlement.proofUrl ?? "");
+        const input = window.prompt(
+          "계좌이체 결제는 증빙 URL이 필요합니다. URL을 입력하세요.",
+          settlement.proofUrl ?? "",
+        );
         if (input === null) return;
         proofUrl = input.trim() || null;
         if (!proofUrl) return alert("계좌이체 결제는 증빙 URL이 필요합니다.");
       }
 
-      if (!confirm(`주문 #${settlement.orderId} 건을 즉시 입금 반영하시겠습니까?`)) return;
+      if (
+        !confirm(`주문 #${settlement.orderId} 건을 즉시 입금 반영하시겠습니까?`)
+      )
+        return;
 
       try {
         setSubmittingOrderId(settlement.orderId);
@@ -241,215 +317,375 @@ export default function ShipperSettlementPage() {
         await loadSettlements();
         alert("입금 반영이 완료되었습니다.");
       } catch (error) {
-        alert(error instanceof Error ? error.message : "입금 반영 중 오류가 발생했습니다.");
+        alert(
+          error instanceof Error
+            ? error.message
+            : "입금 반영 중 오류가 발생했습니다.",
+        );
       } finally {
-        setSubmittingOrderId((prev) => (prev === settlement.orderId ? null : prev));
+        setSubmittingOrderId((prev) =>
+          prev === settlement.orderId ? null : prev,
+        );
       }
     },
-    [loadSettlements]
+    [loadSettlements],
   );
 
   return (
-    <main className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <main className="max-w-[1600px] mx-auto space-y-6 font-sans">
+      {/* 헤더 섹션 */}
+      <div className="flex flex-wrap items-center justify-between gap-4 pl-1">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900">정산 및 매출 관리</h1>
-          <p className="mt-1 text-sm text-slate-500">청구, 입금, 정산 상태를 분리해 화주 결제 운영을 처리합니다.</p>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            정산 및 매출 관리
+          </h1>
         </div>
-        <div className="flex rounded-2xl bg-slate-100 p-1 shadow-inner">
-          <Link href="/global/billing/settlement/driver" className="rounded-xl px-5 py-2 text-sm font-bold text-slate-500 hover:bg-white/60">차주 정산</Link>
-          <button className="rounded-xl bg-white px-5 py-2 text-sm font-bold text-slate-900 shadow-sm">화주 정산</button>
+        <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200/50 shadow-sm">
+          <Link
+            href="/global/billing/settlement/driver"
+            className="rounded-xl px-6 py-2.5 text-xs font-black text-slate-500 hover:text-slate-700 transition-colors"
+          >
+            차주 정산
+          </Link>
+          <button className="rounded-xl bg-white px-6 py-2.5 text-xs font-black text-[#4E46E5] shadow-md transition-all">
+            화주 정산
+          </button>
         </div>
       </div>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {/* 요약 카드 섹션 */}
+      <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => (
-          <div key={card.title} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="text-sm font-bold text-slate-500">{card.title}</div>
-            <div className={`mt-2 text-2xl font-black ${card.tone}`}>{formatAmount(card.amount)}</div>
-            <div className="mt-2 text-xs text-slate-400">{card.meta}</div>
+          <div
+            key={card.title}
+            className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm transition-all"
+          >
+            <div className="text-sm font-medium text-slate-500 mb-1">
+              {card.title}
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className={`text-3xl font-bold ${card.tone}`}>
+                {formatAmount(card.amount).replace("₩", "")}
+              </span>
+              <span className="text-sm font-medium text-slate-400">원</span>
+            </div>
+            <div className="mt-2 text-[11px] font-medium text-slate-400 uppercase tracking-wider">
+              {card.meta}
+            </div>
           </div>
         ))}
       </section>
 
-      <SettlementQueueCards items={queueItems} />
+      {/* 워크플로우 현황 바 */}
+      <div className="pl-1">
+        <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">
+          워크플로우 실시간 현황
+        </h2>
+        <section className="rounded-[24px] border border-slate-200 bg-white p-2 shadow-sm overflow-hidden">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 divide-x divide-slate-100">
+            {queueItems.map((item) => (
+              <div key={item.title} className="px-6 py-4 flex flex-col gap-1">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">
+                  {item.title}
+                </span>
+                <div className="flex items-baseline gap-0.5">
+                  <span
+                    className={`text-lg font-black ${
+                      item.tone === "rose"
+                        ? "text-rose-600"
+                        : item.tone === "emerald"
+                          ? "text-emerald-600"
+                          : item.tone === "blue"
+                            ? "text-[#4E46E5]"
+                            : item.tone === "amber"
+                              ? "text-amber-600"
+                              : "text-slate-900"
+                    }`}
+                  >
+                    {formatAmount(item.amount).replace("₩", "")}
+                  </span>
+                  <span className="text-[10px] font-bold text-slate-300">
+                    원
+                  </span>
+                </div>
+                <span className="text-[10px] font-bold text-slate-400">
+                  {item.count}건
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
 
-      <SettlementOpsFilterBar
-        searchPlaceholder="주문번호, 화주명, 사업자번호, 차주명을 검색하세요"
-        searchValue={searchTerm}
-        statusValue={statusFilter}
-        statusOptions={STATUS_FILTER_OPTIONS}
-        paymentValue={paymentFilter}
-        paymentOptions={PAYMENT_FILTER_OPTIONS}
-        showExtraColumns={showPaymentColumns}
-        onSearchChange={setSearchTerm}
-        onStatusChange={setStatusFilter}
-        onPaymentChange={setPaymentFilter}
-        onToggleExtraColumns={setShowPaymentColumns}
-      />
+      {/* 검색 및 필터 바 */}
+      <div className="rounded-[24px] border border-slate-200 bg-white p-6 flex flex-wrap gap-4 items-center shadow-sm">
+        <div className="flex-1 min-w-[300px] flex flex-col gap-2">
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider pl-1">
+            결제 데이터 검색
+          </label>
+          <input
+            type="text"
+            placeholder="주문번호, 화주명, 사업자번호, 차주명 검색"
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:border-[#4E46E5] transition-all placeholder:text-slate-300"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
 
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-wrap gap-3 items-end">
+          {[
+            {
+              label: "정산 상태",
+              val: statusFilter,
+              set: setStatusFilter,
+              opt: STATUS_FILTER_OPTIONS,
+            },
+            {
+              label: "결제 상태",
+              val: paymentFilter,
+              set: setPaymentFilter,
+              opt: PAYMENT_FILTER_OPTIONS,
+            },
+          ].map((f) => (
+            <div key={f.label} className="w-44 flex flex-col gap-2">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider pl-1">
+                {f.label}
+              </label>
+              <div className="relative">
+                <select
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-bold text-slate-700 outline-none appearance-none cursor-pointer focus:border-[#4E46E5] transition-all"
+                  value={f.val}
+                  onChange={(e) => f.set(e.target.value)}
+                >
+                  {f.opt.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-400">
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                  >
+                    <path d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          ))}
+          <div className="flex items-center gap-2 px-2 pb-3">
+            <input
+              type="checkbox"
+              id="colToggle"
+              checked={showPaymentColumns}
+              onChange={(e) => setShowPaymentColumns(e.target.checked)}
+              className="w-4 h-4 rounded border-slate-300 text-[#4E46E5] focus:ring-[#4E46E5] cursor-pointer"
+            />
+            <label
+              htmlFor="colToggle"
+              className="text-xs font-bold text-slate-600 cursor-pointer select-none"
+            >
+              세부 컬럼
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {/* 데이터 테이블 */}
+      <div className="rounded-[24px] border border-slate-200 bg-white overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className={`w-full min-w-[1120px] text-sm ${showPaymentColumns ? "xl:min-w-[1580px]" : ""}`}>
-            <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
-              <tr className="text-left text-xs font-black uppercase tracking-wider">
-                <th className="px-5 py-4">주문 / 화주</th>
-                <th className="px-4 py-4">차주</th>
-                <th className="px-4 py-4">운송상태</th>
-                <th className="px-4 py-4">결제상태</th>
-                <th className="px-4 py-4">정산상태</th>
-                <th className="px-4 py-4 text-right">총청구액</th>
-                <th className="px-4 py-4">최근 동기화</th>
-                {showPaymentColumns ? (
+          <table
+            className={`w-full min-w-[1120px] text-left border-collapse table-fixed ${showPaymentColumns ? "xl:min-w-[1600px]" : ""}`}
+          >
+            <thead className="bg-slate-50/50 border-b border-slate-200">
+              <tr className="text-[11px] font-black text-slate-400 uppercase tracking-wider">
+                <th className="px-5 py-4 w-44">주문 / 화주</th>
+                <th className="px-4 py-4 w-40">차주 정보</th>
+                <th className="px-4 py-4 w-28 text-center">운송상태</th>
+                <th className="px-4 py-4 w-28 text-center">결제상태</th>
+                <th className="px-4 py-4 w-28 text-center">정산상태</th>
+                <th className="px-4 py-4 w-32 text-center">총청구액</th>
+                <th className="px-4 py-4 w-36 text-center">최근 동기화</th>
+                {showPaymentColumns && (
                   <>
-                    <th className="px-4 py-4">결제수단</th>
-                    <th className="px-4 py-4">결제시점</th>
-                    <th className="px-4 py-4 text-right">수수료</th>
-                    <th className="px-4 py-4">PG / 증빙</th>
-                    <th className="px-4 py-4">입금시각</th>
+                    <th className="px-4 py-4 w-24 text-center">수단/시점</th>
+                    <th className="px-4 py-4 w-28 text-right">수수료</th>
+                    <th className="px-4 py-4 w-48">PG / 증빙</th>
+                    <th className="px-4 py-4 w-36 text-center">입금시각</th>
                   </>
-                ) : null}
-                <th className="px-5 py-4 text-right">운영</th>
+                )}
+                <th className="px-5 py-4 w-40 text-center">관리 제어</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={showPaymentColumns ? 13 : 8} className="px-5 py-12 text-center text-slate-400">
-                    데이터를 불러오는 중입니다.
+                  <td
+                    colSpan={13}
+                    className="py-20 text-center text-slate-400 font-bold"
+                  >
+                    결제 데이터를 불러오는 중...
                   </td>
                 </tr>
               ) : paginatedSettlements.length === 0 ? (
                 <tr>
-                  <td colSpan={showPaymentColumns ? 13 : 8} className="px-5 py-12 text-center text-slate-400">
-                    조건에 맞는 결제 운영 건이 없습니다.
+                  <td
+                    colSpan={13}
+                    className="py-20 text-center text-slate-400 font-bold"
+                  >
+                    조건에 맞는 내역이 없습니다.
                   </td>
                 </tr>
               ) : (
                 paginatedSettlements.map((settlement) => {
-                  const orderStatus = getEffectiveOrderStatus(settlement);
-                  const paymentStatus = getEffectivePaymentStatus(settlement);
-                  const settlementStatus = getEffectiveSettlementStatus(settlement);
-                  const selectedStatus =
-                    selectedPaymentStatusByOrder[settlement.orderId] ?? paymentStatus;
+                  const oStatus = getEffectiveOrderStatus(settlement);
+                  const payStatus = getEffectivePaymentStatus(settlement);
+                  const setStatus = getEffectiveSettlementStatus(settlement);
                   const isSubmitting = submittingOrderId === settlement.orderId;
                   const needsAttention =
-                    paymentStatus === "DISPUTED" ||
-                    paymentStatus === "ADMIN_HOLD" ||
-                    paymentStatus === "ADMIN_REJECTED" ||
+                    payStatus === "DISPUTED" ||
+                    payStatus === "ADMIN_HOLD" ||
                     !isPaymentCompleted(settlement);
 
                   return (
-                    <tr key={settlement.orderId} className={needsAttention ? "bg-amber-50/40" : "bg-white"}>
+                    <tr
+                      key={settlement.orderId}
+                      className={`${needsAttention ? "bg-amber-50/30" : "hover:bg-slate-50/50"} transition-all group`}
+                    >
                       <td className="px-5 py-5 align-top">
                         <Link
                           href={`/global/billing/settlement/shipper/${settlement.orderId}`}
-                          className="text-sm font-black text-slate-900 hover:text-blue-700"
+                          className="text-sm font-black text-[#4E46E5] hover:underline transition-all"
                         >
-                          주문 #{settlement.orderId}
+                          #{settlement.orderId}
                         </Link>
-                        <div className="mt-2 text-sm font-bold text-slate-700">{settlement.shipperName}</div>
-                        <div className="mt-1 text-xs text-slate-400">{settlement.bizNumber}</div>
+                        <div className="mt-1.5 text-sm font-bold text-slate-800 truncate">
+                          {settlement.shipperName}
+                        </div>
+                        <div className="mt-0.5 text-[11px] font-medium text-slate-400 tracking-tight">
+                          {settlement.bizNumber}
+                        </div>
                       </td>
                       <td className="px-4 py-5 align-top">
-                        <div className="text-sm font-bold text-slate-900">
-                          {settlement.driverName || `차주 #${settlement.driverUserId}`}
+                        <div className="text-sm font-bold text-slate-800 truncate">
+                          {settlement.driverName ||
+                            `차주 #${settlement.driverUserId}`}
                         </div>
-                        <div className="mt-1 text-xs text-slate-400">
+                        <div className="mt-1 text-[11px] font-medium text-slate-400">
                           지급액 {formatAmount(getPayoutAmount(settlement))}
                         </div>
                       </td>
-                      <td className="px-4 py-5 align-top">
-                        {orderStatus ? (
-                          <StatusChip
-                            label={ORDER_STATUS_LABELS[orderStatus]}
-                            tone={getOrderStatusTone(orderStatus)}
-                            minWidthClassName="min-w-[84px]"
-                          />
-                        ) : (
-                          <span className="text-xs text-slate-400">미확인</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-5 align-top">
+                      <td className="px-4 py-5 align-top text-center">
                         <StatusChip
-                          label={PAYMENT_STATUS_LABELS[paymentStatus]}
-                          tone={getPaymentStatusTone(paymentStatus)}
-                          minWidthClassName="min-w-[84px]"
+                          label={
+                            ORDER_STATUS_LABELS[
+                              (oStatus ||
+                                "REQUESTED") as keyof typeof ORDER_STATUS_LABELS
+                            ]
+                          }
+                          tone={getOrderStatusTone(oStatus)}
                         />
                       </td>
-                      <td className="px-4 py-5 align-top">
+                      <td className="px-4 py-5 align-top text-center">
                         <StatusChip
-                          label={SETTLEMENT_STATUS_LABELS[settlementStatus]}
-                          tone={getSettlementStatusTone(settlementStatus)}
-                          minWidthClassName="min-w-[84px]"
+                          label={PAYMENT_STATUS_LABELS[payStatus]}
+                          tone={getPaymentStatusTone(payStatus)}
                         />
                       </td>
-                      <td className="px-4 py-5 text-right align-top">
-                        <div className="text-base font-black text-slate-900">
-                          {formatAmount(getBillingAmount(settlement))}
-                        </div>
+                      <td className="px-4 py-5 align-top text-center">
+                        <StatusChip
+                          label={SETTLEMENT_STATUS_LABELS[setStatus]}
+                          tone={getSettlementStatusTone(setStatus)}
+                        />
                       </td>
-                      <td className="px-4 py-5 align-top text-sm text-slate-600">
-                        {formatDateTime(getLastSyncedAt(settlement))}
+                      <td className="px-4 py-5 align-top text-center font-black text-slate-900">
+                        {formatAmount(getBillingAmount(settlement))}
                       </td>
-                      {showPaymentColumns ? (
+                      <td className="px-4 py-5 align-top text-center text-[11px] font-medium text-slate-400 leading-tight">
+                        {formatDateTime(getLastSyncedAt(settlement))
+                          .split(" ")
+                          .map((s, i) => (
+                            <div key={i}>{s}</div>
+                          ))}
+                      </td>
+                      {showPaymentColumns && (
                         <>
-                          <td className="px-4 py-5 align-top text-sm text-slate-600">
-                            {getPaymentMethodLabel(settlement.paymentMethod)}
+                          <td className="px-4 py-5 align-top text-center text-xs font-bold text-slate-600">
+                            <div>
+                              {getPaymentMethodLabel(settlement.paymentMethod)}
+                            </div>
+                            <div className="text-[10px] opacity-60 font-medium">
+                              {getPaymentTimingLabel(settlement.paymentTiming)}
+                            </div>
                           </td>
-                          <td className="px-4 py-5 align-top text-sm text-slate-600">
-                            {getPaymentTimingLabel(settlement.paymentTiming)}
-                          </td>
-                          <td className="px-4 py-5 text-right align-top text-sm font-bold text-slate-700">
+                          <td className="px-4 py-5 align-top text-right font-bold text-slate-700 text-sm">
                             {formatAmount(getFeeAmount(settlement))}
                           </td>
-                          <td className="px-4 py-5 align-top text-sm text-slate-600">
-                            <div className="max-w-[220px] truncate">{settlement.pgTid || settlement.proofUrl || "-"}</div>
+                          <td className="px-4 py-5 align-top text-sm text-slate-600 truncate tracking-tight">
+                            {settlement.pgTid || settlement.proofUrl || "-"}
                           </td>
-                          <td className="px-4 py-5 align-top text-sm text-slate-600">
+                          <td className="px-4 py-5 align-top text-center text-[11px] text-slate-400">
                             {formatDateTime(settlement.paidAt)}
                           </td>
                         </>
-                      ) : null}
-                      <td className="px-5 py-5 align-top">
-                        <div className="flex flex-col items-end gap-2">
+                      )}
+                      <td className="px-5 py-5 align-top text-center">
+                        <div className="flex flex-col gap-1.5">
                           <select
-                            value={selectedStatus}
-                            onChange={(event) =>
+                            value={
+                              selectedPaymentStatusByOrder[
+                                settlement.orderId
+                              ] ?? payStatus
+                            }
+                            onChange={(e) =>
                               setSelectedPaymentStatusByOrder((prev) => ({
                                 ...prev,
-                                [settlement.orderId]: event.target.value as TransportPaymentStatus,
+                                [settlement.orderId]: e.target
+                                  .value as TransportPaymentStatus,
                               }))
                             }
-                            className="h-10 min-w-[112px] rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none"
+                            className="w-full h-8 rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-bold text-slate-700 outline-none focus:border-[#4E46E5] transition-all cursor-pointer"
                           >
-                            {PAYMENT_STATUS_OPTIONS.map((option) => (
-                              <option key={option} value={option}>
-                                {PAYMENT_STATUS_LABELS[option]}
+                            {PAYMENT_STATUS_OPTIONS.map((opt) => (
+                              <option key={opt} value={opt}>
+                                {PAYMENT_STATUS_LABELS[opt]}
                               </option>
                             ))}
                           </select>
-                          <div className="flex flex-wrap justify-end gap-2">
+                          <div className="grid grid-cols-2 gap-1">
                             <button
-                              onClick={() => void handleApplyPaymentStatus(settlement)}
+                              onClick={() =>
+                                void handleApplyPaymentStatus(settlement)
+                              }
                               disabled={isSubmitting}
-                              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                              className="h-7 rounded-lg border border-slate-200 bg-white text-[10px] font-black text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-all active:scale-95"
                             >
-                              상태 적용
+                              상태적용
                             </button>
                             <button
-                              onClick={() => void handleQuickMarkPaid(settlement)}
-                              disabled={isSubmitting || getEffectivePaymentStatus(settlement) !== "READY"}
-                              className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+                              onClick={() =>
+                                void handleQuickMarkPaid(settlement)
+                              }
+                              disabled={
+                                isSubmitting ||
+                                getEffectivePaymentStatus(settlement) !==
+                                  "READY"
+                              }
+                              className="h-7 rounded-lg bg-slate-900 text-[10px] font-black text-white hover:bg-black disabled:bg-slate-200 transition-all active:scale-95"
                             >
-                              입금 반영
+                              입금반영
                             </button>
                           </div>
                           <Link
                             href={`/global/billing/settlement/shipper/${settlement.orderId}`}
-                            className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100"
+                            className="h-7 flex items-center justify-center rounded-lg bg-blue-50 text-[10px] font-black text-[#4E46E5] hover:bg-blue-100 transition-all active:scale-95"
                           >
-                            상세 운영
+                            상세운영
                           </Link>
                         </div>
                       </td>
@@ -460,29 +696,34 @@ export default function ShipperSettlementPage() {
             </tbody>
           </table>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-5 py-4 text-sm text-slate-500">
-          <div>
-            총 {filteredSettlements.length}건 중 {paginatedSettlements.length}건 표시
+
+        {/* 페이지네이션 */}
+        <div className="flex items-center justify-center gap-8 py-8 border-t border-slate-100 bg-white font-bold">
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="text-xs text-slate-400 disabled:opacity-20 hover:text-slate-900 transition-all active:scale-95"
+          >
+            이전
+          </button>
+          <div className="flex gap-4">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => (
+              <button
+                key={num}
+                onClick={() => setCurrentPage(num)}
+                className={`text-md transition-all ${currentPage === num ? "text-slate-900 underline underline-offset-4 decoration-2" : "text-slate-400 hover:text-slate-600"}`}
+              >
+                {num}
+              </button>
+            ))}
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
-            >
-              이전
-            </button>
-            <span className="min-w-[88px] text-center font-bold text-slate-700">
-              {currentPage} / {totalPages}
-            </span>
-            <button
-              onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
-            >
-              다음
-            </button>
-          </div>
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="text-sm text-slate-400 disabled:opacity-20 hover:text-slate-900 transition-all active:scale-95"
+          >
+            다음
+          </button>
         </div>
       </div>
     </main>
