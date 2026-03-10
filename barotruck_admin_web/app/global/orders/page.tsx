@@ -23,16 +23,13 @@ export default function Order_Page() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // ✅ 정렬 상태 추가
   const [sortConfig, setSortConfig] = useState<SortConfig>({
     key: "orderId",
     direction: "desc",
   });
 
-  // ✅ 프론트엔드에서 직접 계산하는 통계 데이터
   const stats = useMemo(() => {
     const total = orders.length;
-    // 완료(COMPLETED)와 취소(CANCEL)를 제외한 나머지를 '진행 중'으로 간주
     const active = orders.filter(
       (o) => o.status !== "COMPLETED" && !o.status.includes("CANCEL"),
     ).length;
@@ -56,11 +53,9 @@ export default function Order_Page() {
     loadOrders();
   }, []);
 
-  // ✅ 필터링 및 정렬 로직 통합
   useEffect(() => {
     let result = [...orders];
 
-    // 1. 필터링
     if (statusFilter !== "ALL") {
       result = result.filter((order) => order.status === statusFilter);
     }
@@ -75,13 +70,11 @@ export default function Order_Page() {
       );
     }
 
-    // 2. 정렬
     if (sortConfig.direction !== null) {
       result.sort((a, b) => {
         let aValue: any;
         let bValue: any;
 
-        // 가격 필드의 경우 합산 금액으로 비교
         if (sortConfig.key === "totalPrice") {
           aValue =
             a.totalPrice || Number(a.basePrice || 0) + Number(a.laborFee || 0);
@@ -101,7 +94,6 @@ export default function Order_Page() {
     setFilteredOrders(result);
   }, [orders, statusFilter, searchTerm, sortConfig]);
 
-  // ✅ 정렬 핸들러
   const requestSort = (key: SortConfig["key"]) => {
     let direction: "asc" | "desc" = "asc";
     if (sortConfig.key === key && sortConfig.direction === "asc") {
@@ -128,29 +120,25 @@ export default function Order_Page() {
 
   if (isLoading)
     return (
-      <div className="p-10 text-center text-gray-500">
+      <div className="p-10 text-center text-slate-500 font-medium">
         데이터를 불러오는 중입니다...
       </div>
     );
 
   return (
-    <div className="max-w-[1600px] mx-auto space-y-6">
+    <div className="max-w-[1600px] mx-auto space-y-6 font-sans">
       <header className="mb-8 pl-1 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-              주문 목록 관리
-            </h1>
-          </div>
-        </div>
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+          주문 목록 관리
+        </h1>
         <Link href="/global/orders/new">
-          <button className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-bold text-sm hover:bg-blue-700 transition-all shadow-sm flex items-center gap-2">
+          <button className="bg-[#4E46E5] text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:opacity-90 active:scale-95 transition-all shadow-sm flex items-center gap-2">
             <span>배차 관리</span>
           </button>
         </Link>
       </header>
 
-      {/* 상단 통계 위젯 추가 */}
+      {/* 상단 통계 위젯 */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-sm font-medium text-slate-500 mb-1">전체 오더</p>
@@ -198,7 +186,7 @@ export default function Order_Page() {
             운송 상태
           </label>
           <select
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-all"
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-all cursor-pointer"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
@@ -228,33 +216,32 @@ export default function Order_Page() {
         <table className="w-full text-left border-collapse table-fixed">
           <thead>
             <tr className="bg-slate-50/50 border-b border-slate-200">
-              {/* 클릭 시 정렬 가능하도록 th 수정 */}
               <th
                 onClick={() => requestSort("orderId")}
-                className="w-20 p-4 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-blue-600 transition-colors"
+                className="w-20 p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-blue-600 transition-colors"
               >
-                ID{" "}
+                오더 번호{" "}
                 {sortConfig.key === "orderId" &&
                   (sortConfig.direction === "asc" ? "▲" : "▼")}
               </th>
-              <th className="w-[28%] p-4 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              <th className="w-[28%] p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                 운송 경로
               </th>
-              <th className="w-[18%] p-4 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              <th className="w-[18%] p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                 물품 정보
               </th>
-              <th className="w-[15%] p-4 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              <th className="w-[15%] p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                 차량 정보
               </th>
               <th
                 onClick={() => requestSort("totalPrice")}
-                className="w-32 p-4 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-blue-600 transition-colors"
+                className="w-32 p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-blue-600 transition-colors"
               >
                 운임{" "}
                 {sortConfig.key === "totalPrice" &&
                   (sortConfig.direction === "asc" ? "▲" : "▼")}
               </th>
-              <th className="w-28 p-4 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              <th className="p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider w-28">
                 상태
               </th>
             </tr>
@@ -267,43 +254,43 @@ export default function Order_Page() {
               return (
                 <tr
                   key={order.orderId}
-                  className="hover:bg-slate-50/50 transition-all group cursor-default"
+                  className="hover:bg-slate-50/50 transition-all group"
                 >
-                  <td className="p-4 text-center">
+                  <td className="p-5 text-center">
                     <Link
                       href={`/global/orders/${order.orderId}`}
-                      className="text-sm font-bold text-blue-600 hover:underline"
+                      className="text-sm font-bold text-[#4E46E5] hover:underline"
                     >
                       {order.orderId}
                     </Link>
                   </td>
-                  <td className="p-4">
+                  <td className="p-5">
                     <div className="flex items-center gap-2 justify-center">
-                      <span className="font-bold text-slate-700 text-sm">
+                      <span className="font-bold text-slate-800 text-sm">
                         {order.startPlace}
                       </span>
                       <span className="text-slate-300 text-xs font-light">
                         →
                       </span>
-                      <span className="font-bold text-slate-700 text-sm">
+                      <span className="font-bold text-slate-800 text-sm">
                         {order.endPlace}
                       </span>
                     </div>
                   </td>
-                  <td className="p-4 text-center text-slate-600 font-medium text-sm truncate">
+                  <td className="p-5 text-center text-slate-600 font-semibold text-sm truncate">
                     {order.cargoContent || "일반 화물"}
                   </td>
-                  <td className="p-4 text-center text-slate-500 text-[13px] font-semibold">
+                  <td className="p-5 text-center text-slate-500 text-[13px] font-bold">
                     {order.reqCarType}{" "}
-                    <span className="text-slate-300 font-normal mx-1">|</span>{" "}
+                    <span className="text-slate-200 font-normal mx-1">|</span>{" "}
                     {order.reqTonnage}
                   </td>
-                  <td className="p-4 text-right pr-8">
+                  <td className="p-5 text-right pr-8">
                     <span className="text-sm font-bold text-slate-900">
                       {displayPrice.toLocaleString()}원
                     </span>
                   </td>
-                  <td className="p-4 text-center">
+                  <td className="p-5 text-center">
                     <span
                       className={`px-4 py-1.5 rounded-full text-[10px] font-black border ${getStatusClass(order.status)}`}
                     >
