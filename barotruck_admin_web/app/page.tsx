@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import Link from "next/link";
 import { fetchOrders } from "./features/shared/api/order_api";
 import { getUsers } from "./features/shared/api/user_api";
 import {
@@ -31,7 +32,6 @@ export default function DashboardPage() {
   useEffect(() => {
     const loadDashboardData = async () => {
       setSettlementError(null);
-
       try {
         const results = await Promise.allSettled([
           fetchOrders(),
@@ -68,10 +68,8 @@ export default function DashboardPage() {
 
   const settlementOverview = useMemo(
     () => calculateAdminSettlementOverview(settlements),
-    [settlements]
+    [settlements],
   );
-  const listPrimaryTextClass = "text-sm font-bold leading-6 text-slate-800";
-  const listSecondaryTextClass = "mt-0.5 text-xs leading-5 text-slate-500";
 
   const stats = useMemo(() => {
     const now = new Date();
@@ -109,14 +107,12 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6 font-sans">
       <header className="mb-8 pl-1">
-        <div className="flex items-center gap-3 mb-2">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-              통합 관제 대시보드
-            </h1>
-          </div>
-        </div>
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+          통합 관제 대시보드
+        </h1>
       </header>
+
+      {/* 상단 통계 카드 */}
       <section className="grid grid-cols-1 gap-6 md:grid-cols-3">
         <DashboardCard
           title="신규 오더"
@@ -128,13 +124,13 @@ export default function DashboardPage() {
           title="오늘 신규 회원"
           value={stats.recentMemberCount}
           label="명"
-          colorClass="text-[#0f766e]"
+          colorClass="text-emerald-600"
         />
         <DashboardCard
           title="오늘 배차 완료"
           value={stats.completedCount}
           label="건"
-          colorClass="text-[#0F172A]"
+          colorClass="text-slate-900"
         />
       </section>
 
@@ -145,66 +141,74 @@ export default function DashboardPage() {
       />
 
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-6">
+        {/* 신규 오더 현황 */}
+        <div className="rounded-[24px] border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <div className="bg-slate-50/50 border-b border-slate-200 px-6 py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <h2 className="text-lg font-bold text-slate-800">
+              <h2 className="text-sm font-bold text-slate-800">
                 신규 오더 현황
               </h2>
-              <span className="px-2.5 py-0.5 rounded-md bg-slate-100 text-xs font-bold text-slate-500">
-                배차 대기
-              </span>
             </div>
-            <span className="text-xs font-medium text-slate-400">최근 5건</span>
+            <span className="text-[11px] font-bold text-slate-400">
+              최근 5건
+            </span>
           </div>
-          <div className="mt-5 divide-y divide-[#E2E8F0]">
+          <div className="divide-y divide-slate-100">
             {stats.newOrders.slice(0, 5).map((order) => (
-              <div
+              <Link
                 key={order.orderId}
-                className="flex items-center justify-between gap-4 py-4"
+                href={`/global/orders/${order.orderId}`}
+                className="flex items-center justify-between gap-4 px-6 py-4 hover:bg-slate-50 transition-colors group"
               >
-                <div>
-                  <p className={listPrimaryTextClass}>
-                    {order.startPlace} → {order.endPlace}
-                  </p>
-                  <p className={listSecondaryTextClass}>
-                    {order.cargoContent || "상세 정보 없음"}
-                  </p>
+                <div className="flex items-center gap-4">
+                  <span className="text-xs font-black text-indigo-600 min-w-[45px] text-center">
+                    #{order.orderId}
+                  </span>
+                  <div>
+                    <p className="text-sm font-bold text-slate-800 group-hover:text-[#4E46E5] transition-colors">
+                      {order.startPlace} → {order.endPlace}
+                    </p>
+                    <p className="mt-0.5 text-xs font-medium text-slate-500">
+                      {order.reqCarType} · {order.reqTonnage} ·{" "}
+                      {order.driveMode || "일반운송"}
+                    </p>
+                  </div>
                 </div>
-                <span className="px-2 py-1 rounded bg-indigo-50 text-[11px] font-bold text-indigo-600">
-                  대기중
+                <span className="px-3 py-1.5 rounded-lg bg-amber-50 text-amber-600 border border-amber-100 text-[10px] font-black uppercase">
+                  배차대기
                 </span>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-bold text-slate-800">최근 지급 내역</h2>
-            <span className="text-xs font-medium text-slate-400">
+        {/* 최근 지급 내역 */}
+        <div className="rounded-[24px] border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <div className="bg-slate-50/50 border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-slate-800">최근 지급 내역</h2>
+            <span className="text-[11px] font-bold text-slate-400">
               정산 히스토리
             </span>
           </div>
-          <div className="mt-5 divide-y divide-[#E2E8F0]">
+          <div className="divide-y divide-slate-100">
             {stats.settledList.map((item) => (
               <div
                 key={item.settlementId}
-                className="flex items-center justify-between gap-4 py-4"
+                className="flex items-center justify-between gap-4 px-6 py-4"
               >
                 <div>
-                  <p className={listPrimaryTextClass}>
+                  <p className="text-sm font-bold text-slate-800">
                     {item.driverName} 차주님
                   </p>
-                  <p className={listSecondaryTextClass}>
+                  <p className="mt-0.5 text-xs font-medium text-slate-500">
                     {item.bankName} · {item.accountNum}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-bold leading-6 text-slate-900">
+                  <p className="text-sm font-black text-slate-900">
                     {getPayoutAmount(item).toLocaleString()}원
                   </p>
-                  <span className="mt-0.5 block text-xs font-bold leading-5 text-emerald-600">
+                  <span className="mt-1 inline-block px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 border border-emerald-100 text-[10px] font-black uppercase">
                     지급 완료
                   </span>
                 </div>

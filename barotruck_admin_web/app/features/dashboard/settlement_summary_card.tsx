@@ -9,33 +9,25 @@ interface SettlementSummaryCardProps {
 }
 
 const formatAmount = (value: number) =>
-  `₩${new Intl.NumberFormat("ko-KR").format(value || 0)}`;
+  new Intl.NumberFormat("ko-KR").format(value || 0);
 
 const buildCardValue = (
   isLoading: boolean,
   errorMessage: string | null | undefined,
-  value: number
+  value: number,
 ) => {
-  if (isLoading) {
-    return "-";
-  }
-  if (errorMessage) {
-    return "오류";
-  }
+  if (isLoading) return "-";
+  if (errorMessage) return "오류";
   return formatAmount(value);
 };
 
 const buildCardMeta = (
   isLoading: boolean,
   errorMessage: string | null | undefined,
-  value: string
+  value: string,
 ) => {
-  if (isLoading) {
-    return "집계 불러오는 중";
-  }
-  if (errorMessage) {
-    return errorMessage;
-  }
+  if (isLoading) return "집계 불러오는 중";
+  if (errorMessage) return errorMessage;
   return value;
 };
 
@@ -57,43 +49,49 @@ export function SettlementSummaryCard({
       amount: overview.pendingBillingAmount,
       meta: `미입금 ${overview.pendingPaymentCount}건`,
       accent: "text-rose-600",
-      border: "border-rose-100",
+      border: "border-slate-200",
     },
     {
       title: "차주 지급 대기액",
       amount: overview.pendingPayoutAmount,
       meta: `지급 대기 ${overview.pendingSettlementCount}건`,
       accent: "text-amber-600",
-      border: "border-amber-100",
+      border: "border-slate-200",
     },
     {
       title: "플랫폼 수수료 수익",
       amount: overview.totalFeeAmount,
-      meta: "입금 완료 건 기준 누적 수수료",
+      meta: "누적 수수료 기준",
       accent: "text-blue-700",
-      border: "border-blue-100",
+      border: "border-slate-200",
     },
   ];
 
   return (
-    <section className="space-y-3">
-      <div>
-        <h2 className="text-sm font-bold text-slate-700">정산 운영 요약</h2>
-        <p className="text-xs text-slate-400">핵심 지표 4개만 표시합니다.</p>
+    <section className="space-y-4">
+      <div className="pl-1">
+        <h2 className="text-lg font-bold text-slate-800">정산 운영 요약</h2>
       </div>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => (
           <div
             key={card.title}
-            className={`rounded-2xl border ${card.border} bg-white p-5 shadow-sm`}
+            className={`rounded-2xl border ${card.border} bg-white p-6 shadow-sm`}
           >
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
+            <div className="text-sm font-medium text-slate-500 mb-1">
               {card.title}
             </div>
-            <div className={`mt-2 text-2xl font-black ${card.accent}`}>
-              {buildCardValue(isLoading, errorMessage, card.amount)}
+
+            <div
+              className={`flex items-baseline gap-0.5 font-bold ${card.accent}`}
+            >
+              <span className="text-3xl tracking-tight">
+                {buildCardValue(isLoading, errorMessage, card.amount)}
+              </span>
+              <span className="text-base">원</span>
             </div>
-            <div className="mt-2 text-xs text-slate-400">
+
+            <div className="mt-2 text-[12px] font-medium text-slate-500">
               {buildCardMeta(isLoading, errorMessage, card.meta)}
             </div>
           </div>

@@ -55,11 +55,9 @@ export default function OrderDetailPage() {
       </div>
     );
 
-  const isCancelled = [
-    "CANCELLED",
-    "CANCELED_BY_ORDER",
-    "CANCELED_BY_ADMIN",
-  ].includes(order.status);
+  const isCancelled = ["CANCELLED", "CANCELLED_BY_ADMIN"].includes(
+    order.status,
+  );
 
   const timelineSteps = [
     { id: "REQUESTED", label: "배차대기", color: "#fbbf24" },
@@ -80,48 +78,48 @@ export default function OrderDetailPage() {
     (order.insuranceFee || 0);
 
   return (
-    <div className="w-full space-y-5 pb-10 font-sans text-black">
-      {/* 1. 헤더 */}
-      <div className="flex items-center gap-3 py-2 border-b border-slate-100">
-        <button
-          onClick={() => router.back()}
-          className="p-1.5 hover:bg-slate-50 rounded-lg text-slate-400"
-        >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="3"
+    <div className="w-full space-y-6 pb-10 font-sans text-black">
+      {/* 1. 헤더: 배차 관리 페이지와 동일한 스타일 적용 */}
+      <header className="mb-8 pl-1 flex justify-between items-center">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => router.back()}
+            className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"
           >
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
-        </button>
-        <h1 className="text-2xl font-black">
-          오더 상세 <span className="text-indigo-600 ml-1">#{orderId}</span>
-        </h1>
-        <div className="ml-auto">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+            >
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </button>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            오더 상세 <span className="text-indigo-600">#{orderId}</span>
+          </h1>
+        </div>
+
+        <div className="flex items-center">
           <span
-            className={`px-3 py-1.5 text-[11px] font-black rounded-lg uppercase tracking-wider ${
+            className={`px-4 py-1.5 rounded-full text-[10px] font-black border uppercase ${
               isCancelled
-                ? "bg-rose-50 text-rose-600"
-                : "bg-indigo-50 text-indigo-700"
+                ? "bg-rose-50 text-rose-600 border-rose-100"
+                : "bg-indigo-50 text-indigo-700 border-indigo-100"
             }`}
           >
             {ORDER_DRIVING_STATUS_MAP?.[order.status] || order.status}
           </span>
         </div>
-      </div>
+      </header>
 
       {/* 2. 통합 경로 및 상태 바 */}
       <section className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden divide-y divide-slate-50">
         {isCancelled && (
           <div className="bg-rose-50 px-6 py-2.5 flex items-center gap-2 border-b border-rose-100 text-rose-600 font-black text-[11px]">
-            <span>취소된 오더입니다</span>
-            <span className="opacity-50 ml-2">
-              | {order.memo || "관리자 취소"}
-            </span>
+            <span>취소된 오더</span>
           </div>
         )}
 
@@ -143,7 +141,7 @@ export default function OrderDetailPage() {
               </p>
             </div>
             <div className="text-xs font-bold text-slate-400 italic">
-              {order.startSchedule}
+              {order.startSchedule} 상차
             </div>
           </div>
 
@@ -173,9 +171,6 @@ export default function OrderDetailPage() {
               <p className="text-[15px] text-slate-500 font-bold">
                 {order.endAddr}
               </p>
-            </div>
-            <div className="text-[11px] font-black text-emerald-500 italic opacity-70 tracking-tighter">
-              운송 완료 예정
             </div>
           </div>
         </div>
@@ -266,12 +261,13 @@ export default function OrderDetailPage() {
                 value={`${(order.insuranceFee || 0).toLocaleString()}원`}
               />
             </div>
-            <div className="p-10 flex flex-col justify-center items-center bg-indigo-50/30 mt-4 space-y-2">
-              <p className="text-[12px] font-black text-indigo-400 uppercase tracking-widest">
+            {/* 총 합계 금액 섹션*/}
+            <div className="px-6 py-6 flex justify-between items-center bg-indigo-50/30">
+              <p className="text-sm font-black text-indigo-400 uppercase tracking-widest">
                 총 합계 금액
               </p>
               <p
-                className={`text-4xl font-black ${isCancelled ? "text-slate-400 line-through" : "text-indigo-600"}`}
+                className={`text-2xl font-black ${isCancelled ? "text-slate-400 line-through" : "text-indigo-600"}`}
               >
                 {totalPrice.toLocaleString()}원
               </p>
@@ -332,7 +328,9 @@ function UserChip({ label, name, isDriver, onClick }: any) {
         {label}
       </span>
       <span className="font-black text-[15px]">{name || "정보없음"}</span>
-      <div className="bg-white p-1 rounded-full shadow-sm text-slate-400 border border-slate-50">
+      <div
+        className={`text-slate-400 ${isDriver ? "text-indigo-400" : "text-slate-400"}`}
+      >
         <svg
           width="16"
           height="16"
