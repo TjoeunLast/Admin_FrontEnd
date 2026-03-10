@@ -37,11 +37,6 @@ const toPositiveId = (value: unknown): number | null => {
   return Math.trunc(parsed);
 };
 
-const getResponseStatus = (error: unknown): number | null => {
-  const status = (error as { response?: { status?: unknown } })?.response?.status;
-  return typeof status === "number" ? status : null;
-};
-
 const resolveTargetUserId = (report: ReportResponse): number | null => {
   const candidate = report as ReportResponse & {
     targetUserId?: number;
@@ -58,28 +53,8 @@ const resolveTargetUserId = (report: ReportResponse): number | null => {
   );
 };
 
-const applyTemporarySuspension = async (userId: number, days: number): Promise<boolean> => {
-  const attempts = [
-    () => client.post(`/api/v1/admin/user/suspend/${userId}`, { days }),
-    () => client.post(`/api/v1/admin/user/${userId}/suspend`, { days }),
-    () => client.post("/api/v1/admin/user/suspend", { userId, days }),
-    () => client.patch(`/api/v1/admin/user/${userId}/status`, { status: "SUSPENDED", days }),
-  ];
-
-  for (const request of attempts) {
-    try {
-      await request();
-      return true;
-    } catch (error) {
-      const status = getResponseStatus(error);
-      if (status === 404 || status === 405 || status === 400) {
-        continue;
-      }
-      throw error;
-    }
-  }
-
-  return false;
+const applyTemporarySuspension = async (userId: number, days: number): Promise<void> => {
+  await client.post(`/api/v1/admin/user/suspend/${userId}`, { days });
 };
 
 export default function ReportList() {
@@ -189,13 +164,7 @@ export default function ReportList() {
       }
 
       if (suspensionOption === "DAYS" && targetUserId) {
-        const isSuspended = await applyTemporarySuspension(targetUserId, validatedDays);
-        if (!isSuspended) {
-          alert(
-            "임시 정지 API를 찾을 수 없습니다. 백엔드에 사용자 정지 엔드포인트를 확인해 주세요.",
-          );
-          return;
-        }
+        await applyTemporarySuspension(targetUserId, validatedDays);
       }
 
       await reportApi.updateReportStatus(activeReport.reportId, "RESOLVED");
