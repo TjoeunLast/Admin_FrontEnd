@@ -116,8 +116,8 @@ export default function ReportList() {
               </div>
 
               <div className="ml-6 flex shrink-0 flex-col gap-2">
-                {buildUserDetailHref(r.reporterUser?.userId) ? (
-                  <Link href={buildUserDetailHref(r.reporterUser?.userId)!}>
+                {buildUserDetailHref(report.reporterUser?.userId) ? (
+                  <Link href={buildUserDetailHref(report.reporterUser?.userId)!}>
                     <button className="w-[170px] px-6 py-3 bg-[#1e293b] hover:bg-black rounded-xl font-bold text-sm text-white transition-all shadow-md active:scale-95">
                       신고자 정보 확인
                     </button>
@@ -131,8 +131,8 @@ export default function ReportList() {
                   </button>
                 )}
 
-                {buildUserDetailHref(r.targetUser?.userId) ? (
-                  <Link href={buildUserDetailHref(r.targetUser?.userId)!}>
+                {buildUserDetailHref(report.targetUser?.userId) ? (
+                  <Link href={buildUserDetailHref(report.targetUser?.userId)!}>
                     <button className="w-[170px] px-6 py-3 bg-white border border-[#cbd5e1] hover:bg-slate-50 rounded-xl font-bold text-sm text-[#1e293b] transition-all shadow-sm active:scale-95">
                       신고대상 정보 확인
                     </button>
@@ -147,15 +147,15 @@ export default function ReportList() {
                 )}
 
                 <button
-                  onClick={() => void handleDeleteReport(r.reportId)}
-                  disabled={deletingReportId === r.reportId}
+                  onClick={() => void handleDeleteReport(report.reportId)}
+                  disabled={deletingReportId === report.reportId}
                   className={`w-[170px] px-6 py-3 rounded-xl font-bold text-sm transition-all active:scale-95 ${
-                    deletingReportId === r.reportId
+                    deletingReportId === report.reportId
                       ? "bg-slate-100 text-slate-400 cursor-not-allowed"
                       : "bg-rose-600 text-white hover:bg-rose-700 shadow-sm"
                   }`}
                 >
-                  {deletingReportId === r.reportId ? "삭제 중..." : "신고 삭제"}
+                  {deletingReportId === report.reportId ? "삭제 중..." : "신고 삭제"}
                 </button>
               </div>
             </div>

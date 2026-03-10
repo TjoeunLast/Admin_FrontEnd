@@ -573,7 +573,7 @@ export const ensurePersonalChatRoom = async (
     );
   }
 
-  const createIfMissing = options?.createIfMissing === true;
+  const createIfMissing = options?.createIfMissing !== false;
 
   const loadAndFindExistingRoom = async (): Promise<number | null> => {
     const roomsResponse = await client.get<ChatRoomResponse[] | unknown>("/api/chat/room");

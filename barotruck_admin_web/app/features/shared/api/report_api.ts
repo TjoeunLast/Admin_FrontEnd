@@ -142,4 +142,12 @@ export const reportApi = {
     const response = await client.get(`/api/reports/admin/${reportId}`);
     return response.data;
   },
+
+  deleteReport: async (reportId: number): Promise<boolean> => {
+    const response = await client.delete(`/api/reports/admin/${reportId}`);
+    if (typeof response.data === "boolean") {
+      return response.data;
+    }
+    return true;
+  },
 };

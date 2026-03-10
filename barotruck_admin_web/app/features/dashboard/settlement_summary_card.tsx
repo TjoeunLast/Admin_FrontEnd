@@ -47,15 +47,17 @@ export function SettlementSummaryCard({
   const cards = [
     {
       title: "정산 총액",
-      amount: summary?.totalAmount ?? 0,
-      meta: `전체 ${summary?.totalCount ?? 0}건`,
+      amount: overview.totalBillingAmount,
+      meta: `전체 ${overview.totalCount}건`,
       accent: "text-[#4E46E5]",
+      border: "border-slate-200",
     },
     {
       title: "정산 대기",
-      amount: summary?.pendingAmount ?? 0,
-      meta: `대기 ${summary?.pendingCount ?? 0}건`,
+      amount: overview.pendingPayoutAmount,
+      meta: `대기 ${overview.pendingSettlementCount}건`,
       accent: "text-amber-500",
+      border: "border-slate-200",
     },
     {
       title: "플랫폼 수수료 수익",

@@ -225,12 +225,9 @@ export default function DriverSettlementPage() {
     () => [
       {
         title: "차주 총 지급 대상액",
-        amount: overview.totalPayoutAmount,
-        meta: `지급 대상 ${overview.payoutTargetCount}건`,
-        className: "bg-[#0f172a] text-white shadow-sm",
-        titleClassName: "text-sm text-slate-300 font-medium",
-        amountClassName: "text-2xl font-black mt-1",
-        metaClassName: "text-xs text-slate-400 mt-2",
+        value: overview.totalPayoutAmount,
+        label: "원",
+        color: "text-slate-900",
       },
       {
         title: "차주 지급 대기액",
@@ -808,6 +805,5 @@ export default function DriverSettlementPage() {
           </div>
         ) : null}
       </div>
-    </div>
   );
 }

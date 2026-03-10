@@ -22,7 +22,7 @@ const resolveErrorMessage = (error: unknown): string => {
       return "채팅 대상 사용자를 찾을 수 없습니다.";
     }
     if (error.code === "ROOM_NOT_FOUND") {
-      return "아직 사용자 측에서 관리자 채팅을 시작하지 않았습니다. 앱에서 먼저 채팅을 시작한 뒤 다시 시도해주세요.";
+      return "대상 사용자와의 채팅방을 찾을 수 없습니다.";
     }
     if (error.code === "DUPLICATE_ROOM_RECOVERY_FAILED") {
       return "중복된 1:1 채팅방 상태로 자동 복구에 실패했습니다. 운영자에게 문의해주세요.";
@@ -93,9 +93,7 @@ export default function PersonalChatStartPage() {
     try {
       setIsStarting(true);
       setErrorMessage(null);
-      const roomId = await inquiryApi.ensurePersonalChatRoom(targetUserId, {
-        createIfMissing: false,
-      });
+      const roomId = await inquiryApi.ensurePersonalChatRoom(targetUserId);
       goToRoom(roomId);
       return;
     } catch (error) {
@@ -128,7 +126,7 @@ export default function PersonalChatStartPage() {
 
         {isStarting && (
           <div className="rounded-2xl border border-slate-100 bg-slate-50 px-5 py-4 text-sm text-slate-600">
-            기존 1:1 채팅방을 확인하고 있습니다. 관리자 웹에서는 새 채팅방을 생성하지 않습니다.
+            기존 1:1 채팅방을 확인하고 있습니다. 없으면 새 채팅방을 생성합니다.
           </div>
         )}
 
