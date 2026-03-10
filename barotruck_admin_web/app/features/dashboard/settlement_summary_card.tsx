@@ -46,25 +46,16 @@ export function SettlementSummaryCard({
 }: SettlementSummaryCardProps) {
   const cards = [
     {
-      title: "화주 총 청구액",
-      amount: overview.totalBillingAmount,
-      meta: `청구 ${overview.totalCount}건`,
-      accent: "text-slate-900",
-      border: "border-slate-200",
+      title: "정산 총액",
+      amount: summary?.totalAmount ?? 0,
+      meta: `전체 ${summary?.totalCount ?? 0}건`,
+      accent: "text-[#4E46E5]",
     },
     {
-      title: "화주 미수금",
-      amount: overview.pendingBillingAmount,
-      meta: `미입금 ${overview.pendingPaymentCount}건`,
-      accent: "text-rose-600",
-      border: "border-rose-100",
-    },
-    {
-      title: "차주 지급 대기액",
-      amount: overview.pendingPayoutAmount,
-      meta: `지급 대기 ${overview.pendingSettlementCount}건`,
-      accent: "text-amber-600",
-      border: "border-amber-100",
+      title: "정산 대기",
+      amount: summary?.pendingAmount ?? 0,
+      meta: `대기 ${summary?.pendingCount ?? 0}건`,
+      accent: "text-amber-500",
     },
     {
       title: "플랫폼 수수료 수익",
@@ -87,7 +78,7 @@ export function SettlementSummaryCard({
             key={card.title}
             className={`rounded-2xl border ${card.border} bg-white p-5 shadow-sm`}
           >
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
+            <div className="text-sm font-medium text-slate-500 mb-1">
               {card.title}
             </div>
             <div className={`mt-2 text-2xl font-black ${card.accent}`}>
