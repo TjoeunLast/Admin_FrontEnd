@@ -199,7 +199,7 @@ export const paymentAdminApi = {
 
   getSettlements: async (status?: string): Promise<SettlementResponse[]> => {
     const response = await client.get<ApiResponse<SettlementResponse[]> | SettlementResponse[]>(
-      "/api/v1/settlements/me",
+      "/api/v1/settlements/admin/list",
       {
         params: { status },
       }

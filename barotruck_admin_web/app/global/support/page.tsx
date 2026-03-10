@@ -1,24 +1,33 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from 'next/navigation';
 import NoticeList from "./notice";
 import InquiryList from "./inquiry";
 import ReportList from "./report";
 import ReviewList from "./review"; // ✅ 새로 만든 리뷰 리스트 추가
 
-export default function SupportPage() {
+type SupportTab = "notice" | "inquiry" | "report" | "review";
+
+const isSupportTab = (value: string | null): value is SupportTab =>
+  value === "notice" ||
+  value === "inquiry" ||
+  value === "report" ||
+  value === "review";
+
+const SUPPORT_TABS: Array<{ id: SupportTab; label: string }> = [
+  { id: "notice", label: "공지사항" },
+  { id: "inquiry", label: "1:1 문의" },
+  { id: "report", label: "신고 관리" },
+  { id: "review", label: "리뷰 관리" },
+];
+
+function SupportPageContent() {
   // 💡 탭 타입에 "review" 추가
-  const [activeTab, setActiveTab] = useState<"notice" | "inquiry" | "report" | "review">("notice");
+  const [selectedTab, setSelectedTab] = useState<SupportTab>("notice");
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab');
-
-  useEffect(() => {
-    // 💡 허용되는 탭 파라미터에 "review" 포함
-    if (["notice", "inquiry", "report", "review"].includes(tabParam || "")) {
-      setActiveTab(tabParam as any);
-    }
-  }, [tabParam]);
+  const activeTab = isSupportTab(tabParam) ? tabParam : selectedTab;
 
   return (
     <div className="space-y-6">
@@ -29,15 +38,10 @@ export default function SupportPage() {
 
       {/* 탭 내비게이션 - 리뷰 관리 버튼 추가 */}
       <div className="flex gap-1 bg-[#e2e8f0] p-1 rounded-xl w-fit shadow-inner">
-        {[
-          { id: "notice", label: "공지사항" },
-          { id: "inquiry", label: "1:1 문의" },
-          { id: "report", label: "신고 관리" },
-          { id: "review", label: "리뷰 관리" } // ✅ 신규 추가
-        ].map((tab) => (
+        {SUPPORT_TABS.map((tab) => (
           <button 
             key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
+            onClick={() => setSelectedTab(tab.id)}
             className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${
               activeTab === tab.id 
               ? 'bg-white text-[#1e293b] shadow-sm' 
@@ -57,5 +61,13 @@ export default function SupportPage() {
         {activeTab === "review" && <ReviewList />} {/* ✅ 리뷰 리스트 렌더링 */}
       </div>
     </div>
+  );
+}
+
+export default function SupportPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-slate-400">로딩 중...</div>}>
+      <SupportPageContent />
+    </Suspense>
   );
 }
