@@ -261,7 +261,7 @@ export default function OrderDetailPage() {
                 value={`${(order.insuranceFee || 0).toLocaleString()}원`}
               />
             </div>
-            {/* 총 합계 금액 섹션: 높이를 줄이고 한 줄로 배치 */}
+            {/* 총 합계 금액 섹션*/}
             <div className="px-6 py-6 flex justify-between items-center bg-indigo-50/30">
               <p className="text-sm font-black text-indigo-400 uppercase tracking-widest">
                 총 합계 금액
