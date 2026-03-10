@@ -7,12 +7,14 @@ import {
   AdminOrderDetailResponse,
 } from "@/app/features/shared/api/order_api";
 import {
+  GatewayTransactionStatusResponse,
   paymentAdminApi,
   CreatePaymentDisputeRequest,
   PaymentApiTestContextResponse,
   PaymentDisputeStatus,
   PaymentDisputeStatusResponse,
   SettlementResponse,
+  TossPaymentComparisonResponse,
 } from "@/app/features/shared/api/payment_admin_api";
 import {
   getBillingAmount,
@@ -28,6 +30,8 @@ import { PaymentQuickActions } from "@/app/features/shared/components/payment_qu
 import { PaymentDisputeCreateModal } from "@/app/features/shared/components/payment_dispute_create_modal";
 import { PaymentDisputeResolutionPanel } from "@/app/features/shared/components/payment_dispute_resolution_panel";
 import { PaymentDebugContextPanel } from "@/app/features/shared/components/payment_debug_context_panel";
+import { PaymentTossOpsPanel } from "@/app/features/shared/components/payment_toss_ops_panel";
+import { TossPaymentCancelModal } from "@/app/features/shared/components/toss_payment_cancel_modal";
 
 const formatAmount = (value?: number | null) =>
   new Intl.NumberFormat("ko-KR").format(value ?? 0);
@@ -47,6 +51,43 @@ const getHttpStatus = (error: unknown): number | null => {
   return typeof response?.status === "number" ? response.status : null;
 };
 
+const getErrorMessage = (error: unknown, fallbackMessage: string): string => {
+  if (typeof error === "object" && error !== null && "response" in error) {
+    const response = (
+      error as {
+        response?: { data?: { message?: string } | string };
+      }
+    ).response;
+    const responseData = response?.data;
+
+    if (typeof responseData === "string" && responseData.trim()) {
+      return responseData;
+    }
+
+    if (
+      typeof responseData === "object" &&
+      responseData !== null &&
+      "message" in responseData &&
+      typeof responseData.message === "string" &&
+      responseData.message.trim()
+    ) {
+      return responseData.message;
+    }
+  }
+
+  return error instanceof Error ? error.message : fallbackMessage;
+};
+
+const isMissingDataStatus = (error: unknown) => {
+  const status = getHttpStatus(error);
+  return status === 400 || status === 404;
+};
+
+const isLookupEndpointUnavailable = (error: unknown) => {
+  const status = getHttpStatus(error);
+  return status === 404 || status === 405 || status === 501;
+};
+
 function ShipperDetailPageContent({
   params,
 }: {
@@ -64,11 +105,69 @@ function ShipperDetailPageContent({
     useState<PaymentDisputeStatusResponse | null>(null);
   const [debugContext, setDebugContext] =
     useState<PaymentApiTestContextResponse | null>(null);
+  const [tossComparison, setTossComparison] =
+    useState<TossPaymentComparisonResponse | null>(null);
+  const [fallbackGatewayStatus, setFallbackGatewayStatus] =
+    useState<GatewayTransactionStatusResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isMutating, setIsMutating] = useState(false);
+  const [isTossLookupLoading, setIsTossLookupLoading] = useState(false);
+  const [isCancelSubmitting, setIsCancelSubmitting] = useState(false);
   const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [disputeErrorMessage, setDisputeErrorMessage] = useState<string | null>(null);
+  const [tossLookupErrorMessage, setTossLookupErrorMessage] = useState<string | null>(null);
+  const [isTossLookupUnavailable, setIsTossLookupUnavailable] = useState(false);
+  const [cancelResultMessage, setCancelResultMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const loadTossComparison = useCallback(async () => {
+    try {
+      setIsTossLookupLoading(true);
+      setTossLookupErrorMessage(null);
+      setIsTossLookupUnavailable(false);
+
+      const comparison = await paymentAdminApi.lookupTossPaymentByOrder(orderId);
+      setTossComparison(comparison);
+      setFallbackGatewayStatus(comparison.gatewayTransaction ?? null);
+    } catch (error) {
+      setTossComparison(null);
+
+      if (isLookupEndpointUnavailable(error)) {
+        setIsTossLookupUnavailable(true);
+
+        try {
+          const gatewayStatus = await paymentAdminApi.getTossOrderStatus(orderId);
+          setFallbackGatewayStatus(gatewayStatus);
+          setTossLookupErrorMessage(null);
+        } catch (fallbackError) {
+          setFallbackGatewayStatus(null);
+          if (isMissingDataStatus(fallbackError)) {
+            setTossLookupErrorMessage("연결된 Toss 거래가 없습니다.");
+          } else {
+            setTossLookupErrorMessage(
+              getErrorMessage(fallbackError, "내부 Gateway 상태를 불러오지 못했습니다.")
+            );
+          }
+        }
+        return;
+      }
+
+      setFallbackGatewayStatus(null);
+      if (isMissingDataStatus(error)) {
+        setTossLookupErrorMessage("Toss 실조회 대상 거래가 없습니다.");
+      } else {
+        setTossLookupErrorMessage(
+          getErrorMessage(error, "Toss 실조회 결과를 불러오지 못했습니다.")
+        );
+      }
+    } finally {
+      setIsTossLookupLoading(false);
+    }
+  }, [orderId]);
 
   const loadDetail = useCallback(async () => {
     try {
@@ -109,14 +208,15 @@ function ShipperDetailPageContent({
       } else {
         setDebugContext(null);
       }
+
+      void loadTossComparison();
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "상세 정보를 불러오지 못했습니다.";
+      const message = getErrorMessage(error, "상세 정보를 불러오지 못했습니다.");
       setErrorMessage(message);
     } finally {
       setIsLoading(false);
     }
-  }, [isDebugMode, orderId]);
+  }, [isDebugMode, loadTossComparison, orderId]);
 
   useEffect(() => {
     if (Number.isNaN(orderId)) {
@@ -176,8 +276,7 @@ function ShipperDetailPageContent({
       await loadDetail();
       alert("입금 반영이 완료되었습니다.");
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "입금 반영 중 오류가 발생했습니다.";
+      const message = getErrorMessage(error, "입금 반영 중 오류가 발생했습니다.");
       alert(message);
     } finally {
       setIsMutating(false);
@@ -206,8 +305,7 @@ function ShipperDetailPageContent({
         await loadDetail();
         alert("분쟁이 생성되었습니다.");
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "분쟁 생성 중 오류가 발생했습니다.";
+        const message = getErrorMessage(error, "분쟁 생성 중 오류가 발생했습니다.");
         alert(message);
       } finally {
         setIsMutating(false);
@@ -240,14 +338,56 @@ function ShipperDetailPageContent({
         await loadDetail();
         alert("분쟁 상태가 변경되었습니다.");
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "분쟁 상태 변경 중 오류가 발생했습니다.";
+        const message = getErrorMessage(error, "분쟁 상태 변경 중 오류가 발생했습니다.");
         alert(message);
       } finally {
         setIsMutating(false);
       }
     },
     [disputeErrorMessage, disputeStatus, loadDetail, orderId]
+  );
+
+  const handleSubmitCancel = useCallback(
+    async (cancelReason: string) => {
+      if (!settlement) {
+        return;
+      }
+
+      if (
+        !confirm(
+          `주문 #${settlement.orderId} 건을 Toss 실취소하시겠습니까?\n전액 취소만 지원하며, 내부 상태보다 PG 호출이 먼저 실패할 수 있습니다.`
+        )
+      ) {
+        return;
+      }
+
+      try {
+        setIsCancelSubmitting(true);
+        setCancelResultMessage(null);
+        await paymentAdminApi.cancelTossOrderPayment(orderId, {
+          cancelReason,
+        });
+        setIsCancelModalOpen(false);
+        setCancelResultMessage({
+          type: "success",
+          text: "Toss 실취소 요청이 완료되었습니다. 최신 상태를 다시 조회했습니다.",
+        });
+        await loadDetail();
+      } catch (error) {
+        const status = getHttpStatus(error);
+        const message =
+          status === 404
+            ? "실취소 API가 아직 백엔드에 연결되지 않았습니다."
+            : getErrorMessage(error, "실취소 요청 중 오류가 발생했습니다.");
+        setCancelResultMessage({
+          type: "error",
+          text: message,
+        });
+      } finally {
+        setIsCancelSubmitting(false);
+      }
+    },
+    [loadDetail, orderId, settlement]
   );
 
   if (isLoading) {
@@ -329,8 +469,35 @@ function ShipperDetailPageContent({
 
       <PaymentQuickActions
         settlement={settlement}
-        isBusy={isMutating}
+        isBusy={isMutating || isCancelSubmitting}
         onMarkPaid={() => void handleMarkPaid()}
+      />
+
+      {cancelResultMessage ? (
+        <div
+          className={`rounded-2xl border px-4 py-3 text-sm ${
+            cancelResultMessage.type === "success"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : "border-rose-200 bg-rose-50 text-rose-700"
+          }`}
+        >
+          {cancelResultMessage.text}
+        </div>
+      ) : null}
+
+      <PaymentTossOpsPanel
+        settlement={settlement}
+        comparison={tossComparison}
+        fallbackGatewayStatus={fallbackGatewayStatus}
+        isLoading={isTossLookupLoading}
+        errorMessage={tossLookupErrorMessage}
+        isLookupUnavailable={isTossLookupUnavailable}
+        isCancelSubmitting={isCancelSubmitting}
+        onRefresh={() => void loadTossComparison()}
+        onOpenCancel={() => {
+          setCancelResultMessage(null);
+          setIsCancelModalOpen(true);
+        }}
       />
 
       <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
@@ -464,9 +631,18 @@ function ShipperDetailPageContent({
       <PaymentDisputeCreateModal
         key={`${orderId}-${isDisputeModalOpen ? "open" : "closed"}`}
         isOpen={isDisputeModalOpen}
-        isSubmitting={isMutating}
+        isSubmitting={isMutating || isCancelSubmitting}
         onClose={() => setIsDisputeModalOpen(false)}
         onSubmit={handleCreateDispute}
+      />
+
+      <TossPaymentCancelModal
+        key={`${orderId}-${isCancelModalOpen ? "cancel-open" : "cancel-closed"}`}
+        isOpen={isCancelModalOpen}
+        isSubmitting={isCancelSubmitting}
+        billingAmount={getBillingAmount(settlement)}
+        onClose={() => setIsCancelModalOpen(false)}
+        onSubmit={handleSubmitCancel}
       />
     </main>
   );

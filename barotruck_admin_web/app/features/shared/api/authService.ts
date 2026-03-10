@@ -16,6 +16,13 @@ export const AuthService = {
       if (response.data.user_id) {
         localStorage.setItem("user_Id", String(response.data.user_id));
       }
+
+      const meResponse = await client.get('/api/user/me');
+      if (meResponse.data?.role !== "ADMIN") {
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("user_Id");
+        throw new Error("관리자 계정만 로그인할 수 있습니다.");
+      }
     }
     return response.data;
   },

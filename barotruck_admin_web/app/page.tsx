@@ -11,7 +11,7 @@ import {
 import { DashboardCard } from "./features/dashboard/card";
 import { SettlementSummaryCard } from "./features/dashboard/settlement_summary_card";
 import { OrderListResponse } from "./features/orders/type";
-import { Home } from "lucide-react";
+import axios from "axios";
 
 interface DashboardUser {
   enrollDate?: string;
@@ -26,10 +26,12 @@ export default function DashboardPage() {
     useState<SettlementStatusSummaryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSummaryLoading, setIsSummaryLoading] = useState(true);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadDashboardData = async () => {
       setIsSummaryLoading(true);
+      setSummaryError(null);
       const summaryTask = paymentAdminApi
         .getSettlementStatusSummary()
         .then((summary) => {
@@ -38,6 +40,11 @@ export default function DashboardPage() {
         .catch((error) => {
           console.error("정산 요약 로딩 실패", error);
           setSettlementSummary(null);
+          if (axios.isAxiosError(error) && error.response?.status === 403) {
+            setSummaryError("관리자 권한이 필요합니다.");
+            return;
+          }
+          setSummaryError("정산 요약을 불러오지 못했습니다.");
         })
         .finally(() => setIsSummaryLoading(false));
 
@@ -138,6 +145,7 @@ export default function DashboardPage() {
       <SettlementSummaryCard
         summary={settlementSummary}
         isLoading={isSummaryLoading}
+        errorMessage={summaryError}
       />
 
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-[1.1fr_0.9fr]">
