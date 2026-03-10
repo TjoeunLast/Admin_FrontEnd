@@ -2,6 +2,73 @@
 import apiClient from '../../shared/api/client';
 import { AssignedDriverInfoResponse, OrderListResponse } from '../../orders/type';
 
+export interface OrderUserSummary {
+    userId: number;
+    email?: string | null;
+    phone?: string | null;
+    nickname?: string | null;
+    level?: number | null;
+    role?: string | null;
+}
+
+export interface OrderPaymentSummary {
+    paymentId: number;
+    chargedAmount: number;
+    receivedAmount: number;
+    feeAmount: number;
+    method: string;
+    status: string;
+    paidAt?: string | null;
+    confirmedAt?: string | null;
+}
+
+export interface OrderProofSummary {
+    proofId: number;
+    receiptImageUrl?: string | null;
+    signatureImageUrl?: string | null;
+    recipientName?: string | null;
+    createdAt?: string | null;
+}
+
+export interface OrderDisputeSummary {
+    disputeId: number;
+    requesterUserId: number;
+    createdByUserId: number;
+    reasonCode: string;
+    description: string;
+    attachmentUrl?: string | null;
+    status: string;
+    adminMemo?: string | null;
+    requestedAt?: string | null;
+    processedAt?: string | null;
+}
+
+export interface AdminOrderDetailResponse extends OrderListResponse {
+    updated?: string | null;
+    settlementStatus?: string | null;
+    startAddr?: string | null;
+    endAddr?: string | null;
+    startType?: string | null;
+    endType?: string | null;
+    endSchedule?: string | null;
+    puProvince?: string | null;
+    doProvince?: string | null;
+    driverNo?: number | null;
+    startLat?: number | null;
+    startLng?: number | null;
+    loadMethod?: string | null;
+    loadWeight?: number | null;
+    memo?: string | null;
+    payMethod?: string | null;
+    tag?: string[] | null;
+    startNbhId?: number | null;
+    endNbhId?: number | null;
+    user?: OrderUserSummary | null;
+    paymentSummary?: OrderPaymentSummary | null;
+    proofSummary?: OrderProofSummary | null;
+    disputeSummary?: OrderDisputeSummary | null;
+}
+
 // 1. 전체 주문 목록 불러오기
 export const fetchOrders = async () => {
     const response = await apiClient.get<OrderListResponse[]>('/api/v1/admin/orders');
@@ -10,7 +77,7 @@ export const fetchOrders = async () => {
 
 // 2. 특정 주문 상세 정보 불러오기
 export const fetchOrderDetail = async (orderId: number) => {
-    const response = await apiClient.get(`/api/v1/admin/orders/${orderId}`);
+    const response = await apiClient.get<AdminOrderDetailResponse>(`/api/v1/admin/orders/${orderId}`);
     return response.data;
 }
 
