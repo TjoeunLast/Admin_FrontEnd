@@ -1,9 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState, useMemo } from "react";
-import {
-  fetchOrdersPage,
-} from "./../../features/shared/api/order_api";
+import { fetchOrdersPage } from "./../../features/shared/api/order_api";
 import {
   OrderListResponse,
   ORDER_DRIVING_STATUS_MAP,
@@ -16,6 +14,7 @@ type SortConfig = {
 };
 
 export default function Order_Page() {
+  /* 상태 관리 및 데이터 정의 */
   const [orders, setOrders] = useState<OrderListResponse[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<OrderListResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -31,6 +30,7 @@ export default function Order_Page() {
     direction: "desc",
   });
 
+  /* 상단 통계 요약 계산 */
   const stats = useMemo(() => {
     const total = orders.length;
     const active = orders.filter(
@@ -42,6 +42,7 @@ export default function Order_Page() {
     return { total, active, completed, cancelled };
   }, [orders]);
 
+  /* API 데이터 호출 */
   useEffect(() => {
     const loadOrders = async () => {
       setIsLoading(true);
@@ -59,6 +60,7 @@ export default function Order_Page() {
     loadOrders();
   }, [page, pageSize]);
 
+  /* 필터링 및 정렬 처리 */
   useEffect(() => {
     let result = [...orders];
 
@@ -100,6 +102,7 @@ export default function Order_Page() {
     setFilteredOrders(result);
   }, [orders, statusFilter, searchTerm, sortConfig]);
 
+  /* 유틸리티 함수 */
   const requestSort = (key: SortConfig["key"]) => {
     let direction: "asc" | "desc" = "asc";
     if (sortConfig.key === key && sortConfig.direction === "asc") {
@@ -133,6 +136,7 @@ export default function Order_Page() {
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-6 font-sans">
+      {/* 페이지 헤더 */}
       <header className="mb-8 pl-1 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
           주문 목록 관리
@@ -144,7 +148,7 @@ export default function Order_Page() {
         </Link>
       </header>
 
-      {/* 상단 통계 위젯 */}
+      {/* 통계 위젯 영역 */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-sm font-medium text-slate-500 mb-1">전체 오더</p>
@@ -185,71 +189,101 @@ export default function Order_Page() {
         </div>
       </div>
 
-      {/* 필터 섹션 */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 flex gap-4 items-end shadow-sm">
-        <div className="w-44">
-          <label className="text-xs font-bold text-slate-500 mb-2 block uppercase tracking-wider">
+      {/* 검색 및 필터 영역 */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 flex gap-4 items-center shadow-sm">
+        <div className="w-48 flex flex-col gap-2">
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider pl-1">
             운송 상태
           </label>
-          <select
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-all cursor-pointer"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="ALL">전체 상태</option>
-            <option value="REQUESTED">배차 대기</option>
-            <option value="ACCEPTED">배차 확정</option>
-            <option value="IN_TRANSIT">운송 중</option>
-            <option value="COMPLETED">운송 완료</option>
-          </select>
+          <div className="relative">
+            <select
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all cursor-pointer appearance-none"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="ALL">전체 상태</option>
+              <option value="REQUESTED">배차 대기</option>
+              <option value="ACCEPTED">배차 확정</option>
+              <option value="IN_TRANSIT">운송 중</option>
+              <option value="COMPLETED">운송 완료</option>
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center">
+              <svg
+                className="h-4 w-4 text-slate-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </div>
+          </div>
         </div>
-        <div className="flex-1">
-          <label className="text-xs font-bold text-slate-500 mb-2 block uppercase tracking-wider">
+
+        <div className="flex-1 flex flex-col gap-2">
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider pl-1">
             주문 검색
           </label>
           <input
             type="text"
             placeholder="주문번호, 상차지, 하차지 키워드 입력"
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 transition-all placeholder:text-slate-400"
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all placeholder:text-slate-400 placeholder:font-medium"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
       </div>
 
-      {/* 테이블 영역 */}
+      {/* 주문 목록 테이블 */}
       <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
         <table className="w-full text-left border-collapse table-fixed">
           <thead>
-            <tr className="bg-slate-50/50 border-b border-slate-200">
+            <tr className="bg-slate-50/50 border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
               <th
                 onClick={() => requestSort("orderId")}
-                className="w-20 p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-blue-600 transition-colors"
+                className="w-20 p-5 text-center cursor-pointer hover:text-blue-600 transition-colors"
               >
                 오더 번호{" "}
-                {sortConfig.key === "orderId" &&
-                  (sortConfig.direction === "asc" ? "▲" : "▼")}
+                <span
+                  className={
+                    sortConfig.key === "orderId"
+                      ? "text-blue-600"
+                      : "text-slate-200"
+                  }
+                >
+                  {sortConfig.key === "orderId" &&
+                  sortConfig.direction === "asc"
+                    ? "▲"
+                    : "▼"}
+                </span>
               </th>
-              <th className="w-[28%] p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                운송 경로
-              </th>
-              <th className="w-[18%] p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                물품 정보
-              </th>
-              <th className="w-[15%] p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                차량 정보
-              </th>
+              <th className="w-[28%] p-5 text-center">운송 경로</th>
+              <th className="w-[18%] p-5 text-center">물품 정보</th>
+              <th className="w-[15%] p-5 text-center">차량 정보</th>
               <th
                 onClick={() => requestSort("totalPrice")}
-                className="w-32 p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-blue-600 transition-colors"
+                className="w-32 p-5 text-center cursor-pointer hover:text-blue-600 transition-colors"
               >
                 운임{" "}
-                {sortConfig.key === "totalPrice" &&
-                  (sortConfig.direction === "asc" ? "▲" : "▼")}
+                <span
+                  className={
+                    sortConfig.key === "totalPrice"
+                      ? "text-blue-600"
+                      : "text-slate-200"
+                  }
+                >
+                  {sortConfig.key === "totalPrice" &&
+                  sortConfig.direction === "asc"
+                    ? "▲"
+                    : "▼"}
+                </span>
               </th>
-              <th className="p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider w-28">
-                상태
-              </th>
+              <th className="p-5 text-center w-28">상태</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -291,7 +325,7 @@ export default function Order_Page() {
                     <span className="text-slate-200 font-normal mx-1">|</span>{" "}
                     {order.reqTonnage}
                   </td>
-                  <td className="p-5 text-right pr-8">
+                  <td className="p-5 text-center">
                     <span className="text-sm font-bold text-slate-900">
                       {displayPrice.toLocaleString()}원
                     </span>
@@ -308,39 +342,43 @@ export default function Order_Page() {
             })}
           </tbody>
         </table>
-        {totalPages > 1 ? (
-          <div className="flex items-center justify-center gap-2 border-t border-[#e2e8f0] bg-[#f8fafc] px-6 py-4">
+
+        {/* 페이지네이션 처리 */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-8 py-6 border-t border-slate-100 bg-white">
             <button
               onClick={() => setPage((prev) => Math.max(prev - 1, 0))}
               disabled={page === 0}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-500 disabled:cursor-not-allowed disabled:opacity-40"
+              className="text-xs font-bold text-slate-400 disabled:opacity-20 transition-colors hover:text-slate-600"
             >
               이전
             </button>
-            {Array.from({ length: totalPages }, (_, index) => index).map((pageNumber) => (
-              <button
-                key={pageNumber}
-                onClick={() => setPage(pageNumber)}
-                className={`h-9 min-w-9 rounded-lg px-3 text-sm font-bold ${
-                  page === pageNumber
-                    ? "bg-slate-900 text-white"
-                    : "border border-slate-200 bg-white text-slate-500"
-                }`}
-              >
-                {pageNumber + 1}
-              </button>
-            ))}
+            <div className="flex items-center gap-4">
+              {Array.from({ length: totalPages }, (_, i) => i).map((num) => (
+                <button
+                  key={num}
+                  onClick={() => setPage(num)}
+                  className={`text-xs font-bold transition-colors ${
+                    page === num
+                      ? "text-slate-900 underline underline-offset-4 decoration-2"
+                      : "text-slate-400 hover:text-slate-600"
+                  }`}
+                >
+                  {num + 1}
+                </button>
+              ))}
+            </div>
             <button
               onClick={() =>
                 setPage((prev) => (prev + 1 < totalPages ? prev + 1 : prev))
               }
               disabled={totalPages === 0 || page + 1 >= totalPages}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-500 disabled:cursor-not-allowed disabled:opacity-40"
+              className="text-xs font-bold text-slate-400 disabled:opacity-20 transition-colors hover:text-slate-600"
             >
               다음
             </button>
           </div>
-        ) : null}
+        )}
       </div>
     </div>
   );
