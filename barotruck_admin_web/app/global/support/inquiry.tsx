@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Mail, ChevronLeft, ChevronRight, MessageSquare } from "lucide-react";
 
 import {
   reportApi,
@@ -65,7 +64,7 @@ export default function InquiryList() {
       <div className="flex justify-between items-end">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <MessageSquare size={16} className="text-bt-primary" />
+            <MessageSquareIcon className="text-bt-primary" />
             <span className="text-[10px] font-black text-bt-primary uppercase tracking-widest">
               Support Center
             </span>
@@ -165,10 +164,7 @@ export default function InquiryList() {
                     </td>
                     <td className="p-6">
                       <div className="flex items-center justify-center gap-2 text-bt-primary font-bold text-[12px]">
-                        <Mail
-                          size={12}
-                          className="opacity-40 group-hover:scale-110 transition-transform"
-                        />
+                        <MailIcon className="opacity-40 group-hover:scale-110 transition-transform" />
                         <span className="truncate">{item.email || "-"}</span>
                       </div>
                     </td>
@@ -191,7 +187,7 @@ export default function InquiryList() {
             onClick={() => setCurrentPage((p) => p - 1)}
             className="p-2 text-slate-400 hover:text-slate-900 disabled:opacity-20 transition-all"
           >
-            <ChevronLeft size={20} />
+            <ChevronLeftIcon />
           </button>
 
           <div className="flex gap-2">
@@ -215,10 +211,81 @@ export default function InquiryList() {
             onClick={() => setCurrentPage((p) => p + 1)}
             className="p-2 text-slate-400 hover:text-slate-900 disabled:opacity-20 transition-all"
           >
-            <ChevronRight size={20} />
+            <ChevronRightIcon />
           </button>
         </div>
       </div>
     </div>
+  );
+}
+
+function MessageSquareIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className={`h-4 w-4 ${className}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M7 10h10" />
+      <path d="M7 14h6" />
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z" />
+    </svg>
+  );
+}
+
+function MailIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className={`h-3 w-3 ${className}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m3 7 9 6 9-6" />
+    </svg>
+  );
+}
+
+function ChevronLeftIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className={`h-5 w-5 ${className}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m15 18-6-6 6-6" />
+    </svg>
+  );
+}
+
+function ChevronRightIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className={`h-5 w-5 ${className}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m9 18 6-6-6-6" />
+    </svg>
   );
 }

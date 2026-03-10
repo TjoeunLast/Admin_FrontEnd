@@ -83,7 +83,7 @@ export const fetchOrderDetail = async (orderId: number) => {
 
 // 3. 담당 차주 정보 불러오기
 export const fetchOrderDrivers = async (orderId: number) => {
-    const response = await apiClient.get<AssignedDriverInfoResponse[]>(`/api/v1/orders/${orderId}/applicants`);
+    const response = await apiClient.get<AssignedDriverInfoResponse[]>(`/api/v1/admin/orders/${orderId}/applicants`);
     return response.data;
 }
 
