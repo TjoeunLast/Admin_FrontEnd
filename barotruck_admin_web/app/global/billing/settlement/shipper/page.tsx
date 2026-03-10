@@ -55,11 +55,13 @@ export default function ShipperSettlementPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("전체 상태");
+  const [currentPage, setCurrentPage] = useState(1);
   const [showPaymentColumns, setShowPaymentColumns] = useState(false);
   const [submittingOrderId, setSubmittingOrderId] = useState<number | null>(null);
   const [selectedPaymentStatusByOrder, setSelectedPaymentStatusByOrder] = useState<
     Record<number, TransportPaymentStatus>
   >({});
+  const itemsPerPage = 20;
 
   const loadSettlements = useCallback(async () => {
     try {
@@ -146,6 +148,23 @@ export default function ShipperSettlementPage() {
 
     return filtered;
   }, [searchTerm, statusFilter, settlements]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, settlements.length]);
+
+  const totalPages = Math.ceil(filteredSettlements.length / itemsPerPage);
+
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const paginatedSettlements = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredSettlements.slice(startIndex, startIndex + itemsPerPage);
+  }, [currentPage, filteredSettlements]);
 
   const handleApplyPaymentStatus = useCallback(
     async (settlement: SettlementResponse) => {
@@ -330,10 +349,10 @@ export default function ShipperSettlementPage() {
           <tbody>
             {isLoading ? (
               <tr><td colSpan={showPaymentColumns ? 12 : 6} className="p-10 text-center">데이터 로딩 중...</td></tr>
-            ) : filteredSettlements.length === 0 ? (
+            ) : paginatedSettlements.length === 0 ? (
               <tr><td colSpan={showPaymentColumns ? 12 : 6} className="p-10 text-center">정산 내역이 없습니다.</td></tr>
             ) : (
-              filteredSettlements.map((s) => {
+              paginatedSettlements.map((s) => {
                 const paymentStatus = getEffectivePaymentStatus(s);
                 const isSubmitting = submittingOrderId === s.orderId;
                 const selectedStatus =
@@ -448,6 +467,37 @@ export default function ShipperSettlementPage() {
           </tbody>
         </table>
         </div>
+        {totalPages > 1 ? (
+          <div className="flex items-center justify-center gap-2 border-t border-[#e2e8f0] bg-[#f8fafc] px-6 py-4">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-500 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              이전
+            </button>
+            {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+              <button
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                className={`h-9 min-w-9 rounded-lg px-3 text-sm font-bold ${
+                  currentPage === page
+                    ? "bg-slate-900 text-white"
+                    : "border border-slate-200 bg-white text-slate-500"
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+            <button
+              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-500 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              다음
+            </button>
+          </div>
+        ) : null}
       </div>
     </main>
   );
