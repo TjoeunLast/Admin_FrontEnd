@@ -59,6 +59,17 @@ export type TransportPaymentStatus =
   | "CANCELLED";
 
 export type SettlementWorkflowStatus = "READY" | "WAIT" | "COMPLETED";
+export type GatewayTransactionStatus =
+  | "PREPARED"
+  | "CONFIRMED"
+  | "FAILED"
+  | "CANCELED";
+export type PayoutItemStatus =
+  | "READY"
+  | "REQUESTED"
+  | "COMPLETED"
+  | "FAILED"
+  | "RETRYING";
 export type PaymentDisputeStatus =
   | "PENDING"
   | "ADMIN_HOLD"
@@ -170,6 +181,11 @@ export interface UpdatePaymentDisputeStatusRequest {
   adminMemo?: string | null;
 }
 
+export interface CancelTossPaymentRequest {
+  cancelReason: string;
+  cancelAmount?: number | null;
+}
+
 export interface PaymentApiTestContextResponse {
   orderId?: number | null;
   disputeId?: number | null;
@@ -180,6 +196,70 @@ export interface PaymentApiTestContextResponse {
   pgOrderId?: string | null;
   paymentKey?: string | null;
   amount?: number | null;
+}
+
+export interface GatewayTransactionStatusResponse {
+  txId: number;
+  orderId: number;
+  provider: string | null;
+  status: GatewayTransactionStatus;
+  amount: number | null;
+  retryCount: number | null;
+  expiresAt: string | null;
+  approvedAt: string | null;
+  nextRetryAt: string | null;
+  failCode: string | null;
+  failMessage: string | null;
+}
+
+export interface TossPaymentCancelHistory {
+  cancelAmount: number | null;
+  cancelReason: string | null;
+  canceledAt: string | null;
+  transactionKey: string | null;
+  cancelStatus: string | null;
+}
+
+export interface TossPaymentLookupResponse {
+  paymentKey: string | null;
+  orderId: string | null;
+  status: string | null;
+  method: string | null;
+  easyPayProvider: string | null;
+  totalAmount: number | null;
+  suppliedAmount: number | null;
+  vat: number | null;
+  approvedAt: string | null;
+  lastTransactionAt: string | null;
+  cancels: TossPaymentCancelHistory[];
+  rawPayload: string | null;
+}
+
+export interface TossPaymentComparisonResponse {
+  gatewayTransaction: GatewayTransactionStatusResponse | null;
+  transportPayment: TransportPaymentResponse | null;
+  gatewayLookup: TossPaymentLookupResponse | null;
+  mismatch: boolean;
+  mismatchReason: string | null;
+}
+
+export interface DriverPayoutItemStatusResponse {
+  itemId: number;
+  orderId: number;
+  batchId: number | null;
+  driverUserId: number;
+  status: PayoutItemStatus;
+  retryCount: number | null;
+  requestedAt: string | null;
+  completedAt: string | null;
+  failureReason: string | null;
+  payoutRef: string | null;
+  sellerId?: string | null;
+  sellerRef?: string | null;
+  sellerStatus?: string | null;
+  webhookStatus?: string | null;
+  lastWebhookReceivedAt?: string | null;
+  lastWebhookProcessedAt?: string | null;
 }
 
 const isApiResponse = <T>(value: unknown): value is ApiResponse<T> => {
@@ -393,6 +473,37 @@ export const paymentAdminApi = {
     return unwrapApiResponse(response.data);
   },
 
+  getTossPaymentByPaymentKey: async (
+    paymentKey: string
+  ): Promise<TossPaymentLookupResponse> => {
+    const response = await client.get<
+      ApiResponse<TossPaymentLookupResponse> | TossPaymentLookupResponse
+    >(`/api/admin/payment/toss/payments/${paymentKey}`);
+    return unwrapApiResponse(response.data);
+  },
+
+  lookupTossPaymentByOrder: async (
+    orderId: number
+  ): Promise<TossPaymentComparisonResponse> => {
+    const response = await client.get<
+      ApiResponse<TossPaymentComparisonResponse> | TossPaymentComparisonResponse
+    >(`/api/admin/payment/toss/orders/${orderId}/lookup`);
+    return unwrapApiResponse(response.data);
+  },
+
+  cancelTossOrderPayment: async (
+    orderId: number,
+    payload: CancelTossPaymentRequest
+  ): Promise<TransportPaymentResponse> => {
+    const response = await client.post<
+      ApiResponse<TransportPaymentResponse> | TransportPaymentResponse
+    >(`/api/admin/payment/orders/${orderId}/cancel`, {
+      cancelReason: payload.cancelReason,
+      cancelAmount: payload.cancelAmount ?? null,
+    });
+    return unwrapApiResponse(response.data);
+  },
+
   getPaymentDisputeStatus: async (
     orderId: number
   ): Promise<PaymentDisputeStatusResponse> => {
@@ -420,6 +531,49 @@ export const paymentAdminApi = {
     const response = await client.patch<
       ApiResponse<PaymentDisputeResponse> | PaymentDisputeResponse
     >(`/api/admin/payment/orders/${orderId}/disputes/${disputeId}/status`, payload);
+    return unwrapApiResponse(response.data);
+  },
+
+  getTossOrderStatus: async (
+    orderId: number
+  ): Promise<GatewayTransactionStatusResponse> => {
+    const response = await client.get<
+      ApiResponse<GatewayTransactionStatusResponse> | GatewayTransactionStatusResponse
+    >(`/api/admin/payment/toss/orders/${orderId}/status`);
+    return unwrapApiResponse(response.data);
+  },
+
+  getPayoutItemStatus: async (
+    orderId: number
+  ): Promise<DriverPayoutItemStatusResponse> => {
+    const response = await client.get<
+      ApiResponse<DriverPayoutItemStatusResponse> | DriverPayoutItemStatusResponse
+    >(`/api/admin/payment/payout-items/orders/${orderId}/status`);
+    return unwrapApiResponse(response.data);
+  },
+
+  requestPayoutForOrder: async (
+    orderId: number
+  ): Promise<DriverPayoutItemStatusResponse> => {
+    const response = await client.post<
+      ApiResponse<DriverPayoutItemStatusResponse> | DriverPayoutItemStatusResponse
+    >(`/api/admin/payment/orders/${orderId}/payouts/request`);
+    return unwrapApiResponse(response.data);
+  },
+
+  syncPayoutItemStatus: async (
+    orderId: number
+  ): Promise<DriverPayoutItemStatusResponse> => {
+    const response = await client.post<
+      ApiResponse<DriverPayoutItemStatusResponse> | DriverPayoutItemStatusResponse
+    >(`/api/admin/payment/payout-items/orders/${orderId}/sync`);
+    return unwrapApiResponse(response.data);
+  },
+
+  retryPayoutItem: async (itemId: number): Promise<boolean> => {
+    const response = await client.post<ApiResponse<boolean> | boolean>(
+      `/api/admin/payment/payout-items/${itemId}/retry`
+    );
     return unwrapApiResponse(response.data);
   },
 };

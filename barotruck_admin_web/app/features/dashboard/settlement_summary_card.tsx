@@ -5,6 +5,7 @@ import { SettlementStatusSummaryResponse } from "@/app/features/shared/api/payme
 interface SettlementSummaryCardProps {
   summary: SettlementStatusSummaryResponse | null;
   isLoading: boolean;
+  errorMessage?: string | null;
 }
 
 const formatAmount = (value: number) => `₩${new Intl.NumberFormat("ko-KR").format(value || 0)}`;
@@ -12,6 +13,7 @@ const formatAmount = (value: number) => `₩${new Intl.NumberFormat("ko-KR").for
 export function SettlementSummaryCard({
   summary,
   isLoading,
+  errorMessage,
 }: SettlementSummaryCardProps) {
   const cards = [
     {
@@ -50,10 +52,10 @@ export function SettlementSummaryCard({
               {card.title}
             </div>
             <div className={`mt-2 text-2xl font-black ${card.accent}`}>
-              {isLoading ? "-" : formatAmount(card.amount)}
+              {isLoading ? "-" : errorMessage ? "오류" : formatAmount(card.amount)}
             </div>
             <div className="mt-2 text-xs text-slate-400">
-              {isLoading ? "요약 불러오는 중" : card.meta}
+              {isLoading ? "요약 불러오는 중" : errorMessage ? errorMessage : card.meta}
             </div>
           </div>
         ))}
