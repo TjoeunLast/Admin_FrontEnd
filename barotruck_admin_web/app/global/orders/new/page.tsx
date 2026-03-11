@@ -7,7 +7,6 @@ import Link from "next/link";
 import apiClient from "@/app/features/shared/api/client";
 import {
   fetchOrdersPage,
-  fetchCancelledOrdersPage,
   forceAllocateOrder,
   cancelOrder,
   fetchAdminSummary,
@@ -56,17 +55,36 @@ export default function AdminOrderListPage() {
     direction: "desc",
   });
 
-  // useCallback으로 감싸 의존성 경고 해결
   const loadPageData = useCallback(async () => {
     setIsLoading(true);
     try {
       const summaryData = await fetchAdminSummary("month");
       setSummary(summaryData);
-      const orderPage =
-        viewMode === "all"
-          ? await fetchOrdersPage(page, pageSize)
-          : await fetchCancelledOrdersPage(page, pageSize);
-      setOrders(orderPage.content);
+
+      let orderPage;
+      if (viewMode === "all") {
+        orderPage = await fetchOrdersPage(page, pageSize);
+        setOrders(orderPage.content || []);
+      } else {
+        const response = await apiClient.get("/api/v1/admin/orders", {
+          params: {
+            page,
+            size: pageSize,
+            status: "CANCELLED,CANCELLED_BY_ADMIN",
+          },
+        });
+
+        orderPage = response.data;
+
+        const rawContent = orderPage.content || [];
+        const onlyCancelled = rawContent.filter(
+          (o: any) =>
+            o.status === "CANCELLED" || o.status === "CANCELLED_BY_ADMIN",
+        );
+
+        setOrders(onlyCancelled);
+      }
+
       setTotalPages(orderPage.totalPages);
       setTotalElements(orderPage.totalElements);
     } catch (error) {
@@ -418,7 +436,8 @@ export default function AdminOrderListPage() {
           <div className="bg-white p-6 rounded-2xl w-full max-w-md shadow-xl">
             <h2 className="text-xl font-bold text-slate-900 mb-1">기사 배정</h2>
             <p className="text-sm font-semibold text-slate-400 mb-6">
-              오더 <span className="text-blue-600">#{selectedOrder}</span>번에 배정할 기사를 선택하세요.
+              오더 <span className="text-blue-600">#{selectedOrder}</span>번에
+              배정할 기사를 선택하세요.
             </p>
             <div className="relative mb-4">
               <input
