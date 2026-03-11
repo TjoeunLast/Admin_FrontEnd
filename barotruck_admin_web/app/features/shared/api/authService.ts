@@ -1,5 +1,6 @@
 // app/features/shared/api/authService.ts
 import client from "./client"; 
+import { withBasePath } from "../lib/base_path";
 
 export const AuthService = {
   login: async (email: string, password: string) => {
@@ -31,7 +32,7 @@ export const AuthService = {
     if (typeof window !== "undefined") {
       localStorage.removeItem("access_token");
       localStorage.removeItem("user_Id");
-      window.location.href = "/global/login";
+      window.location.href = withBasePath("/global/login");
     }
   }
 };
