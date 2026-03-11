@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import AuthService from "./features/shared/api/authService";
 import { getMyInfo } from "./features/shared/api/user_api";
-import { withBasePath } from "./features/shared/lib/base_path";
 
 export default function RootLayout({
   children,
@@ -74,7 +73,7 @@ export default function RootLayout({
           <div className="mb-8 px-2">
             <div className="mt-4">
               <Image
-                src={withBasePath("/logo-text.png")}
+                src="/logo-text.png"
                 alt="BaroTruck"
                 width={208}
                 height={44}
