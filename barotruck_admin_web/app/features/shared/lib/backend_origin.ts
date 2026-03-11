@@ -1,8 +1,5 @@
-const LOCAL_API_ORIGIN = "http://localhost:8080";
-const LOCAL_WS_URL = "ws://localhost:8080/ws-stomp";
-const PRODUCTION_API_ORIGIN = "https://barotruck.store";
-const PRODUCTION_WS_URL = "wss://barotruck.store/ws-stomp";
-const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
+const LOCAL_API_ORIGIN = "http://barotruck.store:8080";
+const LOCAL_HOSTS = new Set(["barotruck.store", "127.0.0.1"]);
 
 const normalizeOrigin = (value?: string | null): string | null => {
   const trimmed = value?.trim();
@@ -16,15 +13,15 @@ export const getBackendOrigin = (): string => {
   }
 
   if (typeof window === "undefined") {
-    return PRODUCTION_API_ORIGIN;
+    return LOCAL_API_ORIGIN;
   }
 
-  const { hostname } = window.location;
+  const { protocol, hostname } = window.location;
   if (!hostname || LOCAL_HOSTS.has(hostname)) {
     return LOCAL_API_ORIGIN;
   }
 
-  return PRODUCTION_API_ORIGIN;
+  return `${protocol}//${hostname}:8080`;
 };
 
 export const getBackendWebSocketUrl = (): string => {
@@ -33,9 +30,5 @@ export const getBackendWebSocketUrl = (): string => {
     return configuredUrl.endsWith("/ws-stomp") ? configuredUrl : `${configuredUrl}/ws-stomp`;
   }
 
-  if (typeof window !== "undefined" && LOCAL_HOSTS.has(window.location.hostname)) {
-    return LOCAL_WS_URL;
-  }
-
-  return PRODUCTION_WS_URL;
+  return `${getBackendOrigin()}/ws-stomp`;
 };
