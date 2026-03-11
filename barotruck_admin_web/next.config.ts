@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  output: 'export',  // <--- 이 줄을 반드시 추가해주세요!
 };
 
 export default nextConfig;
