@@ -45,7 +45,7 @@ export default function ReviewList() {
   return (
     <div className="space-y-6">
       <div className="flex justify-start gap-2 pr-1">
-        <div className="px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[12px] font-black text-slate-400">
+        <div className="px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[16px] font-black text-slate-400">
           전체 리뷰{" "}
           <span className="text-slate-900 ml-1">{reviews.length}</span>
         </div>
