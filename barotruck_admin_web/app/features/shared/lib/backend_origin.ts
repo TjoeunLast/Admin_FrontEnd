@@ -1,4 +1,4 @@
-const LOCAL_API_ORIGIN = "http://3.231.203.46:8080";
+const LOCAL_API_ORIGIN = "https://3.231.203.46:8080";
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
 
 const normalizeOrigin = (value?: string | null): string | null => {
@@ -21,7 +21,7 @@ export const getBackendOrigin = (): string => {
     return LOCAL_API_ORIGIN;
   }
 
-  return `http://barotruck.store:8080`;
+  return `https://barotruck.store:8080`;
 };
 
 export const getBackendWebSocketUrl = (): string => {
