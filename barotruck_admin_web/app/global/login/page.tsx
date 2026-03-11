@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { AuthService } from "@/app/features/shared/api/authService";
+import { withBasePath } from "@/app/features/shared/lib/base_path";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -33,7 +34,7 @@ export default function LoginPage() {
         {/* 로고 영역 */}
         <div className="mb-10 text-center flex flex-col items-center gap-2">
           <Image
-            src="/logo-text.png"
+            src={withBasePath("/logo-text.png")}
             alt="BaroTruck"
             width={208}
             height={44}
