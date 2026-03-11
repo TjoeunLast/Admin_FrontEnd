@@ -135,6 +135,9 @@ const toAmount = (value?: number | null): number => {
 const normalizeStatus = (value?: string | null) => String(value ?? "").trim().toUpperCase();
 
 export const isPaymentCompleted = (settlement: SettlementResponse): boolean => {
+  // 데이터가 없다면 false
+  if (!settlement) return false;
+  
   if (settlement.confirmedAt || settlement.paidAt) {
     return true;
   }

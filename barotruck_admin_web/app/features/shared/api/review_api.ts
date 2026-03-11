@@ -4,6 +4,7 @@ import client from "./client";
 export interface ReviewResponse {
     reviewId: number;
     writerNickname: string;
+    targetNickname: string;
     rating: number;
     content: string;
     createdAt: string;

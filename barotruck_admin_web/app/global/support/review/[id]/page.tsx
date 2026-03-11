@@ -87,10 +87,17 @@ export default function ReviewDetailPage() {
           <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center">
             <span className="text-2xl">🚛</span>
           </div>
-          <div>
-            <span className="text-[11px] font-black text-blue-500 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded">Review Target</span>
+          <div className="mr-20 px-4 py-1 bg-slate-50 rounded-full text-sm font-medium text-slate-500">
+            <span className="text-[11px] font-black text-blue-500 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded">Review Writer</span>
             <h1 className="text-2xl font-black text-slate-900 mt-1">
               작성자: <span className="text-blue-600">{review.writerNickname || "정보 없음"}</span>
+            </h1>
+          </div>
+
+          <div className="ml-10 px-4 py-1 bg-slate-50 rounded-full text-sm font-medium text-slate-500">
+            <span className="text-[11px] font-black text-blue-500 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded">Review Target</span>
+            <h1 className="text-2xl font-black text-slate-900 mt-1">
+              대상자: <span className="text-blue-600">{review.targetNickname || "정보 없음"}</span>
             </h1>
           </div>
         </div>
