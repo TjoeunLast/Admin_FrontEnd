@@ -1,7 +1,7 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import {
   EnsurePersonalChatRoomError,
   inquiryApi,
@@ -67,17 +67,20 @@ const resolveErrorMessage = (error: unknown): string => {
   return "채팅방을 시작할 수 없습니다. 잠시 후 다시 시도해주세요.";
 };
 
-function PersonalChatStartPageContent() {
+export default function PersonalChatStartPage() {
+  const params = useParams();
   const router = useRouter();
-  const searchParams = useSearchParams();
 
-  const targetUserId = toPositiveId(searchParams.get("targetUserId"));
+  const rawTargetUserId = Array.isArray(params.targetUserId)
+    ? params.targetUserId[0]
+    : params.targetUserId;
+  const targetUserId = toPositiveId(rawTargetUserId);
 
   const [isStarting, setIsStarting] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const goToRoom = (roomId: number) => {
-    router.replace(`/global/chat/room?roomId=${roomId}`);
+    router.replace(`/global/chat/room/${roomId}`);
   };
 
   const startChat = async () => {
@@ -150,13 +153,5 @@ function PersonalChatStartPageContent() {
         )}
       </section>
     </div>
-  );
-}
-
-export default function PersonalChatStartPage() {
-  return (
-    <Suspense fallback={<div className="max-w-[780px] mx-auto px-4 py-16 text-sm font-semibold text-slate-400">채팅방 연결 준비 중...</div>}>
-      <PersonalChatStartPageContent />
-    </Suspense>
   );
 }

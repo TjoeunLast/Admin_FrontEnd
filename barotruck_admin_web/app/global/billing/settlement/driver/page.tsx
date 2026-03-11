@@ -810,7 +810,7 @@ export default function DriverSettlementPage() {
                         <td className="px-5 py-5 align-top">
                           <div className="flex flex-wrap items-center gap-2">
                             <Link
-                              href={`/global/billing/settlement/shipper/detail?orderId=${settlement.orderId}`}
+                              href={`/global/billing/settlement/shipper/${settlement.orderId}`}
                               className="text-sm font-black text-[#4E46E5] hover:underline transition-all"
                             >
                               #{settlement.orderId}

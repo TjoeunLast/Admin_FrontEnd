@@ -314,7 +314,7 @@ export default function AdminOrderListPage() {
                   >
                     <td className="p-5 text-center">
                       <Link
-                        href={`/global/orders/detail?id=${order.orderId}`}
+                        href={`/global/orders/${order.orderId}`}
                         className="text-sm font-bold text-[#4E46E5] hover:underline"
                       >
                         {order.orderId}
