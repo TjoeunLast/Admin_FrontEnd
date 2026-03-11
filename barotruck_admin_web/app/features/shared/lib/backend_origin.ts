@@ -21,7 +21,7 @@ export const getBackendOrigin = (): string => {
     return LOCAL_API_ORIGIN;
   }
 
-  return `http://barotruck.store:8080`;
+  return "https://barotruck.store";
 };
 
 export const getBackendWebSocketUrl = (): string => {
@@ -30,5 +30,8 @@ export const getBackendWebSocketUrl = (): string => {
     return configuredUrl.endsWith("/ws-stomp") ? configuredUrl : `${configuredUrl}/ws-stomp`;
   }
 
-  return `ws://barotruck.store/ws-stomp`;
-};
+  // 🚨 웹소켓 방어: HTTPS 환경에서는 ws:// 대신 wss:// 를 써야 에러가 안 납니다.
+  // Next.js 프록시를 타도록 현재 도메인을 동적으로 가져옵니다.
+  const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return "wss://barotruck.store/ws-stomp";
+};  
