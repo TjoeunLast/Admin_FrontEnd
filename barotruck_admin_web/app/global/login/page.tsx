@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { AuthService } from "@/app/features/shared/api/authService";
 import { withBasePath } from "@/app/features/shared/lib/base_path";
@@ -8,12 +9,14 @@ import { withBasePath } from "@/app/features/shared/lib/base_path";
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const router = useRouter();
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const data = await AuthService.login(email, password);
       if (data.access_token) {
-        window.location.href = withBasePath("/");
+        router.push("/");
       }
     } catch (error: unknown) {
       console.error(error);
