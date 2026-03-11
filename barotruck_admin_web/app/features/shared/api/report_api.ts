@@ -1,4 +1,4 @@
-// app/features/shared/api/report_api.ts
+﻿// app/features/shared/api/report_api.ts
 import client from "./client";
 
 export interface PagedResponse<T> {
@@ -65,7 +65,7 @@ const normalizePagedResponse = <T,>(payload: PagedResponse<T> | T[]): PagedRespo
 const fetchPagedReports = async (params?: Record<string, unknown>) => {
   const response = await client.get<PagedResponse<ReportResponse> | ReportResponse[]>(
     "/api/reports/admin/all",
-    { params }
+    { params },
   );
   return normalizePagedResponse(response.data);
 };
@@ -85,14 +85,11 @@ const fetchAllReports = async () => {
       fetchPagedReports({
         page: index + 1,
         size: DEFAULT_PAGE_FETCH_SIZE,
-      })
-    )
+      }),
+    ),
   );
 
-  return [
-    ...firstPage.content,
-    ...remainingPages.flatMap((page) => page.content),
-  ];
+  return [...firstPage.content, ...remainingPages.flatMap((page) => page.content)];
 };
 
 export interface ReportResponse {
@@ -105,23 +102,52 @@ export interface ReportResponse {
   status: string;
   createdAt: string;
 
-  type: "REPORT" | "DISCUSS"; // DISCUSS가 1:1 문의
-  email?: string; // 답변 받을 이메일
-  title?: string; // 문의 제목
+  type: "REPORT" | "DISCUSS";
+  email?: string;
+  title?: string;
+
+  roomId?: number;
+  chatRoomId?: number;
+
+  reporterId?: number;
+  reporterUserId?: number;
+  reporterMemberId?: number;
+  reporterUser?: {
+    userId?: number;
+    [key: string]: unknown;
+  };
+  targetUser?: {
+    userId?: number;
+    [key: string]: unknown;
+  };
+  userId?: number;
+  memberId?: number;
+  writerId?: number;
+  senderId?: number;
 }
 
 export const reportApi = {
-  // 1. 관리자용 전체 신고/문의 목록 조회
   getAll: async (): Promise<ReportResponse[]> => {
     return fetchAllReports();
   },
 
-    // 신고 상태 갱신하기 (관리자 주도)
-    updateReportStatus: async (reportId: number, status: string): Promise<boolean> => {
-        const response = await client.patch(`/api/reports/admin/${reportId}/status`, null, {
-            params: {status}
-        });
+  updateReportStatus: async (reportId: number, status: string): Promise<boolean> => {
+    const response = await client.patch(`/api/reports/admin/${reportId}/status`, null, {
+      params: { status },
+    });
+    return response.data;
+  },
 
-        return response.data;
+  getDetail: async (reportId: number): Promise<ReportResponse> => {
+    const response = await client.get(`/api/reports/admin/${reportId}`);
+    return response.data;
+  },
+
+  deleteReport: async (reportId: number): Promise<boolean> => {
+    const response = await client.delete(`/api/reports/admin/${reportId}`);
+    if (typeof response.data === "boolean") {
+      return response.data;
     }
-}
+    return true;
+  },
+};

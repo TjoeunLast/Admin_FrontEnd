@@ -6,21 +6,24 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import apiClient from "@/app/features/shared/api/client";
 import {
-  fetchOrders,
-  fetchCancelledOrders,
+  fetchOrdersPage,
+  fetchCancelledOrdersPage,
   forceAllocateOrder,
   cancelOrder,
   fetchAdminSummary,
 } from "@/app/features/shared/api/order_api";
 
 const ORDER_DRIVING_STATUS_MAP: Record<string, string> = {
-  REQUESTED: "배차 대기",
-  ACCEPTED: "배차 확정",
-  LOADING: "상차 중",
-  IN_TRANSIT: "운송 중",
-  UNLOADING: "하차 중",
-  COMPLETED: "운송 완료",
-  CANCELLED: "주문 취소",
+  REQUESTED: "배차 대기", // 화주가 주문을 올린 직후
+  APPLIED: "승인 대기", // 차주가 지원하여 관리자 승인 기다리는 중
+  ALLOCATED: "배차 확정", // 배차가 완료된 상태
+  ACCEPTED: "배차 확정", // 서버에 따라 ACCEPTED로 내려오는 경우 대응
+  LOADING: "상차 중", // 물건 싣는 중
+  IN_TRANSIT: "이동 중", // 목적지로 이동 중
+  UNLOADING: "하차 중", // 물건 내리는 중
+  COMPLETED: "운송 완료", // 모든 프로세스 종료
+  CANCELLED: "주문 취소", // 사용자/시스템 취소
+  CANCELLED_BY_ADMIN: "관리자 취소", // 관리자 강제 취소
 };
 
 type SortConfig = {
@@ -35,6 +38,10 @@ export default function AdminOrderListPage() {
   const [summary, setSummary] = useState<any>(null);
   const [viewMode, setViewMode] = useState<"all" | "cancelled">("all");
   const [isLoading, setIsLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [pageSize] = useState(20);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
 
   const [selectedOrder, setSelectedOrder] = useState<number | null>(null);
   const [cancelTargetId, setCancelTargetId] = useState<number | null>(null);
@@ -55,19 +62,27 @@ export default function AdminOrderListPage() {
     try {
       const summaryData = await fetchAdminSummary("month");
       setSummary(summaryData);
-      const orderData =
-        viewMode === "all" ? await fetchOrders() : await fetchCancelledOrders();
-      setOrders(orderData);
+      const orderPage =
+        viewMode === "all"
+          ? await fetchOrdersPage(page, pageSize)
+          : await fetchCancelledOrdersPage(page, pageSize);
+      setOrders(orderPage.content);
+      setTotalPages(orderPage.totalPages);
+      setTotalElements(orderPage.totalElements);
     } catch (error) {
       console.error(error);
     } finally {
       setIsLoading(false);
     }
-  }, [viewMode]);
+  }, [page, pageSize, viewMode]);
 
   useEffect(() => {
     loadPageData();
   }, [loadPageData]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [viewMode]);
 
   // 차주 목록 로드 함수
   const fetchDriverList = useCallback(async () => {
@@ -153,6 +168,7 @@ export default function AdminOrderListPage() {
       case "UNLOADING":
         return "bg-blue-50 text-blue-600 border-blue-100";
       case "CANCELLED":
+      case "CANCELLED_BY_ADMIN":
         return "bg-rose-50 text-rose-600 border-rose-100";
       default:
         return "bg-slate-50 text-slate-500 border-slate-200";
@@ -190,7 +206,7 @@ export default function AdminOrderListPage() {
   }, [orders, sortConfig]);
 
   return (
-    <div className="space-y-6 font-sans">
+    <div className="max-w-[1600px] mx-auto space-y-6 font-sans">
       <header className="mb-8 pl-1 flex justify-between items-center">
         <div className="flex items-center gap-4">
           <button
@@ -232,38 +248,48 @@ export default function AdminOrderListPage() {
       <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
         <table className="w-full text-left border-collapse table-fixed">
           <thead>
-            <tr className="bg-slate-50/50 border-b border-slate-200">
+            <tr className="bg-slate-50/50 border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
               <th
                 onClick={() => requestSort("orderId")}
-                className="w-20 p-5 text-center text-[11px] font-bold text-slate-400 uppercase cursor-pointer hover:text-blue-600 transition-colors"
+                className="w-20 p-5 text-center cursor-pointer hover:text-blue-600 transition-colors"
               >
                 오더번호{" "}
-                {sortConfig.key === "orderId" &&
-                  (sortConfig.direction === "asc" ? "▲" : "▼")}
+                <span
+                  className={
+                    sortConfig.key === "orderId"
+                      ? "text-blue-600"
+                      : "text-slate-200"
+                  }
+                >
+                  {sortConfig.key === "orderId" &&
+                  sortConfig.direction === "asc"
+                    ? "▲"
+                    : "▼"}
+                </span>
               </th>
-              <th className="w-[22%] p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                운송 경로
-              </th>
-              <th className="w-[12%] p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                화주사
-              </th>
-              <th className="w-[14%] p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                차량 정보
-              </th>
+              <th className="w-[22%] p-5 text-center">운송 경로</th>
+              <th className="w-[12%] p-5 text-center">화주사</th>
+              <th className="w-[14%] p-5 text-center">차량 정보</th>
               <th
                 onClick={() => requestSort("totalPrice")}
-                className="w-28 p-5 text-center text-[11px] font-bold text-slate-400 uppercase cursor-pointer hover:text-blue-600 transition-colors"
+                className="w-28 p-5 text-center cursor-pointer hover:text-blue-600 transition-colors"
               >
                 운임{" "}
-                {sortConfig.key === "totalPrice" &&
-                  (sortConfig.direction === "asc" ? "▲" : "▼")}
+                <span
+                  className={
+                    sortConfig.key === "totalPrice"
+                      ? "text-blue-600"
+                      : "text-slate-200"
+                  }
+                >
+                  {sortConfig.key === "totalPrice" &&
+                  sortConfig.direction === "asc"
+                    ? "▲"
+                    : "▼"}
+                </span>
               </th>
-              <th className="w-24 p-5 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                상태
-              </th>
-              <th className="w-32 p-5 text-right text-[11px] font-bold text-slate-400 uppercase tracking-wider pr-8">
-                관리 제어
-              </th>
+              <th className="w-24 p-5 text-center">상태</th>
+              <th className="w-32 p-5 text-center">관리 제어</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -296,16 +322,10 @@ export default function AdminOrderListPage() {
                       </Link>
                     </td>
                     <td className="p-5">
-                      <div className="flex items-center gap-2 justify-center">
-                        <span className="font-bold text-slate-800 text-sm">
-                          {order.startPlace || "미지정"}
-                        </span>
-                        <span className="text-slate-300 text-xs font-light">
-                          →
-                        </span>
-                        <span className="font-bold text-slate-800 text-sm">
-                          {order.endPlace || "미지정"}
-                        </span>
+                      <div className="flex items-center gap-2 justify-center font-bold text-slate-800 text-sm">
+                        <span>{order.startPlace || "미지정"}</span>
+                        <span className="text-slate-300 font-light">→</span>
+                        <span>{order.endPlace || "미지정"}</span>
                       </div>
                     </td>
                     <td className="p-5 text-center text-slate-600 font-semibold text-sm truncate">
@@ -316,10 +336,8 @@ export default function AdminOrderListPage() {
                       <span className="text-slate-200 font-normal mx-1">|</span>{" "}
                       {order.reqTonnage || "-"}
                     </td>
-                    <td className="p-5 text-right">
-                      <span className="text-sm font-bold text-slate-900">
-                        {displayPrice.toLocaleString()}원
-                      </span>
+                    <td className="p-5 text-center font-bold text-slate-900 text-sm">
+                      {displayPrice.toLocaleString()}원
                     </td>
                     <td className="p-5 text-center">
                       <span
@@ -356,6 +374,42 @@ export default function AdminOrderListPage() {
             )}
           </tbody>
         </table>
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-8 py-6 border-t border-slate-100 bg-white">
+            <button
+              onClick={() => setPage((prev) => Math.max(prev - 1, 0))}
+              disabled={page === 0}
+              className="text-sm font-bold text-slate-400 disabled:opacity-20 transition-colors hover:text-slate-600"
+            >
+              이전
+            </button>
+            <div className="flex items-center gap-4">
+              {Array.from({ length: totalPages }, (_, i) => i).map((num) => (
+                <button
+                  key={num}
+                  onClick={() => setPage(num)}
+                  className={`text-md font-bold transition-colors ${
+                    page === num
+                      ? "text-slate-900 underline underline-offset-4 decoration-2"
+                      : "text-slate-400 hover:text-slate-600"
+                  }`}
+                >
+                  {num + 1}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() =>
+                setPage((prev) => (prev + 1 < totalPages ? prev + 1 : prev))
+              }
+              disabled={totalPages === 0 || page + 1 >= totalPages}
+              className="text-sm font-bold text-slate-400 disabled:opacity-20 transition-colors hover:text-slate-600"
+            >
+              다음
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 강제 배차 모달 */}

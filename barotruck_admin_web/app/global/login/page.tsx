@@ -16,9 +16,13 @@ export default function LoginPage() {
       if (data.access_token) {
         router.push("/");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(error);
-      alert("로그인 실패: 이메일 또는 비밀번호를 확인하세요.");
+      const message =
+        error instanceof Error
+          ? error.message
+          : "로그인 실패: 이메일 또는 비밀번호를 확인하세요.";
+      alert(message);
     }
   };
 

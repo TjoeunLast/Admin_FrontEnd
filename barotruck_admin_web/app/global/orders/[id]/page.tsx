@@ -44,24 +44,28 @@ export default function OrderDetailPage() {
 
   if (isLoading)
     return (
-      <div className="p-10 text-center font-bold text-slate-300">
-        로딩 중...
+      <div className="p-10 text-center font-bold text-slate-300 text-xl">
+        데이터 로딩 중...
       </div>
     );
   if (!order)
     return (
-      <div className="p-10 text-center font-bold text-rose-500">
+      <div className="p-10 text-center font-bold text-rose-500 text-xl">
         오더 정보 없음
       </div>
     );
 
+  const isCancelled = ["CANCELLED", "CANCELLED_BY_ADMIN"].includes(
+    order.status,
+  );
+
   const timelineSteps = [
-    { id: "REQUESTED", label: "배차 대기", color: "#fbbf24" },
-    { id: "ACCEPTED", label: "배차 확정", color: MAIN_COLOR },
-    { id: "LOADING", label: "상차 중", color: MAIN_COLOR },
-    { id: "IN_TRANSIT", label: "운송 중", color: MAIN_COLOR },
-    { id: "UNLOADING", label: "하차 중", color: MAIN_COLOR },
-    { id: "COMPLETED", label: "운송 완료", color: "#10b981" },
+    { id: "REQUESTED", label: "배차대기", color: "#fbbf24" },
+    { id: "ACCEPTED", label: "배차확정", color: "#4E46E5" },
+    { id: "LOADING", label: "상차중", color: "#4E46E5" },
+    { id: "IN_TRANSIT", label: "운송중", color: "#4E46E5" },
+    { id: "UNLOADING", label: "하차중", color: "#4E46E5" },
+    { id: "COMPLETED", label: "운송완료", color: "#10b981" },
   ];
 
   const currentStatusIndex = timelineSteps.findIndex(
@@ -74,246 +78,270 @@ export default function OrderDetailPage() {
     (order.insuranceFee || 0);
 
   return (
-    <div className="w-full space-y-4">
-      {/* 1. 헤더 */}
-      <div className="flex items-center gap-3 py-2 border-b border-slate-100">
-        <button
-          onClick={() => router.back()}
-          className="p-1.5 hover:bg-slate-50 rounded-lg text-slate-400"
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="3"
+    <div className="w-full space-y-6 pb-10 font-sans text-black">
+      {/* 1. 헤더: 배차 관리 페이지와 동일한 스타일 적용 */}
+      <header className="mb-8 pl-1 flex justify-between items-center">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => router.back()}
+            className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"
           >
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
-        </button>
-        <h1 className="text-xl font-bold text-slate-900">
-          오더 상세 정보 <span style={{ color: MAIN_COLOR }}>#{orderId}</span>
-        </h1>
-        <div className="ml-auto">
-          <span className="px-3 py-1 bg-slate-900 text-white text-[10px] font-black rounded-md uppercase">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+            >
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </button>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            오더 상세 <span className="text-indigo-600">#{orderId}</span>
+          </h1>
+        </div>
+
+        <div className="flex items-center">
+          <span
+            className={`px-4 py-1.5 rounded-full text-[10px] font-black border uppercase ${
+              isCancelled
+                ? "bg-rose-50 text-rose-600 border-rose-100"
+                : "bg-indigo-50 text-indigo-700 border-indigo-100"
+            }`}
+          >
             {ORDER_DRIVING_STATUS_MAP?.[order.status] || order.status}
           </span>
         </div>
-      </div>
+      </header>
 
-      {/* 2. 복합 그리드 레이아웃 (가로/세로 혼합) */}
-      <div className="grid grid-cols-12 gap-4">
-        {/* 상단 왼쪽: 운송 경로 (가로로 길게) */}
-        <section className="col-span-12 lg:col-span-8 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-          <p className="text-[13px] font-black text-slate-800 mb-6">
-            운송 경로 상세
-          </p>
-          <div className="flex items-center justify-between relative px-4 py-4">
-            <div className="absolute left-10 right-10 top-1/2 h-px border-t border-dashed border-slate-200 -translate-y-6" />
-
-            <div className="flex flex-col items-center gap-3 z-10 bg-white px-4">
-              <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center ring-2 ring-slate-100 shadow-sm">
-                <div
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: MAIN_COLOR }}
-                />
-              </div>
-              <div className="text-center">
-                <p
-                  className="text-[11px] font-bold uppercase"
-                  style={{ color: MAIN_COLOR }}
-                >
-                  상차지
-                </p>
-                <p className="font-bold text-slate-800 text-[15px] mt-1">
-                  {order.startPlace}
-                </p>
-                <p className="text-[11px] text-slate-400">
-                  {order.startSchedule}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-col items-center gap-3 z-10 bg-white px-4">
-              <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center ring-2 ring-slate-100 shadow-sm">
-                <div className="w-2 h-2 rounded-full bg-emerald-500" />
-              </div>
-              <div className="text-center">
-                <p className="text-[11px] font-bold text-emerald-500 uppercase">
-                  하차지
-                </p>
-                <p className="font-bold text-slate-800 text-[15px] mt-1">
-                  {order.endPlace}
-                </p>
-              </div>
-            </div>
+      {/* 2. 통합 경로 및 상태 바 */}
+      <section className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden divide-y divide-slate-50">
+        {isCancelled && (
+          <div className="bg-rose-50 px-6 py-2.5 flex items-center gap-2 border-b border-rose-100 text-rose-600 font-black text-[11px]">
+            <span>취소된 오더</span>
           </div>
-        </section>
+        )}
 
-        {/* 상단 오른쪽: 진행 상태 (세로로 길게) */}
-        <section className="col-span-12 lg:col-span-4 row-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col">
-          <p className="text-[13px] font-black text-slate-800 mb-8">
-            진행 상태 타임라인
-          </p>
-          <div className="flex-1 flex flex-col justify-between py-2">
-            {timelineSteps.map((step, i) => {
-              const isDone = currentStatusIndex >= i;
-              const isActive = currentStatusIndex === i;
-              return (
-                <div
-                  key={step.id}
-                  className={`flex items-center gap-4 transition-all ${isActive ? "scale-105 origin-left" : ""}`}
-                >
-                  <div
-                    className={`w-2.5 h-2.5 rounded-full transition-all duration-500 ${isActive ? "ring-4 animate-pulse" : ""}`}
-                    style={{
-                      backgroundColor: isDone ? step.color : "#f1f5f9",
-                      boxShadow: isActive ? `0 0 10px ${step.color}` : "none",
-                    }}
-                  />
-                  <p
-                    className={`text-[13px] ${isActive ? "font-black text-slate-900" : isDone ? "font-bold text-slate-600" : "font-medium text-slate-200"}`}
-                  >
-                    {step.label}
-                    {isActive && (
-                      <span className="ml-2 text-[10px] inline-block opacity-50">
-                        ●
-                      </span>
-                    )}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* 하단 왼쪽 1: 오더 정보 (가로형) */}
-        <section className="col-span-12 lg:col-span-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-          <p className="text-[13px] font-black text-slate-800 mb-6">
-            오더 상세 내역
-          </p>
-          <div className="grid grid-cols-2 gap-y-5 gap-x-4">
-            <InfoBlock label="물품 정보" value={order.cargoContent} />
-            <InfoBlock
-              label="차종/톤수"
-              value={`${order.reqCarType} / ${order.reqTonnage}`}
-            />
-            <InfoBlock
-              label="운송유형"
-              value={order.driveMode === "SHARE" ? "혼적" : "독차"}
-            />
-            <InfoBlock label="상차방법" value={order.loadMethod || "미지정"} />
-            <div className="col-span-2">
-              <InfoBlock
-                label="관리자 메모"
-                value={order.memo || "등록된 메모 없음"}
-              />
+        <div className="p-10 flex items-start gap-12 relative">
+          {/* 상차지 섹션 */}
+          <div className="flex-1 space-y-4">
+            <div className="flex items-center gap-2 text-[11px] font-black text-indigo-500 uppercase">
+              상차 정보{" "}
+              {order.startType && (
+                <span className="text-rose-500 ml-2">● {order.startType}</span>
+              )}
             </div>
-          </div>
-        </section>
-
-        {/* 하단 왼쪽 2: 금액 정보 (가로형) */}
-        <section className="col-span-12 lg:col-span-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
-          <div>
-            <p className="text-[13px] font-black text-slate-800 mb-6">
-              운임 및 결제
-            </p>
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <PriceRow label="기본 운임" value={order.basePrice} />
-              <PriceRow label="수작업비" value={order.laborFee} />
-              <PriceRow label="포장비" value={order.packagingPrice} />
-            </div>
-          </div>
-          <div className="pt-4 border-t border-slate-50 flex justify-between items-end">
             <div>
-              <p className="text-[13px] font-bold text-slate-300">
-                결제 방식:{" "}
-                <span className="text-black">{order.payMethod || "-"}</span>
+              <p className="text-2xl font-black leading-tight mb-1">
+                {order.startPlace}
+              </p>
+              <p className="text-[15px] text-slate-500 font-bold">
+                {order.startAddr}
               </p>
             </div>
-            <div className="text-right">
-              <p className="text-[10px] font-bold text-slate-400">최종 합계</p>
-              <p className="text-xl font-black" style={{ color: MAIN_COLOR }}>
+            <div className="text-xs font-bold text-slate-400 italic">
+              {order.startSchedule} 상차
+            </div>
+          </div>
+
+          {/* 중앙 거리 표시 */}
+          <div className="shrink-0 self-center flex flex-col items-center gap-1.5 px-6">
+            <span className="text-sm font-black text-slate-700">
+              {order.distance} km
+            </span>
+            <div className="h-[1.5px] w-16 bg-slate-100" />
+            <span className="text-[10px] font-bold text-slate-300 uppercase tracking-tight">
+              총 거리
+            </span>
+          </div>
+
+          {/* 하차지 섹션 */}
+          <div className="flex-1 space-y-4 text-right">
+            <div className="flex items-center gap-2 justify-end text-[11px] font-black text-emerald-500 uppercase">
+              {order.endType && (
+                <span className="text-orange-500 mr-2">● {order.endType}</span>
+              )}{" "}
+              하차 정보
+            </div>
+            <div>
+              <p className="text-2xl font-black leading-tight mb-1">
+                {order.endPlace}
+              </p>
+              <p className="text-[15px] text-slate-500 font-bold">
+                {order.endAddr}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* 상태 타임라인 */}
+        <div className="bg-slate-50/30 px-6 py-8 flex items-center justify-between">
+          {timelineSteps.map((step, i) => {
+            const isDone = currentStatusIndex >= i;
+            const isActive = currentStatusIndex === i;
+            return (
+              <div
+                key={step.id}
+                className="flex flex-col items-center gap-3 flex-1 relative"
+              >
+                <div
+                  className={`w-3 h-3 rounded-full transition-all z-10 ${isActive ? "ring-4 ring-offset-2" : ""}`}
+                  style={{
+                    backgroundColor: isDone ? step.color : "#CBD5E1",
+                    boxShadow: isActive ? `0 0 0 4px ${step.color}20` : "none",
+                  }}
+                />
+                <p
+                  className={`text-[13px] font-black whitespace-nowrap ${isActive ? "text-black" : isDone ? "text-slate-500" : "text-slate-300"}`}
+                >
+                  {step.label}
+                </p>
+                {i < timelineSteps.length - 1 && (
+                  <div
+                    className={`absolute top-[6px] left-[50%] w-full h-[2px] -z-0 ${isDone && currentStatusIndex > i ? "bg-indigo-200" : "bg-slate-200"}`}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* 3. 상세 정보 및 금액 정보 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+        <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
+          <div className="px-6 py-4 border-b border-slate-50 bg-slate-50/30 font-black text-xs text-slate-800 tracking-wider">
+            오더 상세 내역
+          </div>
+          <div className="divide-y divide-slate-50">
+            <TableItem
+              label="등록 일시"
+              value={order.createdAt?.replace("T", " ")}
+              highlight
+            />
+            <TableItem label="화물 내용" value={order.cargoContent} />
+            <div className="grid grid-cols-2 divide-x divide-slate-50">
+              <TableItem label="요청 차종" value={order.reqCarType} />
+              <TableItem label="요청 톤수" value={order.reqTonnage} />
+            </div>
+            <div className="grid grid-cols-2 divide-x divide-slate-50">
+              <TableItem label="운송 방식" value={order.driveMode} />
+              <TableItem label="상차 방법" value={order.loadMethod} />
+            </div>
+            <TableItem label="관리자 메모" value={order.memo} />
+          </div>
+        </div>
+
+        <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
+          <div className="px-6 py-4 border-b border-slate-50 bg-slate-50/30 flex justify-between items-center font-black text-xs tracking-wider">
+            운임 및 결제
+            <span className="text-[11px] text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">
+              결제방식: {order.payMethod}
+            </span>
+          </div>
+          <div className="divide-y divide-slate-50">
+            <div className="grid grid-cols-2 divide-x divide-slate-50">
+              <TableItem
+                label="기본 운임"
+                value={`${(order.basePrice || 0).toLocaleString()}원`}
+              />
+              <TableItem
+                label="수작업비"
+                value={`${(order.laborFee || 0).toLocaleString()}원`}
+              />
+            </div>
+            <div className="grid grid-cols-2 divide-x divide-slate-50">
+              <TableItem
+                label="포장 비용"
+                value={`${(order.packagingPrice || 0).toLocaleString()}원`}
+              />
+              <TableItem
+                label="보험료"
+                value={`${(order.insuranceFee || 0).toLocaleString()}원`}
+              />
+            </div>
+            {/* 총 합계 금액 섹션*/}
+            <div className="px-6 py-6 flex justify-between items-center bg-indigo-50/30">
+              <p className="text-sm font-black text-indigo-400 uppercase tracking-widest">
+                총 합계 금액
+              </p>
+              <p
+                className={`text-2xl font-black ${isCancelled ? "text-slate-400 line-through" : "text-indigo-600"}`}
+              >
                 {totalPrice.toLocaleString()}원
               </p>
             </div>
           </div>
-        </section>
+        </div>
+      </div>
 
-        {/* 최하단 전체 가로: 인적 정보 */}
-        <section className="col-span-12 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-          <p className="text-[13px] font-black text-slate-800 mb-6">
-            화주 및 차주 정보
-          </p>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="flex items-center gap-6 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
-              <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center font-black text-slate-300 border border-slate-100 shadow-sm">
-                화
-              </div>
-              <div className="flex-1 grid grid-cols-3 items-center">
-                <p className="text-[15px] font-bold text-slate-800">
-                  {order.user?.nickname || "-"}
-                </p>
-                <p className="text-[13px] text-slate-500">
-                  {order.user?.phone || order.shipperPhone || "-"}
-                </p>
-                <p className="text-[13px] text-slate-500 truncate">
-                  {order.user?.email || "-"}
-                </p>
-              </div>
-            </div>
-            {driver ? (
-              <div className="flex items-center gap-6 bg-blue-50/30 p-4 rounded-xl border border-blue-100/50">
-                <div
-                  className="w-10 h-10 bg-white rounded-full flex items-center justify-center font-black border border-blue-100 shadow-sm"
-                  style={{ color: MAIN_COLOR }}
-                >
-                  차
-                </div>
-                <div className="flex-1 grid grid-cols-3 items-center">
-                  <p
-                    className="text-[15px] font-bold"
-                    style={{ color: MAIN_COLOR }}
-                  >
-                    {driver.nickname}
-                  </p>
-                  <p className="text-[13px] text-slate-600">{driver.phone}</p>
-                  <p className="text-[13px] text-slate-500 truncate">
-                    {driver.email || "-"}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center border border-dashed border-slate-200 rounded-xl text-slate-300 text-[13px] font-bold italic bg-slate-50/30">
-                현재 배차 대기 중입니다.
-              </div>
-            )}
+      {/* 4. 관계자 정보 */}
+      <div className="flex gap-4">
+        <UserChip
+          label="화주"
+          name={order.user?.nickname}
+          onClick={() => router.push(`/global/users/${order.user?.userId}`)}
+        />
+        {driver ? (
+          <UserChip
+            label="차주"
+            name={driver.nickname}
+            isDriver
+            onClick={() => router.push(`/global/users/${driver.userId}`)}
+          />
+        ) : (
+          <div className="flex items-center gap-3 pl-5 pr-5 py-3 rounded-full border border-dashed border-slate-200 bg-slate-50/50 text-slate-400">
+            <span className="text-[10px] font-black opacity-40 uppercase tracking-widest">
+              차주
+            </span>
+            <span className="font-black text-[15px]">배차 대기 중</span>
           </div>
-        </section>
+        )}
       </div>
     </div>
   );
 }
 
-function PriceRow({ label, value }: { label: string; value: number }) {
+function TableItem({ label, value, highlight = false }: any) {
   return (
-    <div className="flex flex-col gap-0.5">
-      <p className="text-[10px] font-bold text-slate-400">{label}</p>
-      <p className="text-[13px] font-bold text-slate-700">
-        {(value || 0).toLocaleString()}원
-      </p>
+    <div className="flex items-center px-6 py-5 hover:bg-slate-50/30 transition-colors">
+      <div className="w-28 text-[11px] font-black text-slate-400 uppercase tracking-tighter">
+        {label}
+      </div>
+      <div
+        className={`flex-1 text-[16px] font-bold ${highlight ? "text-indigo-600" : "text-black"}`}
+      >
+        {value || "-"}
+      </div>
     </div>
   );
 }
 
-function InfoBlock({ label, value }: { label: string; value: string }) {
+function UserChip({ label, name, isDriver, onClick }: any) {
   return (
-    <div className="space-y-0.5">
-      <p className="text-[10px] font-black text-slate-300 uppercase">{label}</p>
-      <p className="font-bold text-slate-800 text-[14px] leading-tight">
-        {value}
-      </p>
-    </div>
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-3 pl-5 pr-2 py-3 rounded-full border border-slate-200 transition-all hover:bg-white hover:shadow-md ${isDriver ? "bg-indigo-50 border-indigo-100 text-indigo-600" : "bg-slate-100 text-slate-700"}`}
+    >
+      <span className="text-[10px] font-black opacity-40 uppercase tracking-widest">
+        {label}
+      </span>
+      <span className="font-black text-[15px]">{name || "정보없음"}</span>
+      <div
+        className={`text-slate-400 ${isDriver ? "text-indigo-400" : "text-slate-400"}`}
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="4"
+        >
+          <path d="M9 18l6-6-6-6" />
+        </svg>
+      </div>
+    </button>
   );
 }

@@ -1,209 +1,375 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getUserDetail, deleteUser, restoreUser } from "@/app/features/shared/api/user_api";
-import UserProfileCard, { UserDetail } from "@/app/features/user/users/user_profile_card";
+import {
+  deleteUser,
+  getUserDetail,
+  restoreUser,
+} from "@/app/features/shared/api/user_api";
+import { fetchOrders } from "@/app/features/shared/api/order_api";
 
+// 상세 정보의 라벨과 값을 표시하는 행 컴포넌트
+function InfoRow({
+  label,
+  value,
+  valueColor = "text-slate-900",
+}: {
+  label: string;
+  value: string | number | null | undefined;
+  valueColor?: string;
+}) {
+  return (
+    <div className="flex items-center py-4 border-b border-slate-50 last:border-0 group transition-colors hover:bg-slate-50/30 px-2">
+      <span className="w-32 text-[13px] font-bold text-slate-400 group-hover:text-slate-500 transition-colors">
+        {label}
+      </span>
+      <span className={`flex-1 text-sm font-black ${valueColor} break-all`}>
+        {value || "-"}
+      </span>
+    </div>
+  );
+}
+
+// 회원 상세 정보와 활동 현황을 관리하는 페이지 컴포넌트
 export default function MemberDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const [user, setUser] = useState<UserDetail | null>(null);
+  const rawUserId = Array.isArray(params?.userId)
+    ? params.userId[0]
+    : params?.userId;
+  const currentUserId = Number(rawUserId);
+
+  const [user, setUser] = useState<any>(null);
+  const [allOrders, setAllOrders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // ✅ 브라우저 콘솔에서 확인된 키값 'userId'를 사용합니다.
-  const currentUserId = params?.userId;
-
+  // 회원 정보와 주문 내역 데이터를 비동기로 호출
   const loadData = async () => {
+    if (!currentUserId) return;
     try {
-      const data = await getUserDetail(Number(currentUserId));
-      console.log("서버 응답 데이터:", data);
-      setUser(data);
+      setIsLoading(true);
+      const [userData, orderData] = await Promise.all([
+        getUserDetail(currentUserId),
+        fetchOrders(),
+      ]);
+      setUser(userData);
+      setAllOrders(orderData);
     } catch (error) {
-      console.error("데이터 로드 실패", error);
+      console.error("데이터 로드 실패:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // 컴포넌트 마운트 및 아이디 변경 시 데이터 호출 실행
   useEffect(() => {
-    if (currentUserId) {
-      loadData();
-    }
+    void loadData();
   }, [currentUserId]);
 
-  const handleDeleteAccount = async () => {
-    if (!window.confirm("정말 이 계정을 삭제(탈퇴) 처리하시겠습니까?")) return;
+  // 주문 상태별 건수와 총 합계를 계산하여 반환
+  const activityStats = useMemo(() => {
+    if (!user || allOrders.length === 0)
+      return {
+        requested: 0,
+        confirmed: 0,
+        shipping: 0,
+        completed: 0,
+        total: 0,
+      };
+
+    const myOrders = allOrders.filter(
+      (o: any) =>
+        o.driverNo === currentUserId || o.user?.userId === currentUserId,
+    );
+
+    const requested = myOrders.filter(
+      (o) => o.status === "REQUESTED" || o.status === "WAITING",
+    ).length;
+    const confirmed = myOrders.filter(
+      (o) => o.status === "ACCEPTED" || o.status === "CONFIRMED",
+    ).length;
+    const shipping = myOrders.filter(
+      (o) => o.status === "IN_TRANSIT" || o.status === "SHIPPING",
+    ).length;
+    const completed = myOrders.filter((o) => o.status === "COMPLETED").length;
+
+    const total = requested + confirmed + shipping + completed;
+
+    return { requested, confirmed, shipping, completed, total };
+  }, [user, allOrders, currentUserId]);
+
+  // 사용자의 삭제 여부를 불리언 값으로 판별
+  const isDeleted = useMemo(
+    () => String(user?.delflag || user?.delFlag).toUpperCase() === "A",
+    [user],
+  );
+
+  // 계정의 정지 상태를 토글하는 함수
+  const handleStatusToggle = async () => {
+    if (!user?.userId) return;
+    const msg = isDeleted
+      ? "계정 정지를 해제하시겠습니까?"
+      : "계정을 정지하시겠습니까?";
+    if (!window.confirm(msg)) return;
     try {
-      await deleteUser(Number(currentUserId));
-      alert("계정이 삭제 처리되었습니다.");
-      loadData(); 
+      if (isDeleted) await restoreUser(user.userId);
+      else await deleteUser(user.userId);
+      alert("변경되었습니다.");
+      await loadData();
     } catch (error) {
+      alert("오류 발생");
+    }
+  };
+
+  // 계정을 시스템에서 영구적으로 삭제 처리하는 함수
+  const handleDeleteAccount = async () => {
+    if (!currentUserId) return;
+    if (
+      !window.confirm(
+        "해당 계정을 정말로 삭제(탈퇴) 처리하시겠습니까?\n이 작업은 되돌릴 수 없습니다.",
+      )
+    )
+      return;
+
+    try {
+      await deleteUser(currentUserId);
+      alert("계정 삭제가 완료되었습니다.");
+      router.push("/global/users");
+    } catch (error) {
+      console.error("삭제 실패:", error);
       alert("삭제 처리 중 오류가 발생했습니다.");
     }
   };
 
-  const handleRestoreAccount = async () => {
-    if (!window.confirm("이 계정을 다시 활성화하시겠습니까?")) return;
-    try {
-      await restoreUser(Number(currentUserId));
-      alert("계정이 성공적으로 복구되었습니다.");
-      loadData();
-    } catch (error) {
-      alert("복구 처리 중 오류가 발생했습니다.");
-    }
-  };
+  // 데이터 로딩 중 표시될 화면
+  if (isLoading)
+    return (
+      <div className="p-20 text-center text-slate-400 font-black italic text-sm">
+        데이터 분석 중...
+      </div>
+    );
 
-  if (isLoading) return <div className="p-20 text-center text-slate-400 font-medium italic">회원 데이터를 불러오는 중...</div>;
-  if (!user) return <div className="p-20 text-center text-slate-400">해당 회원을 찾을 수 없습니다.</div>;
-
-  // ✅ DB 구조 반영: 'A'가 비활성(Deleted)입니다.
-  // API 응답에 따라 delFlag 또는 delflag를 모두 체크하도록 방어 코드를 짭니다.
-  const isDeleted = (user?.delflag || user?.delflag)?.toUpperCase() === 'A';
+  // 데이터가 없을 경우 표시될 화면
+  if (!user)
+    return (
+      <div className="p-20 text-center text-slate-400 font-black text-sm">
+        정보 없음
+      </div>
+    );
 
   return (
-    <div className="max-w-[1200px] mx-auto space-y-6 pb-24 px-4">
-      
-      {/* 1. 상단 액션바 */}
-      <header className="flex justify-between items-center py-2">
-        <button 
-          onClick={() => router.back()}
-          className="group flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors"
-        >
-          <span className="text-xl group-hover:-translate-x-1 transition-transform">←</span> 목록으로 돌아가기
-        </button>
+    <div className="max-w-[1400px] mx-auto space-y-6 pb-24 font-sans text-slate-900">
+      {/* 상단 제목과 제어 버튼 구역 */}
+      <header className="mb-8 pl-1 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => router.back()}
+            className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+            >
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </button>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
+            회원 상세 정보
+            <span className="text-[#4E46E5] flex items-center gap-2">
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="opacity-90"
+              >
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+              {user.nickname}
+            </span>
+          </h1>
+        </div>
         <div className="flex gap-2">
-          {/* ✅ 삭제되지 않은 상태일 때만 '삭제' 버튼 노출 */}
-          {!isDeleted ? (
-            <button onClick={handleDeleteAccount} className="px-5 py-2.5 bg-red-50 text-red-500 hover:bg-red-100 rounded-xl text-sm font-bold border border-red-100 transition-all">계정 삭제하기</button>
-          ) : (
-            <button onClick={handleRestoreAccount} className="px-5 py-2.5 bg-blue-600 text-white hover:bg-blue-700 rounded-xl text-sm font-bold shadow-lg shadow-blue-100 transition-all">계정 복구하기</button>
-          )}
+          <button
+            onClick={handleStatusToggle}
+            className={`px-5 py-3 rounded-xl font-black text-[12px] transition-all shadow-md active:scale-95 text-white ${
+              isDeleted
+                ? "bg-emerald-600 hover:bg-emerald-700"
+                : "bg-slate-900 hover:bg-black"
+            }`}
+          >
+            {isDeleted ? "계정 정지 해제" : "계정 정지"}
+          </button>
+          <button
+            onClick={handleDeleteAccount}
+            className="px-5 py-3 bg-rose-600 text-white rounded-xl font-black text-[12px] transition-all shadow-md hover:bg-rose-700 active:scale-95"
+          >
+            계정 삭제
+          </button>
         </div>
       </header>
 
-      {/* 2. 상단 하이라이트 섹션 */}
-      <section className="bg-white rounded-[2rem] border border-slate-200 shadow-sm p-8 flex items-center justify-between relative overflow-hidden">
-        {/* ✅ 색상 로직 수정: 삭제됨(isDeleted)이면 회색(slate), 활성이면 파란색(blue) */}
-        <div className={`absolute left-0 top-0 bottom-0 w-2 ${!isDeleted ? 'bg-blue-500' : 'bg-slate-300'}`} />
-        <div className="flex items-center gap-6">
-          <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-2xl shadow-inner">
-            {user.isOwner === 'DRIVER' ? '🚛' : '👤'}
-          </div>
-          <div>
-            <span className={`text-[11px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${!isDeleted ? 'bg-blue-50 text-blue-500' : 'bg-slate-100 text-slate-500'}`}>
-                {!isDeleted ? 'Active Account' : 'Deleted Account'}
-            </span>
-            <h1 className="text-2xl font-black text-slate-900 mt-1">
-              {user.nickname} <span className="text-slate-400 font-normal text-lg">님의 정보</span>
-            </h1>
-          </div>
-        </div>
-        <div className="text-right">
-          <p className="text-xs text-slate-400 font-bold mb-1">MEMBER RATING</p>
-          <div className="flex gap-1 justify-end items-center">
-             <span className="text-2xl font-black text-amber-400">5.0</span>
-             <span className="text-amber-400 text-xl">★</span>
-          </div>
-        </div>
-      </section>
-
       <div className="grid grid-cols-12 gap-8">
-        <div className="col-span-8 space-y-6">
-          {/* 3. 기본 인적 사항 */}
-          <section className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
-            <div className="p-8 border-b border-slate-50">
-              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <span className="w-1.5 h-5 bg-blue-500 rounded-full" /> 기본 인적 사항
-              </h2>
+        {/* 사이드바 영역 활동 현황 카드 */}
+        <div className="col-span-4 space-y-6">
+          <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm p-8 ring-1 ring-slate-100">
+            <h2 className="font-black text-slate-800 mb-8 text-lg">
+              활동 현황
+            </h2>
+            <div className="grid grid-cols-2 gap-4 mb-8">
+              {[
+                {
+                  label: "배차 대기",
+                  val: activityStats.requested,
+                  color: "text-amber-600",
+                  bg: "bg-amber-100/50",
+                },
+                {
+                  label: "배차 확정",
+                  val: activityStats.confirmed,
+                  color: "text-blue-700",
+                  bg: "bg-blue-100/50",
+                },
+                {
+                  label: "운송 진행",
+                  val: activityStats.shipping,
+                  color: "text-indigo-700",
+                  bg: "bg-indigo-100/50",
+                },
+                {
+                  label: "운송 완료",
+                  val: activityStats.completed,
+                  color: "text-emerald-700",
+                  bg: "bg-emerald-100/50",
+                },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className={`${item.bg} rounded-[24px] p-5 text-center border border-white`}
+                >
+                  <p className="text-[10px] font-black text-slate-500 mb-1 uppercase tracking-tight">
+                    {item.label}
+                  </p>
+                  <p className={`text-3xl font-black ${item.color}`}>
+                    {item.val}
+                  </p>
+                </div>
+              ))}
             </div>
-            <div className="p-8 grid grid-cols-2 gap-6">
-              <div className="space-y-1">
-                <p className="text-[11px] text-slate-400 font-bold uppercase">나이 / 성별</p>
-                <p className="text-base font-bold text-slate-700">{user.age || "-"}세 / {
-                    user.gender === 'M' ? '남성' : 
-                    user.gender === 'F' ? '여성' : 
-                    (user.gender || "-")
-                  }
+            <div className="flex justify-around items-center border-t border-slate-100 pt-8 mb-8">
+              <div className="text-center">
+                <p className="text-[10px] font-black text-slate-300 mb-1 uppercase">
+                  총 활동 건수
+                </p>
+                <p className="text-xl font-black text-slate-800">
+                  {activityStats.total}
+                  <span className="text-sm ml-0.5">건</span>
                 </p>
               </div>
-              <div className="space-y-1">
-                <p className="text-[11px] text-slate-400 font-bold uppercase">가입 일자</p>
-                <p className="text-base font-bold text-slate-700">{user.enrolldate}</p>
+              <div className="w-px h-10 bg-slate-100" />
+              <div className="text-center">
+                <p className="text-[10px] font-black text-slate-300 mb-1 uppercase">
+                  평균 평점
+                </p>
+                <p className="text-xl font-black text-amber-500">
+                  {user.rating || "5.0"}★
+                </p>
               </div>
             </div>
-          </section>
-
-          {/* 4. 유형별 맞춤 정보 (차주/화주) */}
-          {user.isOwner === 'DRIVER' ? (
-            <section className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
-              <div className="p-8 border-b border-slate-50">
-                <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                  <span className="w-1.5 h-5 bg-amber-400 rounded-full" /> 차주 운행 정보
-                </h2>
-              </div>
-              <div className="p-8 space-y-6">
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
-                    <p className="text-[11px] text-slate-400 font-bold mb-1">등록 차량</p>
-                    <p className="text-sm font-bold text-slate-700">
-                      {user.carType} {user.tonnage}톤 ({user.carNum || "번호 없음"})
-                    </p>
-                  </div>
-                  <div className="p-6 bg-blue-600 rounded-2xl shadow-lg shadow-blue-100 text-white">
-                    <p className="text-[11px] text-blue-100 font-bold mb-1 uppercase tracking-tight">
-                      누적 운행 건수
-                    </p>
-                    {/* ✅ 데이터가 없을 경우를 대비해 옵셔널 체이닝(?.)과 기본값(0) 설정 */}
-                    <p className="text-2xl font-black">
-                      {user.totalOperationCount?.toLocaleString() || 0} 
-                      <span className="text-sm font-normal opacity-80 ml-1">건 완료</span>
-                    </p>
-                  </div>
-                </div>
-                <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
-                  <p className="text-[11px] text-slate-400 font-bold mb-1">정산 계좌 정보</p>
-                  <p className="text-sm font-bold text-slate-800">{user.bankName} {user.accountNum}</p>
-                </div>
-              </div>
-            </section>
-          ) : (
-            <section className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
-              <div className="p-8 border-b border-slate-50">
-                <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                  <span className="w-1.5 h-5 bg-indigo-500 rounded-full" /> 화주 사업자 정보
-                </h2>
-              </div>
-              <div className="p-8 space-y-4">
-                <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
-                  <p className="text-[11px] text-slate-400 font-bold mb-1 uppercase">회사명</p>
-                  <p className="text-base font-bold text-slate-700">{user.companyName || "미등록"}</p>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
-                    <p className="text-[11px] text-slate-400 font-bold mb-1 uppercase">사업자 등록번호</p>
-                    <p className="text-sm font-bold text-slate-700">{user.bizRegNum || "정보 없음"}</p>
-                  </div>
-                  <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
-                    <p className="text-[11px] text-slate-400 font-bold mb-1 uppercase">대표자명</p>
-                    <p className="text-sm font-bold text-slate-700">{user.representative || "정보 없음"}</p>
-                  </div>
-                </div>
-              </div>
-            </section>
-          )}
+            <div className="bg-slate-50 rounded-2xl py-4 text-center border border-slate-100">
+              <span
+                className={`text-[13px] font-black ${user.isOwner === "DRIVER" ? "text-blue-600" : "text-indigo-600"}`}
+              >
+                {user.isOwner === "DRIVER"
+                  ? "물류 파트너 (차주)"
+                  : "비즈니스 파트너 (화주)"}
+              </span>
+            </div>
+          </div>
         </div>
 
-        {/* 5. 우측 사이드바 */}
-        <div className="col-span-4 space-y-6">
-          <UserProfileCard user={user} />
-          <aside className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[2.5rem] p-8 text-white shadow-xl shadow-blue-100">
-            <h3 className="text-[11px] font-black text-blue-100 uppercase tracking-widest mb-4">Admin Policy</h3>
-            <ul className="text-xs space-y-3 opacity-90 leading-relaxed">
-              <li className="flex gap-2"><span>•</span> <span>비활성(A) 상태의 회원은 시스템 로그인이 차단됩니다.</span></li>
-              <li className="flex gap-2"><span>•</span> <span>정상(N) 복구 시 즉시 모든 서비스 이용이 가능해집니다.</span></li>
-            </ul>
-          </aside>
+        {/* 메인 콘텐츠 영역 상세 정보 카드 */}
+        <div className="col-span-8 space-y-8">
+          {/* 계정의 기본적인 정보를 표시하는 카드 */}
+          <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm p-10 ring-1 ring-slate-100">
+            <h2 className="text-lg font-black text-slate-800 mb-8 pb-4 border-b border-slate-100">
+              기본 계정 정보
+            </h2>
+            <div className="grid grid-cols-2 gap-x-12">
+              <div className="space-y-1">
+                <InfoRow label="닉네임" value={user.nickname} />
+                <InfoRow label="휴대폰" value={user.phone} />
+                <InfoRow
+                  label="성별 / 나이"
+                  value={`${user.gender || "-"} / ${user.age || "-"}세`}
+                />
+              </div>
+              <div className="space-y-1">
+                <InfoRow label="이메일" value={user.email} />
+                <InfoRow
+                  label="가입일자"
+                  value={user.enrolldate?.split("T")[0]}
+                />
+                <InfoRow
+                  label="활동상태"
+                  value={isDeleted ? "정지" : "활성"}
+                  valueColor={isDeleted ? "text-rose-500" : "text-emerald-500"}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 역할에 따른 차량 정보 또는 사업자 정보를 표시하는 카드 */}
+          <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm p-10 ring-1 ring-slate-100">
+            <h2 className="text-lg font-black text-slate-800 mb-8 pb-4 border-b border-slate-100">
+              {user.isOwner === "DRIVER"
+                ? "차량 정보 및 정산 관리"
+                : "화주 및 기업 정보 관리"}
+            </h2>
+            <div className="grid grid-cols-2 gap-x-12">
+              {user.isOwner === "DRIVER" ? (
+                <>
+                  <div className="space-y-1">
+                    <InfoRow label="차량번호" value={user.carNum} />
+                    <InfoRow
+                      label="차종 / 톤수"
+                      value={`${user.carType || "-"} / ${user.tonnage ? user.tonnage + "톤" : "-"}`}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <InfoRow label="정산 은행" value={user.bankName} />
+                    <InfoRow label="정산 계좌" value={user.accountNum} />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="space-y-1">
+                    <InfoRow label="기업명" value={user.companyName} />
+                    <InfoRow
+                      label="사업자 구분"
+                      value={user.bizType || "개인"}
+                    />
+                    <InfoRow label="정산 은행" value={user.bankName} />
+                  </div>
+                  <div className="space-y-1">
+                    <InfoRow label="대표자명" value={user.representative} />
+                    <InfoRow label="사업자 번호" value={user.bizRegNum} />
+                    <InfoRow label="정산 계좌" value={user.accountNum} />
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
