@@ -1,5 +1,5 @@
-const LOCAL_API_ORIGIN = "http://localhost:8080";
-const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
+const LOCAL_API_ORIGIN = "http://barotruck.store:8080";
+const LOCAL_HOSTS = new Set(["barotruck.store", "127.0.0.1"]);
 
 const normalizeOrigin = (value?: string | null): string | null => {
   const trimmed = value?.trim();
