@@ -131,9 +131,16 @@ export const reportApi = {
     return fetchAllReports();
   },
 
-  updateReportStatus: async (reportId: number, status: string): Promise<boolean> => {
+  updateReportStatus: async (
+    reportId: number,
+    status: string,
+    days?: number,
+  ): Promise<boolean> => {
     const response = await client.patch(`/api/reports/admin/${reportId}/status`, null, {
-      params: { status },
+      params: {
+        status,
+        ...(typeof days === "number" && Number.isFinite(days) ? { days } : {}),
+      },
     });
     return response.data;
   },

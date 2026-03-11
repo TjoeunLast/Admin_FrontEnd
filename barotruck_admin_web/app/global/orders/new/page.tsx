@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import apiClient from "@/app/features/shared/api/client";
 import {
-  fetchOrdersPage,
+  fetchActiveOrdersPage,
+  fetchCancelledOrdersPage,
   forceAllocateOrder,
   cancelOrder,
   fetchAdminSummary,
@@ -60,31 +61,11 @@ export default function AdminOrderListPage() {
     try {
       const summaryData = await fetchAdminSummary("month");
       setSummary(summaryData);
-
-      let orderPage;
-      if (viewMode === "all") {
-        orderPage = await fetchOrdersPage(page, pageSize);
-        setOrders(orderPage.content || []);
-      } else {
-        const response = await apiClient.get("/api/v1/admin/orders", {
-          params: {
-            page,
-            size: pageSize,
-            status: "CANCELLED,CANCELLED_BY_ADMIN",
-          },
-        });
-
-        orderPage = response.data;
-
-        const rawContent = orderPage.content || [];
-        const onlyCancelled = rawContent.filter(
-          (o: any) =>
-            o.status === "CANCELLED" || o.status === "CANCELLED_BY_ADMIN",
-        );
-
-        setOrders(onlyCancelled);
-      }
-
+      const orderPage =
+        viewMode === "all"
+          ? await fetchActiveOrdersPage(page, pageSize)
+          : await fetchCancelledOrdersPage(page, pageSize);
+      setOrders(orderPage.content);
       setTotalPages(orderPage.totalPages);
       setTotalElements(orderPage.totalElements);
     } catch (error) {

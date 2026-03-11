@@ -39,6 +39,22 @@ export interface SettlementResponse {
   paymentAmount?: number | null;
   paymentFeeAmount?: number | null;
   paymentNetAmount?: number | null;
+  baseAmount?: number | null;
+  shipperFeeRate?: number | null;
+  shipperFeeAmount?: number | null;
+  shipperPromoApplied?: boolean | null;
+  shipperChargeAmount?: number | null;
+  driverFeeRate?: number | null;
+  driverFeeAmount?: number | null;
+  driverPromoApplied?: boolean | null;
+  driverPayoutAmount?: number | null;
+  tossFeeRate?: number | null;
+  tossFeeAmount?: number | null;
+  platformGrossRevenue?: number | null;
+  platformNetRevenue?: number | null;
+  negativeMargin?: boolean | null;
+  feePolicyId?: number | null;
+  feePolicyAppliedAt?: string | null;
   pgTid?: string | null;
   proofUrl?: string | null;
   paidAt?: string | null;
@@ -105,23 +121,102 @@ export interface SettlementStatusSummaryResponse {
   completedCount: number;
 }
 
-export interface FeePolicyResponse {
+export interface FeePolicySideResponse {
   level0Rate: number;
   level1Rate: number;
   level2Rate: number;
   level3PlusRate: number;
-  firstPaymentPromoRate: number;
+}
+
+export interface FeePolicyResponse {
+  level0Rate?: number;
+  level1Rate?: number;
+  level2Rate?: number;
+  level3PlusRate?: number;
+  firstPaymentPromoRate?: number;
+  shipperSide?: FeePolicySideResponse;
+  driverSide?: FeePolicySideResponse;
+  shipperFirstPaymentPromoRate: number;
+  driverFirstTransportPromoRate: number;
+  tossRate: number;
   minFee: number;
   updatedAt: string | null;
 }
 
+export interface FeePolicySideRequest {
+  level0Rate?: number;
+  level1Rate?: number;
+  level2Rate?: number;
+  level3PlusRate?: number;
+}
+
 export interface UpdateFeePolicyRequest {
-  level0Rate: number;
-  level1Rate: number;
-  level2Rate: number;
-  level3PlusRate: number;
-  firstPaymentPromoRate: number;
-  minFee: number;
+  shipperSide?: FeePolicySideRequest;
+  driverSide?: FeePolicySideRequest;
+  shipperFirstPaymentPromoRate?: number;
+  driverFirstTransportPromoRate?: number;
+  tossRate?: number;
+  minFee?: number;
+  level0Rate?: number;
+  level1Rate?: number;
+  level2Rate?: number;
+  level3PlusRate?: number;
+  firstPaymentPromoRate?: number;
+}
+
+export interface AdminFeePreviewRequest {
+  baseAmount: number;
+  shipperLevel?: number;
+  driverLevel?: number;
+  shipperPromoApplied?: boolean;
+  driverPromoApplied?: boolean;
+  includeTossFee?: boolean;
+}
+
+export interface FeeBreakdownPreviewResponse {
+  previewMode?: string | null;
+  paymentProvider?: string | null;
+  baseAmount: number;
+  postTossBaseAmount?: number | null;
+  shipperAppliedLevel: number;
+  driverAppliedLevel: number | null;
+  shipperFeeRate: number;
+  driverFeeRate: number | null;
+  shipperFeeAmount: number;
+  driverFeeAmount: number | null;
+  shipperPromoEligible?: boolean;
+  driverPromoEligible?: boolean | null;
+  shipperPromoApplied: boolean;
+  driverPromoApplied: boolean | null;
+  shipperMinFeeApplied: boolean;
+  driverMinFeeApplied: boolean | null;
+  shipperChargeAmount: number;
+  driverPayoutAmount: number | null;
+  tossFeeRate: number;
+  tossFeeAmount: number;
+  platformGrossRevenue: number;
+  platformNetRevenue: number;
+  negativeMargin?: boolean;
+  policyConfigId?: number | null;
+  policyUpdatedAt: string | null;
+}
+
+export interface PaymentAmountSnapshotResponse {
+  baseAmount: number | null;
+  shipperChargeAmount: number | null;
+  shipperFeeRate: number | null;
+  shipperFeeAmount: number | null;
+  shipperPromoApplied: boolean | null;
+  driverFeeRate: number | null;
+  driverFeeAmount: number | null;
+  driverPromoApplied: boolean | null;
+  driverPayoutAmount: number | null;
+  tossFeeRate: number | null;
+  tossFeeAmount: number | null;
+  platformGrossRevenue: number | null;
+  platformNetRevenue: number | null;
+  feePolicyId: number | null;
+  feePolicyAppliedAt: string | null;
 }
 
 export interface MarkPaymentPaidRequest {
@@ -150,6 +245,7 @@ export interface TransportPaymentResponse {
   feeRateSnapshot: number;
   feeAmountSnapshot: number;
   netAmountSnapshot: number;
+  amountSnapshot?: PaymentAmountSnapshotResponse | null;
   method: string;
   paymentTiming: string;
   status: string;
@@ -472,6 +568,25 @@ export const paymentAdminApi = {
     >(
       "/api/admin/payment/fee-policy",
       payload
+    );
+    return unwrapApiResponse(response.data);
+  },
+
+  previewFeePolicy: async (
+    payload: AdminFeePreviewRequest
+  ): Promise<FeeBreakdownPreviewResponse> => {
+    const response = await client.post<
+      ApiResponse<FeeBreakdownPreviewResponse> | FeeBreakdownPreviewResponse
+    >(
+      "/api/admin/payment/fee-policy/preview",
+      {
+        baseAmount: payload.baseAmount,
+        shipperLevel: payload.shipperLevel ?? 0,
+        driverLevel: payload.driverLevel ?? 0,
+        shipperPromoApplied: payload.shipperPromoApplied ?? false,
+        driverPromoApplied: payload.driverPromoApplied ?? false,
+        includeTossFee: payload.includeTossFee ?? true,
+      }
     );
     return unwrapApiResponse(response.data);
   },
