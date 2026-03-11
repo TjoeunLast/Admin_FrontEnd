@@ -78,7 +78,7 @@ export default function ReviewList() {
                 <tr
                   key={review.reviewId}
                   onClick={() =>
-                    router.push(`/global/support/review/${review.reviewId}`)
+                    router.push(`/global/support/review/detail?id=${review.reviewId}`)
                   }
                   className="odd:bg-white even:bg-slate-50/30 hover:bg-indigo-50/50 cursor-pointer transition-all group active:bg-indigo-100/30"
                 >

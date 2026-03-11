@@ -1,15 +1,15 @@
 "use client";
 
-import { useRouter, useParams } from "next/navigation";
-import { useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useState, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { fetchOrderDetail } from "@/app/features/shared/api/order_api";
 import { fetchDriversForAllocation } from "@/app/features/shared/api/user_api";
 import { ORDER_DRIVING_STATUS_MAP } from "@/app/features/orders/type";
 
-export default function OrderDetailPage() {
+function OrderDetailPageContent() {
   const router = useRouter();
-  const params = useParams();
-  const orderId = Number(params.id);
+  const searchParams = useSearchParams();
+  const orderId = Number(searchParams.get("id"));
 
   const [order, setOrder] = useState<any>(null);
   const [driver, setDriver] = useState<any>(null);
@@ -281,14 +281,18 @@ export default function OrderDetailPage() {
         <UserChip
           label="화주"
           name={order.user?.nickname}
-          onClick={() => router.push(`/global/users/${order.user?.userId}`)}
+          onClick={() =>
+            router.push(`/global/users/detail?userId=${order.user?.userId}`)
+          }
         />
         {driver ? (
           <UserChip
             label="차주"
             name={driver.nickname}
             isDriver
-            onClick={() => router.push(`/global/users/${driver.userId}`)}
+            onClick={() =>
+              router.push(`/global/users/detail?userId=${driver.userId}`)
+            }
           />
         ) : (
           <div className="flex items-center gap-3 pl-5 pr-5 py-3 rounded-full border border-dashed border-slate-200 bg-slate-50/50 text-slate-400">
@@ -300,6 +304,14 @@ export default function OrderDetailPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function OrderDetailPage() {
+  return (
+    <Suspense fallback={<div className="p-10 text-center font-bold text-slate-300 text-xl">데이터 로딩 중...</div>}>
+      <OrderDetailPageContent />
+    </Suspense>
   );
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   reportApi,
   ReportResponse,
@@ -28,10 +28,10 @@ function getStatusBadgeClass(status: string) {
   return "bg-indigo-50 text-[#4E46E5] border-indigo-100";
 }
 
-export default function InquiryDetailPage() {
-  const params = useParams();
+function InquiryDetailPageContent() {
   const router = useRouter();
-  const rawId = Array.isArray(params.id) ? params.id[0] : params.id;
+  const searchParams = useSearchParams();
+  const rawId = searchParams.get("id");
   const inquiryId = Number(rawId);
 
   const [inquiry, setInquiry] = useState<ReportResponse | null>(null);
@@ -222,5 +222,13 @@ export default function InquiryDetailPage() {
         </button>
       </div>
     </div>
+  );
+}
+
+export default function InquiryDetailPage() {
+  return (
+    <Suspense fallback={<div className="p-20 text-center text-slate-400 font-black italic text-sm">데이터 분석 중...</div>}>
+      <InquiryDetailPageContent />
+    </Suspense>
   );
 }

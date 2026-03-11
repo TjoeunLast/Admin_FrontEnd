@@ -1,18 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   noticeApi,
   NoticeResponse,
 } from "@/app/features/shared/api/notice_api";
 
-export default function NoticeDetailPage() {
-  const params = useParams();
+function NoticeDetailPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [notice, setNotice] = useState<NoticeResponse | null>(null);
 
-  const rawId = Array.isArray(params.id) ? params.id[0] : params.id;
+  const rawId = searchParams.get("id");
   const noticeId = parseInt(rawId || "0", 10);
 
   useEffect(() => {
@@ -147,5 +147,13 @@ export default function NoticeDetailPage() {
         </button>
       </div>
     </div>
+  );
+}
+
+export default function NoticeDetailPage() {
+  return (
+    <Suspense fallback={<div className="p-20 text-center text-slate-400 font-black text-sm">데이터 로딩 중...</div>}>
+      <NoticeDetailPageContent />
+    </Suspense>
   );
 }

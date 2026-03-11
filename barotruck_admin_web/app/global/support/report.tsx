@@ -83,7 +83,7 @@ export default function ReportList() {
   const itemsPerPage = 20;
 
   const buildUserDetailHref = (userId?: number | null) =>
-    userId ? `/global/users/${userId}` : null;
+    userId ? `/global/users/detail?userId=${userId}` : null;
 
   // 데이터 로드
   const fetchReports = async () => {

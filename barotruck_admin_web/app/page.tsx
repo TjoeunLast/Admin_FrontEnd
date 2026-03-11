@@ -157,7 +157,7 @@ export default function DashboardPage() {
             {stats.newOrders.slice(0, 5).map((order) => (
               <Link
                 key={order.orderId}
-                href={`/global/orders/${order.orderId}`}
+                href={`/global/orders/detail?id=${order.orderId}`}
                 className="flex items-center justify-between gap-4 px-6 py-4 hover:bg-slate-50 transition-colors group"
               >
                 <div className="flex items-center gap-4">

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   deleteUser,
   getUserDetail,
@@ -32,13 +32,10 @@ function InfoRow({
 }
 
 // 회원 상세 정보와 활동 현황을 관리하는 페이지 컴포넌트
-export default function MemberDetailPage() {
-  const params = useParams();
+function MemberDetailPageContent() {
   const router = useRouter();
-  const rawUserId = Array.isArray(params?.userId)
-    ? params.userId[0]
-    : params?.userId;
-  const currentUserId = Number(rawUserId);
+  const searchParams = useSearchParams();
+  const currentUserId = Number(searchParams.get("userId"));
 
   const [user, setUser] = useState<any>(null);
   const [allOrders, setAllOrders] = useState<any[]>([]);
@@ -347,5 +344,13 @@ export default function MemberDetailPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function MemberDetailPage() {
+  return (
+    <Suspense fallback={<div className="p-20 text-center text-slate-400 font-black italic text-sm">데이터 분석 중...</div>}>
+      <MemberDetailPageContent />
+    </Suspense>
   );
 }
