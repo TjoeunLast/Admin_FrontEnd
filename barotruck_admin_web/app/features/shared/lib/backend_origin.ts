@@ -1,5 +1,5 @@
-const LOCAL_API_ORIGIN = "http://barotruck.store:8080";
-const LOCAL_HOSTS = new Set(["barotruck.store", "127.0.0.1"]);
+const LOCAL_API_ORIGIN = "http://3.231.203.46:8080";
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
 
 const normalizeOrigin = (value?: string | null): string | null => {
   const trimmed = value?.trim();
@@ -21,7 +21,7 @@ export const getBackendOrigin = (): string => {
     return LOCAL_API_ORIGIN;
   }
 
-  return `${protocol}//${hostname}:8080`;
+  return `http://barotruck.store:8080`;
 };
 
 export const getBackendWebSocketUrl = (): string => {
@@ -30,5 +30,5 @@ export const getBackendWebSocketUrl = (): string => {
     return configuredUrl.endsWith("/ws-stomp") ? configuredUrl : `${configuredUrl}/ws-stomp`;
   }
 
-  return `${getBackendOrigin()}/ws-stomp`;
+  return `ws://barotruck.store/ws-stomp`;
 };
