@@ -1,25 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   reviewApi,
   ReviewResponse,
 } from "@/app/features/shared/api/review_api";
 
-export default function ReviewDetailPage() {
-  const params = useParams();
+function ReviewDetailPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [review, setReview] = useState<ReviewResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const [editContent, setEditContent] = useState("");
   const [editRating, setEditRating] = useState(0);
+  const reviewId = Number(searchParams.get("id"));
 
   useEffect(() => {
     const loadDetail = async () => {
       try {
-        const data = await reviewApi.getDetail(Number(params.id));
+        const data = await reviewApi.getDetail(reviewId);
         setReview(data);
         setEditContent(data.content);
         setEditRating(data.rating);
@@ -30,12 +31,12 @@ export default function ReviewDetailPage() {
       }
     };
     loadDetail();
-  }, [params.id]);
+  }, [reviewId]);
 
   const handleUpdate = async () => {
     if (!window.confirm("리뷰 내용을 수정하시겠습니까?")) return;
     try {
-      const success = await reviewApi.updateReview(Number(params.id), {
+      const success = await reviewApi.updateReview(reviewId, {
         rating: editRating,
         content: editContent,
       });
@@ -51,7 +52,7 @@ export default function ReviewDetailPage() {
   const handleDelete = async () => {
     if (!window.confirm("이 리뷰를 영구 삭제하시겠습니까?")) return;
     try {
-      const success = await reviewApi.deleteReview(Number(params.id));
+      const success = await reviewApi.deleteReview(reviewId);
       if (success) {
         alert("리뷰가 삭제되었습니다.");
         router.push("/global/support?tab=review");
@@ -200,5 +201,13 @@ export default function ReviewDetailPage() {
         </button>
       </div>
     </div>
+  );
+}
+
+export default function ReviewDetailPage() {
+  return (
+    <Suspense fallback={<div className="p-20 text-center text-slate-400 font-black italic text-sm">데이터 동기화 중...</div>}>
+      <ReviewDetailPageContent />
+    </Suspense>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import ChatBubble from "@/app/features/user/support/ChatBubble";
@@ -50,12 +50,11 @@ const getCreatedAtMs = (createdAt?: string) => {
 const sortMessagesByTime = (items: ChatMessageResponse[]) =>
   [...items].sort((a, b) => getCreatedAtMs(a.createdAt) - getCreatedAtMs(b.createdAt));
 
-export default function ChatRoomPage() {
-  const params = useParams();
+function ChatRoomPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const rawRoomId = Array.isArray(params.roomId) ? params.roomId[0] : params.roomId;
-  const roomId = toPositiveId(rawRoomId);
+  const roomId = toPositiveId(searchParams.get("roomId"));
 
   const [currentUser, setCurrentUser] = useState<UserInfo | null>(null);
   const [messages, setMessages] = useState<ChatMessageResponse[]>([]);
@@ -298,5 +297,13 @@ export default function ChatRoomPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+export default function ChatRoomPage() {
+  return (
+    <Suspense fallback={<div className="mx-auto max-w-[1200px] space-y-4 pb-20 text-sm font-semibold text-slate-400">채팅방을 불러오는 중...</div>}>
+      <ChatRoomPageContent />
+    </Suspense>
   );
 }

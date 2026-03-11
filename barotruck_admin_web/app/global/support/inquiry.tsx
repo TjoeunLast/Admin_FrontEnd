@@ -132,7 +132,7 @@ export default function InquiryList() {
                 <tr
                   key={item.reportId}
                   onClick={() =>
-                    router.push(`/global/support/inquiry/${item.reportId}`)
+                    router.push(`/global/support/inquiry/detail?id=${item.reportId}`)
                   }
                   className="odd:bg-white even:bg-slate-50/30 hover:bg-indigo-50/50 cursor-pointer transition-all group active:bg-indigo-100/30"
                 >

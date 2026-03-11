@@ -103,7 +103,8 @@ export default function UserApprovalList({
                 key={user.userId}
                 className="odd:bg-white even:bg-slate-50/30 hover:bg-indigo-50/50 cursor-pointer transition-all group"
                 onClick={() =>
-                  user.userId && router.push(`/global/users/${user.userId}`)
+                  user.userId &&
+                  router.push(`/global/users/detail?userId=${user.userId}`)
                 }
               >
                 <td className="p-6 text-slate-900 text-center text-sm font-black border-r border-slate-50">
