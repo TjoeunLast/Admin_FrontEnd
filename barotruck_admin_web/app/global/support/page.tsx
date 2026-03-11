@@ -1,11 +1,11 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams } from "next/navigation";
 import NoticeList from "./notice";
 import InquiryList from "./inquiry";
 import ReportList from "./report";
-import ReviewList from "./review"; // ✅ 새로 만든 리뷰 리스트 추가
+import ReviewList from "./review";
 
 type SupportTab = "notice" | "inquiry" | "report" | "review";
 
@@ -23,42 +23,43 @@ const SUPPORT_TABS: Array<{ id: SupportTab; label: string }> = [
 ];
 
 function SupportPageContent() {
-  // 💡 탭 타입에 "review" 추가
   const [selectedTab, setSelectedTab] = useState<SupportTab>("notice");
   const searchParams = useSearchParams();
-  const tabParam = searchParams.get('tab');
+  const tabParam = searchParams.get("tab");
   const activeTab = isSupportTab(tabParam) ? tabParam : selectedTab;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-[#1e293b]">📢 고객지원 및 운영 관리</h1>
-        <p className="text-sm text-[#64748b] mt-1">공지사항 및 고객 문의, 리뷰 내역을 관리합니다.</p>
-      </div>
+    <div className="max-w-[1400px] mx-auto space-y-6 pb-24 font-sans text-slate-900">
+      <header className="mb-8 pl-1">
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+          고객지원 및 운영 관리
+        </h1>
+      </header>
 
-      {/* 탭 내비게이션 - 리뷰 관리 버튼 추가 */}
-      <div className="flex gap-1 bg-[#e2e8f0] p-1 rounded-xl w-fit shadow-inner">
+      <div className="flex items-center gap-8 mb-10 border-b border-slate-100 px-1">
         {SUPPORT_TABS.map((tab) => (
-          <button 
+          <button
             key={tab.id}
             onClick={() => setSelectedTab(tab.id)}
-            className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${
-              activeTab === tab.id 
-              ? 'bg-white text-[#1e293b] shadow-sm' 
-              : 'text-[#64748b] hover:text-[#1e293b]'
+            className={`relative pb-4 text-[15px] font-black transition-all ${
+              activeTab === tab.id
+                ? "text-[#4E46E5]"
+                : "text-slate-400 hover:text-slate-600"
             }`}
           >
             {tab.label}
+            {activeTab === tab.id && (
+              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[#4E46E5] rounded-full" />
+            )}
           </button>
         ))}
       </div>
 
-      {/* 탭 콘텐츠 영역 */}
-      <div className="mt-8 transition-all duration-300">
+      <div className="transition-all duration-300">
         {activeTab === "notice" && <NoticeList />}
         {activeTab === "inquiry" && <InquiryList />}
         {activeTab === "report" && <ReportList />}
-        {activeTab === "review" && <ReviewList />} {/* ✅ 리뷰 리스트 렌더링 */}
+        {activeTab === "review" && <ReviewList />}
       </div>
     </div>
   );
@@ -66,7 +67,13 @@ function SupportPageContent() {
 
 export default function SupportPage() {
   return (
-    <Suspense fallback={<div className="p-6 text-slate-400">로딩 중...</div>}>
+    <Suspense
+      fallback={
+        <div className="p-20 text-center text-slate-300 font-black italic text-sm">
+          데이터 로드 중...
+        </div>
+      }
+    >
       <SupportPageContent />
     </Suspense>
   );
