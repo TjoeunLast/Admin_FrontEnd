@@ -1,39 +1,40 @@
-// app/global/support/report.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { reportApi, ReportResponse } from "@/app/features/shared/api/report_api";
+import {
+  reportApi,
+  ReportResponse,
+} from "@/app/features/shared/api/report_api";
 import { toReportStatusLabel } from "@/app/features/orders/type";
 import client from "@/app/features/shared/api/client";
 
+const REPORT_TYPE_MAP: Record<string, string> = {
+  ACCIDENT: "사고 발생",
+  NO_SHOW: "노쇼",
+  ETC: "기타 신고",
+};
+
 function getStatusBadgeClass(status: string) {
-  if (status === "RESOLVED") {
-    return "bg-emerald-50 text-emerald-700 border border-emerald-100";
-  }
-  if (status === "PROCESSING") {
-    return "bg-amber-50 text-amber-700 border border-amber-100";
-  }
-  return "bg-[#EDECFC] text-[#4E46E5] border border-[#DDD6FE]";
+  if (status === "RESOLVED")
+    return "bg-emerald-50 text-emerald-600 border-emerald-100";
+  if (status === "PROCESSING")
+    return "bg-amber-50 text-amber-600 border-amber-100";
+  return "bg-indigo-50 text-[#4E46E5] border-indigo-100";
 }
 
 function getReportTypeBadgeClass(type?: string) {
-  if (type === "ACCIDENT") {
-    return "bg-rose-50 text-rose-700 border border-rose-100";
-  }
-  if (type === "NO_SHOW") {
-    return "bg-orange-50 text-orange-700 border border-orange-100";
-  }
-  return "bg-slate-100 text-slate-600 border border-slate-200";
+  if (type === "ACCIDENT") return "bg-rose-50 text-rose-600 border-rose-100";
+  if (type === "NO_SHOW")
+    return "bg-orange-50 text-orange-600 border-orange-100";
+  return "bg-slate-50 text-slate-500 border-slate-100";
 }
 
 type SuspensionOption = "NONE" | "DAYS" | "PERMANENT";
 
 const toPositiveId = (value: unknown): number | null => {
   const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return null;
-  }
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
   return Math.trunc(parsed);
 };
 
@@ -43,7 +44,6 @@ const resolveTargetUserId = (report: ReportResponse): number | null => {
     targetMemberId?: number;
     targetId?: number;
   };
-
   return (
     toPositiveId(report.targetUser?.userId) ??
     toPositiveId(candidate.targetUserId) ??
@@ -53,7 +53,10 @@ const resolveTargetUserId = (report: ReportResponse): number | null => {
   );
 };
 
-const applyTemporarySuspension = async (userId: number, days: number): Promise<void> => {
+const applyTemporarySuspension = async (
+  userId: number,
+  days: number,
+): Promise<void> => {
   await client.post(`/api/v1/admin/user/suspend/${userId}`, { days });
 };
 
@@ -63,67 +66,58 @@ export default function ReportList() {
   const [deletingReportId, setDeletingReportId] = useState<number | null>(null);
   const [activeReport, setActiveReport] = useState<ReportResponse | null>(null);
   const [isSuspensionModalOpen, setIsSuspensionModalOpen] = useState(false);
-  const [suspensionOption, setSuspensionOption] = useState<SuspensionOption>("NONE");
+  const [suspensionOption, setSuspensionOption] =
+    useState<SuspensionOption>("NONE");
   const [suspensionDays, setSuspensionDays] = useState("7");
   const [isApplyingSuspension, setIsApplyingSuspension] = useState(false);
 
   const buildUserDetailHref = (userId?: number | null) =>
     userId ? `/global/users/${userId}` : null;
 
-  useEffect(() => {
-    const fetchReports = async () => {
-      try {
-        const data = await reportApi.getAll();
-        // 신고 관리 탭에는 신고 타입만 표시하고, 1:1 문의(DISCUSS)는 제외한다.
-        setReports(data.filter((item) => item.type !== "DISCUSS"));
-      } catch (error) {
-        console.error("신고 목록 로드 실패:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // 데이터 로드
+  const fetchReports = async () => {
+    try {
+      setLoading(true);
+      const data = await reportApi.getAll();
+      setReports(data.filter((item) => item.type !== "DISCUSS"));
+    } catch (error) {
+      console.error("신고 목록 로드 실패:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    void fetchReports();
+  useEffect(() => {
+    fetchReports();
   }, []);
 
   const handleDeleteReport = async (reportId: number) => {
-    if (!window.confirm("이 신고 내역을 삭제하시겠습니까?")) {
-      return;
-    }
-
+    if (!window.confirm("이 신고 내역을 삭제하시겠습니까?")) return;
     try {
       setDeletingReportId(reportId);
       const success = await reportApi.deleteReport(reportId);
-      if (!success) {
+      if (success) {
+        setReports((prev) => prev.filter((item) => item.reportId !== reportId));
+        alert("신고가 삭제되었습니다.");
+      } else {
         alert("신고 삭제에 실패했습니다.");
-        return;
       }
-
-      setReports((prev) => prev.filter((item) => item.reportId !== reportId));
-      alert("신고가 삭제되었습니다.");
     } catch (err) {
-      console.error("신고 삭제에 실패하였습니다.", err);
-      alert("신고 삭제 중 오류가 발생했습니다.");
+      alert("삭제 중 오류가 발생했습니다.");
     } finally {
-      setDeletingReportId((prev) => (prev === reportId ? null : prev));
+      setDeletingReportId(null);
     }
   };
 
   const summary = useMemo(() => {
-    const accidentCount = reports.filter((item) => item.reportType === "ACCIDENT").length;
-    const unresolvedCount = reports.filter((item) => item.status !== "RESOLVED").length;
-
     return {
       total: reports.length,
-      accidentCount,
-      unresolvedCount,
+      unresolvedCount: reports.filter((r) => r.status !== "RESOLVED").length,
     };
   }, [reports]);
 
   const closeSuspensionModal = () => {
-    if (isApplyingSuspension) {
-      return;
-    }
+    if (isApplyingSuspension) return;
     setIsSuspensionModalOpen(false);
     setActiveReport(null);
     setSuspensionOption("NONE");
@@ -138,200 +132,171 @@ export default function ReportList() {
   };
 
   const handleApplySuspension = async () => {
-    if (!activeReport) {
-      return;
-    }
-
+    if (!activeReport) return;
     const targetUserId = resolveTargetUserId(activeReport);
     const parsedDays = Number.parseInt(suspensionDays, 10);
     const validatedDays = Number.isFinite(parsedDays) ? parsedDays : 0;
 
-    if (suspensionOption !== "NONE" && !targetUserId) {
-      alert("신고 대상자 ID를 찾을 수 없어 정지 처리를 진행할 수 없습니다.");
-      return;
-    }
-
-    if (suspensionOption === "DAYS" && (validatedDays < 1 || validatedDays > 3650)) {
-      alert("정지 일수는 1~3650일 사이로 입력해 주세요.");
-      return;
-    }
+    if (suspensionOption !== "NONE" && !targetUserId)
+      return alert("신고 대상자 ID를 찾을 수 없습니다.");
+    if (
+      suspensionOption === "DAYS" &&
+      (validatedDays < 1 || validatedDays > 3650)
+    )
+      return alert("정지 일수는 1~3650일 사이여야 합니다.");
 
     try {
       setIsApplyingSuspension(true);
-
-      if (suspensionOption === "PERMANENT" && targetUserId) {
+      if (suspensionOption === "PERMANENT" && targetUserId)
         await client.post(`/api/v1/admin/user/delete/${targetUserId}`);
-      }
-
-      if (suspensionOption === "DAYS" && targetUserId) {
+      if (suspensionOption === "DAYS" && targetUserId)
         await applyTemporarySuspension(targetUserId, validatedDays);
-      }
 
       await reportApi.updateReportStatus(activeReport.reportId, "RESOLVED");
 
       setReports((prev) =>
         prev.map((item) =>
-          item.reportId === activeReport.reportId ? { ...item, status: "RESOLVED" } : item,
+          item.reportId === activeReport.reportId
+            ? { ...item, status: "RESOLVED" }
+            : item,
         ),
       );
-
-      if (suspensionOption === "NONE") {
-        alert("신고가 처리 완료 상태로 변경되었습니다.");
-      } else if (suspensionOption === "DAYS") {
-        alert(`대상자를 ${validatedDays}일 정지 처리하고 신고를 완료 처리했습니다.`);
-      } else {
-        alert("대상자를 영구 정지 처리하고 신고를 완료 처리했습니다.");
-      }
-
+      alert("처리가 완료되었습니다.");
       closeSuspensionModal();
     } catch (error) {
-      console.error("정지 처리 실패:", error);
-      alert("정지 처리 중 오류가 발생했습니다.");
+      alert("처리 중 오류가 발생했습니다.");
     } finally {
       setIsApplyingSuspension(false);
     }
   };
 
-  if (loading) {
+  if (loading)
     return (
-      <div className="p-20 text-center font-bold uppercase tracking-widest text-slate-400">
-        데이터를 불러오는 중입니다...
+      <div className="p-20 text-center text-slate-400 font-black italic text-sm">
+        데이터 분석 중...
       </div>
     );
-  }
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-6 pb-20">
-      <section className="rounded-[24px] border border-slate-200 bg-white px-7 py-6 shadow-sm">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-rose-50 px-3 py-1 text-[11px] font-black tracking-[0.14em] text-rose-700">
-              <AlertTriangleIcon className="h-3.5 w-3.5" />
-              REPORT CONTROL
-            </div>
-            <h1 className="text-[28px] font-black tracking-tight text-[#0F172A]">
-              신고 관리 센터
-            </h1>
-            <p className="mt-2 text-sm text-slate-500">
-              접수된 신고를 빠르게 검토하고 사용자 정보 확인 및 삭제를 처리하세요.
-            </p>
-          </div>
-          <div className="grid min-w-[280px] grid-cols-3 gap-2">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">전체 신고</p>
-              <p className="mt-1 text-xl font-black text-slate-900">{summary.total}</p>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">사고 신고</p>
-              <p className="mt-1 text-xl font-black text-rose-600">{summary.accidentCount}</p>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">미해결</p>
-              <p className="mt-1 text-xl font-black text-[#4E46E5]">{summary.unresolvedCount}</p>
-            </div>
-          </div>
+    <div className="space-y-6">
+      <div className="flex justify-start gap-2 pr-1">
+        <div className="px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[12px] font-black text-slate-400">
+          전체 신고 <span className="text-slate-900 ml-1">{summary.total}</span>
         </div>
-      </section>
+        <div className="px-4 py-2 bg-rose-50 border border-rose-100 rounded-xl text-[12px] font-black text-rose-500">
+          미해결 <span className="ml-1">{summary.unresolvedCount}</span>
+        </div>
+      </div>
 
-      <section className="flex min-h-[700px] flex-col overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="min-w-[1200px] table-fixed text-center w-full">
-            <thead className="border-b border-slate-200 bg-slate-50">
-              <tr className="text-[11px] font-black uppercase tracking-widest text-slate-500">
-                <th className="w-32 p-5">유형</th>
-                <th className="w-32 p-5">상태</th>
-                <th className="w-40 p-5">신고자</th>
-                <th className="w-40 p-5">대상자</th>
-                <th className="p-5 text-left">신고 내용</th>
-                <th className="w-40 p-5">접수일</th>
-                <th className="w-52 p-5">관리</th>
+      <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm ring-1 ring-slate-100 overflow-hidden">
+        <table className="w-full text-left border-collapse table-fixed">
+          <thead className="bg-slate-50/50 border-b border-slate-200">
+            <tr className="text-[12px] font-black text-slate-400 uppercase tracking-widest">
+              <th className="p-6 text-center w-32 border-r border-slate-100">
+                유형
+              </th>
+              <th className="p-6 text-center w-32">상태</th>
+              <th className="p-6 text-center w-40">신고/대상자</th>
+              <th className="p-6 text-center">신고 내용</th>
+              <th className="p-6 text-center w-40">접수 일시</th>
+              <th className="p-6 text-center w-48">제재 관리</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 font-sans">
+            {reports.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={6}
+                  className="p-20 text-center text-slate-400 font-black italic text-sm"
+                >
+                  접수된 신고 내역이 없습니다.
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {reports.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="p-32 text-sm font-bold text-slate-400">
-                    접수된 신고 내역이 없습니다.
+            ) : (
+              reports.map((report) => (
+                <tr
+                  key={report.reportId}
+                  className="odd:bg-white even:bg-slate-50/30 hover:bg-indigo-50/50 transition-all group"
+                >
+                  <td className="p-6 text-center border-r border-slate-50">
+                    <span
+                      className={`px-3 py-1.5 rounded-full text-[10px] font-black border ${getReportTypeBadgeClass(report.reportType)}`}
+                    >
+                      {REPORT_TYPE_MAP[report.reportType || ""] ||
+                        report.reportType ||
+                        "기타"}
+                    </span>
+                  </td>
+                  <td className="p-6 text-center">
+                    <span
+                      className={`px-3 py-1.5 rounded-full text-[10px] font-black border ${getStatusBadgeClass(report.status)}`}
+                    >
+                      {toReportStatusLabel(report.status)}
+                    </span>
+                  </td>
+                  <td className="p-6">
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="text-slate-900 font-black text-[13px]">
+                        {report.reporterNickname || "-"}
+                      </span>
+                      <div className="w-4 h-px bg-slate-200" />
+                      <span className="text-slate-400 font-bold text-[11px] italic">
+                        {report.targetNickname || "-"}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="p-6 px-10 text-center">
+                    <p className="text-slate-600 font-medium text-[14px] line-clamp-2 leading-relaxed tracking-tight">
+                      {report.description || "-"}
+                    </p>
+                  </td>
+                  <td className="p-6 text-slate-400 text-center text-[11px] font-medium leading-tight uppercase">
+                    {new Date(report.createdAt)
+                      .toLocaleString()
+                      .split(" ")
+                      .slice(0, 3)
+                      .join(" ")}
+                  </td>
+                  <td className="p-6 text-center">
+                    <div
+                      className="flex flex-col gap-2"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        onClick={() => openSuspensionModal(report)}
+                        className="px-3 py-2 bg-slate-900 text-white text-[11px] font-black rounded-lg hover:bg-black transition-all shadow-sm active:scale-95"
+                      >
+                        제재 처리
+                      </button>
+                      <button
+                        onClick={() => handleDeleteReport(report.reportId)}
+                        disabled={deletingReportId === report.reportId}
+                        className="px-3 py-2 bg-white text-rose-600 border border-rose-100 text-[11px] font-black rounded-lg hover:bg-rose-50 transition-all shadow-sm"
+                      >
+                        {deletingReportId === report.reportId
+                          ? "삭제중"
+                          : "신고 삭제"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
-              ) : (
-                reports.map((report) => {
-                  const reporterHref = buildUserDetailHref(report.reporterUser?.userId);
-                  const targetHref = buildUserDetailHref(report.targetUser?.userId);
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
-                  return (
-                    <tr
-                      key={report.reportId}
-                      className="group transition-colors hover:bg-slate-50/70"
-                    >
-                      <td className="p-5">
-                        <span
-                          className={`inline-flex min-w-[84px] items-center justify-center rounded-lg px-3 py-1.5 text-[10px] font-black leading-none ${getReportTypeBadgeClass(report.reportType)}`}
-                        >
-                          {report.reportType || "-"}
-                        </span>
-                      </td>
-                      <td className="p-5">
-                        <span
-                          className={`inline-flex min-w-[80px] items-center justify-center rounded-lg px-3 py-1.5 text-[10px] font-black leading-none ${getStatusBadgeClass(report.status)}`}
-                        >
-                          {toReportStatusLabel(report.status)}
-                        </span>
-                      </td>
-                      <td className="p-5 text-[13px] font-bold text-slate-800">
-                        {report.reporterNickname || "-"}
-                      </td>
-                      <td className="p-5 text-[13px] font-bold text-slate-800">
-                        {report.targetNickname || "-"}
-                      </td>
-                      <td className="p-5 text-left">
-                        <p className="text-[13px] font-medium leading-relaxed text-slate-600">
-                          {report.description || "-"}
-                        </p>
-                      </td>
-                      <td className="p-5 text-[11px] font-bold text-slate-400">
-                        {new Date(report.createdAt).toLocaleString()}
-                      </td>
-                      <td className="p-5">
-                        <div className="flex flex-col gap-1.5">
-                          <button
-                            onClick={() => void handleDeleteReport(report.reportId)}
-                            disabled={deletingReportId === report.reportId}
-                            className={`inline-flex h-8 items-center justify-center rounded-lg px-2 text-[11px] font-bold transition-colors ${
-                              deletingReportId === report.reportId
-                                ? "cursor-not-allowed bg-slate-100 text-slate-400"
-                                : "bg-rose-600 text-white hover:bg-rose-700"
-                            }`}
-                          >
-                            {deletingReportId === report.reportId ? "삭제 중..." : "신고 삭제"}
-                          </button>
-
-                          <button
-                            onClick={() => openSuspensionModal(report)}
-                            disabled={isApplyingSuspension}
-                            className="inline-flex h-8 items-center justify-center rounded-lg border border-[#4E46E5] bg-[#4E46E5] px-2 text-[11px] font-bold text-white transition-colors hover:bg-[#4338CA] disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            제재 처리
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {isSuspensionModalOpen && activeReport ? (
+      {isSuspensionModalOpen && activeReport && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
           <div className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-xl font-black text-slate-900">신고 제재 처리</h2>
+                <h2 className="text-xl font-black text-slate-900">
+                  신고 제재 처리
+                </h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  #{activeReport.reportId} 신고 건에 대한 대상자 제재 방식을 선택하세요.
+                  #{activeReport.reportId} 신고 건에 대한 대상자 제재 방식을
+                  선택하세요.
                 </p>
               </div>
               <button
@@ -342,9 +307,10 @@ export default function ReportList() {
                 닫기
               </button>
             </div>
-
             <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-400">신고 정보</div>
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                신고 정보
+              </div>
               <div className="mt-2 space-y-1">
                 <p>
                   <span className="font-semibold text-slate-700">신고자:</span>{" "}
@@ -359,11 +325,12 @@ export default function ReportList() {
                   {activeReport.description || "-"}
                 </p>
               </div>
-
               <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {buildUserDetailHref(activeReport.reporterUser?.userId) ? (
                   <Link
-                    href={buildUserDetailHref(activeReport.reporterUser?.userId)!}
+                    href={
+                      buildUserDetailHref(activeReport.reporterUser?.userId)!
+                    }
                     className="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50"
                   >
                     신고자 정보 확인
@@ -376,7 +343,6 @@ export default function ReportList() {
                     신고자 정보 없음
                   </button>
                 )}
-
                 {buildUserDetailHref(activeReport.targetUser?.userId) ? (
                   <Link
                     href={buildUserDetailHref(activeReport.targetUser?.userId)!}
@@ -394,36 +360,30 @@ export default function ReportList() {
                 )}
               </div>
             </div>
-
             <div className="mt-5 space-y-4">
               <div>
                 <div className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">
                   정지 옵션
                 </div>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  {(
-                    [
-                      { value: "NONE", label: "정지 없음" },
-                      { value: "DAYS", label: "기간 정지" },
-                      { value: "PERMANENT", label: "영구 정지" },
-                    ] as Array<{ value: SuspensionOption; label: string }>
-                  ).map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => setSuspensionOption(option.value)}
-                      className={`rounded-xl border px-3 py-3 text-sm font-bold transition-colors ${
-                        suspensionOption === option.value
-                          ? "border-[#4E46E5] bg-[#4E46E5] text-white"
-                          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
+                  {(["NONE", "DAYS", "PERMANENT"] as SuspensionOption[]).map(
+                    (option) => (
+                      <button
+                        key={option}
+                        onClick={() => setSuspensionOption(option)}
+                        className={`rounded-xl border px-3 py-3 text-sm font-bold transition-colors ${suspensionOption === option ? "border-[#4E46E5] bg-[#4E46E5] text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+                      >
+                        {option === "NONE"
+                          ? "정지 없음"
+                          : option === "DAYS"
+                            ? "기간 정지"
+                            : "영구 정지"}
+                      </button>
+                    ),
+                  )}
                 </div>
               </div>
-
-              {suspensionOption === "DAYS" ? (
+              {suspensionOption === "DAYS" && (
                 <label className="block">
                   <div className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">
                     정지 일수
@@ -438,9 +398,8 @@ export default function ReportList() {
                     placeholder="예: 7"
                   />
                 </label>
-              ) : null}
+              )}
             </div>
-
             <div className="mt-6 flex items-center justify-end gap-3">
               <button
                 onClick={closeSuspensionModal}
@@ -452,18 +411,14 @@ export default function ReportList() {
               <button
                 onClick={() => void handleApplySuspension()}
                 disabled={isApplyingSuspension}
-                className={`rounded-xl px-4 py-2 text-sm font-bold ${
-                  isApplyingSuspension
-                    ? "bg-slate-200 text-slate-500"
-                    : "bg-[#4E46E5] text-white hover:bg-[#4338CA]"
-                }`}
+                className={`rounded-xl px-4 py-2 text-sm font-bold ${isApplyingSuspension ? "bg-slate-200 text-slate-500" : "bg-[#4E46E5] text-white hover:bg-[#4338CA]"}`}
               >
                 {isApplyingSuspension ? "처리 중..." : "확인"}
               </button>
             </div>
           </div>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }

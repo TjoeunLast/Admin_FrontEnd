@@ -1,103 +1,138 @@
-// app/global/support/notice.tsx
 "use client";
 
-import { noticeApi, NoticeResponse } from '@/app/features/shared/api/notice_api';
-import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import {
+  noticeApi,
+  NoticeResponse,
+} from "@/app/features/shared/api/notice_api";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function NoticeList() {
+  const router = useRouter();
   const [notices, setNotices] = useState<NoticeResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 목록 로드 및 정렬
   const fetchNotices = async () => {
     try {
       setIsLoading(true);
       const res = await noticeApi.getAll();
-      
-      // 상단 고정(isPinned) 우선, 그 다음 최신순 정렬
       const sortedData = res.data.sort((a, b) => {
         if (a.isPinned === "Y" && b.isPinned === "N") return -1;
         if (a.isPinned === "N" && b.isPinned === "Y") return 1;
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        return (
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
       });
-      
       setNotices(sortedData);
-    } catch(err) {
+    } catch (err) {
       console.error("공지사항 로드 실패", err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  useEffect(() => { 
-    fetchNotices(); 
+  useEffect(() => {
+    fetchNotices();
   }, []);
 
-  // 공지 삭제
   const handleDelete = async (id: number) => {
-    if(!confirm("공지를 삭제하시겠습니까?")) return;
+    if (!confirm("공지를 삭제하시겠습니까?")) return;
     try {
       await noticeApi.delete(id);
       alert("삭제되었습니다.");
-      fetchNotices(); 
-    } catch(err) {
+      fetchNotices();
+    } catch (err) {
       alert("삭제에 실패했습니다.");
     }
   };
 
-  if (isLoading) return <div className="p-6 text-center text-slate-500">로딩 중...</div>;
+  if (isLoading)
+    return (
+      <div className="p-20 text-center text-slate-400 font-black italic text-sm">
+        데이터 로드 중...
+      </div>
+    );
 
   return (
-    <div className="space-y-4">
-      {/* ✅ 사라졌던 공지사항 작성 버튼 추가 */}
-      <div className="flex justify-end">
-        <Link href="/global/support/notice/new">
-          <button className="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95">
-            + 새 공지사항 작성
-          </button>
-        </Link>
+    <div className="space-y-6">
+      <div className="flex justify-end pr-1">
+        <button
+          onClick={() => router.push("/global/support/notice/new")}
+          className="bg-transparent text-slate-600 px-6 py-2.5 rounded-xl font-black text-sm hover:bg-slate-100 hover:text-slate-900 active:scale-95 transition-all flex items-center gap-1"
+        >
+          + 새 공지사항 작성
+        </button>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr>
-              <th className="p-4 font-bold text-slate-600 w-20">번호</th>
-              <th className="p-4 font-bold text-slate-600 text-left">제목</th>
-              <th className="p-4 font-bold text-slate-600 w-32">작성자</th>
-              <th className="p-4 font-bold text-slate-600 w-32">등록일</th>
-              <th className="p-4 font-bold text-slate-600 w-32">관리</th>
+      <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm ring-1 ring-slate-100 overflow-hidden">
+        <table className="w-full text-left border-collapse table-fixed">
+          <thead className="bg-slate-50/50 border-b border-slate-200">
+            <tr className="text-[12px] font-black text-slate-500 uppercase tracking-widest">
+              <th className="p-6 text-center w-32">번호</th>
+              <th className="p-6 text-center">제목</th>
+              <th className="p-6 text-center w-40">작성자</th>
+              <th className="p-6 text-center w-[15%]">등록일</th>
+              <th className="p-6 text-center w-44">상태 관리</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-slate-100 font-sans">
             {notices.length === 0 ? (
               <tr>
-                <td colSpan={5} className="p-10 text-center text-slate-400 italic">등록된 공지사항이 없습니다.</td>
+                <td
+                  colSpan={5}
+                  className="p-20 text-center text-slate-400 font-black italic text-sm"
+                >
+                  등록된 공지사항이 없습니다.
+                </td>
               </tr>
             ) : (
               notices.map((n) => (
-                <tr key={n.noticeId} className="border-b hover:bg-slate-50 transition-colors">
-                  <td className="p-4 text-center">{n.noticeId}</td>
-                  <td className="p-4 font-medium text-blue-600">
-                    {/* ✅ 경로가 /global/support/notice/1 형식이 되어야 함 */}
-                    <Link href={`/global/support/notice/${n.noticeId}`} className="hover:underline">
-                      {n.isPinned === "Y" && <span className="text-red-500 mr-1">[중요]</span>}
-                      {n.title}
-                    </Link>
+                <tr
+                  key={n.noticeId}
+                  onClick={() =>
+                    router.push(`/global/support/notice/${n.noticeId}`)
+                  }
+                  className="hover:bg-indigo-50/50 cursor-pointer transition-all group active:bg-indigo-100/50"
+                >
+                  <td className="p-6 text-slate-900 text-center text-sm font-black border-r border-slate-50">
+                    #{n.noticeId}
                   </td>
-                  <td className="p-4 text-center">{n.adminName}</td>
-                  <td className="p-4 text-center text-slate-400">
+                  <td className="p-6 text-center">
+                    <div className="inline-flex items-center gap-2 max-w-full">
+                      <span className="text-slate-900 font-black text-[15px] truncate group-hover:text-[#4E46E5] transition-colors">
+                        {n.title}
+                      </span>
+                      {n.isPinned === "Y" && (
+                        <span className="px-2 py-0.5 bg-rose-50 text-rose-600 border border-rose-100 text-[10px] font-black rounded-md">
+                          중요
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="p-6 text-slate-700 text-center text-sm font-bold tracking-tight">
+                    {n.adminName}
+                  </td>
+                  <td className="p-6 text-slate-400 text-center text-sm font-medium">
                     {new Date(n.createdAt).toLocaleDateString()}
                   </td>
-                  <td className="p-4 text-center">
-                    <div className="flex justify-center gap-3">
-                      <Link href={`/global/support/notice/new?id=${n.noticeId}`}>
-                        <button className="text-blue-500 font-bold hover:underline">수정</button>
-                      </Link>
-                      <button 
-                        onClick={() => handleDelete(n.noticeId)} 
-                        className="text-red-500 hover:text-red-700 font-bold"
+                  <td className="p-6 text-center">
+                    <div
+                      className="flex justify-center gap-2"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        onClick={() =>
+                          router.push(
+                            `/global/support/notice/new?id=${n.noticeId}`,
+                          )
+                        }
+                        className="px-3 py-1.5 bg-[#4E46E5] text-white text-[11px] font-bold rounded-lg hover:bg-blue-700 transition-all shadow-md active:scale-95"
+                      >
+                        수정
+                      </button>
+                      <button
+                        onClick={() => handleDelete(n.noticeId)}
+                        className="px-3 py-1.5 bg-white text-rose-600 border border-rose-100 text-[11px] font-bold rounded-lg hover:bg-rose-50 transition-all shadow-md active:scale-95"
                       >
                         삭제
                       </button>
