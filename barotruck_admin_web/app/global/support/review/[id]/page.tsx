@@ -98,6 +98,13 @@ export default function ReviewDetailPage() {
               리뷰 상세 관리
             </h1>
           </div>
+
+          <div className="ml-10 px-4 py-1 bg-slate-50 rounded-full text-sm font-medium text-slate-500">
+            <span className="text-[11px] font-black text-blue-500 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded">Review Target</span>
+            <h1 className="text-2xl font-black text-slate-900 mt-1">
+              대상자: <span className="text-blue-600">{review.targetNickname || "정보 없음"}</span>
+            </h1>
+          </div>
         </div>
 
         <div className="flex gap-2">

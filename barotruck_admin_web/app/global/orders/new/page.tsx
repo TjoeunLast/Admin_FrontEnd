@@ -1,3 +1,4 @@
+// app/admin/orders/page.tsx
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -94,7 +95,7 @@ export default function AdminOrderListPage() {
     } catch (error) {
       console.error("차주 목록 로드 실패:", error);
     } finally {
-      setIsDriversLoading(false);
+      setIsLoading(false);
     }
   }, []);
 
@@ -417,8 +418,7 @@ export default function AdminOrderListPage() {
           <div className="bg-white p-6 rounded-2xl w-full max-w-md shadow-xl">
             <h2 className="text-xl font-bold text-slate-900 mb-1">기사 배정</h2>
             <p className="text-sm font-semibold text-slate-400 mb-6">
-              오더 <span className="text-blue-600">#{selectedOrder}</span>번에
-              배정할 기사를 선택하세요.
+              오더 <span className="text-blue-600">#{selectedOrder}</span>번에 배정할 기사를 선택하세요.
             </p>
             <div className="relative mb-4">
               <input
