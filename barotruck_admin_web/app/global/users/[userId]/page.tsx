@@ -122,26 +122,6 @@ export default function MemberDetailPage() {
     }
   };
 
-  // 계정을 시스템에서 영구적으로 삭제 처리하는 함수
-  const handleDeleteAccount = async () => {
-    if (!currentUserId) return;
-    if (
-      !window.confirm(
-        "해당 계정을 정말로 삭제(탈퇴) 처리하시겠습니까?\n이 작업은 되돌릴 수 없습니다.",
-      )
-    )
-      return;
-
-    try {
-      await deleteUser(currentUserId);
-      alert("계정 삭제가 완료되었습니다.");
-      router.push("/global/users");
-    } catch (error) {
-      console.error("삭제 실패:", error);
-      alert("삭제 처리 중 오류가 발생했습니다.");
-    }
-  };
-
   // 데이터 로딩 중 표시될 화면
   if (isLoading)
     return (
@@ -209,12 +189,6 @@ export default function MemberDetailPage() {
             }`}
           >
             {isDeleted ? "계정 정지 해제" : "계정 정지"}
-          </button>
-          <button
-            onClick={handleDeleteAccount}
-            className="px-5 py-3 bg-rose-600 text-white rounded-xl font-black text-[12px] transition-all shadow-md hover:bg-rose-700 active:scale-95"
-          >
-            계정 삭제
           </button>
         </div>
       </header>
