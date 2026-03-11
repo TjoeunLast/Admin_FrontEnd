@@ -90,7 +90,7 @@ export default function NoticeList() {
                 <tr
                   key={n.noticeId}
                   onClick={() =>
-                    router.push(`/global/support/notice/detail?id=${n.noticeId}`)
+                    router.push(`/global/support/notice/${n.noticeId}`)
                   }
                   className="hover:bg-indigo-50/50 cursor-pointer transition-all group active:bg-indigo-100/50"
                 >

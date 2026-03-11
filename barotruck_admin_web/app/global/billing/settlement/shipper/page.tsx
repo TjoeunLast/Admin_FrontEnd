@@ -603,7 +603,7 @@ export default function ShipperSettlementPage() {
                       <td className="px-5 py-5 align-top">
                         <div className="flex flex-wrap items-center gap-2">
                           <Link
-                            href={`/global/billing/settlement/shipper/detail?orderId=${settlement.orderId}`}
+                            href={`/global/billing/settlement/shipper/${settlement.orderId}`}
                             className="text-sm font-black text-[#4E46E5] hover:underline transition-all"
                           >
                             #{settlement.orderId}
@@ -751,7 +751,7 @@ export default function ShipperSettlementPage() {
                             </button>
                           </div>
                           <Link
-                            href={`/global/billing/settlement/shipper/detail?orderId=${settlement.orderId}`}
+                            href={`/global/billing/settlement/shipper/${settlement.orderId}`}
                             className="h-7 flex items-center justify-center rounded-lg bg-blue-50 text-[10px] font-black text-[#4E46E5] hover:bg-blue-100 transition-all active:scale-95"
                           >
                             상세운영

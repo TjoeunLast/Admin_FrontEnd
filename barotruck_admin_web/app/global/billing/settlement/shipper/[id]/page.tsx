@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, use, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   fetchOrderDetail,
@@ -135,12 +135,14 @@ const isLookupEndpointUnavailable = (error: unknown) => {
 };
 
 function ShipperDetailPageContent({
-  orderId,
+  params,
 }: {
-  orderId: number;
+  params: Promise<{ id: string }>;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { id } = use(params);
+  const orderId = Number(id);
   const isDebugMode = searchParams.get("debug") === "1";
 
   const [orderDetail, setOrderDetail] = useState<AdminOrderDetailResponse | null>(null);
@@ -973,17 +975,12 @@ function ShipperDetailPageContent({
   );
 }
 
-function ShipperDetailPageShell() {
-  const searchParams = useSearchParams();
-  const orderId = Number(searchParams.get("orderId"));
-
-  return <ShipperDetailPageContent orderId={orderId} />;
-}
-
-export default function ShipperDetailPage() {
+export default function ShipperDetailPage(props: {
+  params: Promise<{ id: string }>;
+}) {
   return (
     <Suspense fallback={<div className="p-6 text-slate-400">정산 상세를 불러오는 중...</div>}>
-      <ShipperDetailPageShell />
+      <ShipperDetailPageContent {...props} />
     </Suspense>
   );
 }

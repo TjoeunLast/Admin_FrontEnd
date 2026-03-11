@@ -1,7 +1,7 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import ChatBubble from "@/app/features/user/support/ChatBubble";
@@ -25,11 +25,11 @@ function getCreatedAtMs(value?: string) {
   return Number.isNaN(date.getTime()) ? 0 : date.getTime();
 }
 
-function InquiryChatPageContent() {
+export default function InquiryChatPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const params = useParams();
 
-  const rawId = searchParams.get("id");
+  const rawId = Array.isArray(params.id) ? params.id[0] : params.id;
   const inquiryId = Number(rawId);
 
   const [inquiry, setInquiry] = useState<ReportResponse | null>(null);
@@ -182,7 +182,7 @@ function InquiryChatPageContent() {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => router.push(`/global/support/inquiry/detail?id=${inquiryId}`)}
+            onClick={() => router.push(`/global/support/inquiry/${inquiryId}`)}
             className="px-4 py-2 rounded-xl bg-[#4E46E5] text-white text-sm font-bold hover:bg-[#4338CA]"
           >
             문의 상세로
@@ -217,7 +217,7 @@ function InquiryChatPageContent() {
               {isConnected ? "연결됨" : "연결 중 또는 끊김"}
             </span>
             <button
-              onClick={() => router.push(`/global/support/inquiry/detail?id=${inquiryId}`)}
+              onClick={() => router.push(`/global/support/inquiry/${inquiryId}`)}
               className="px-4 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 text-sm font-bold"
             >
               문의 상세로
@@ -275,13 +275,5 @@ function InquiryChatPageContent() {
         </div>
       </section>
     </div>
-  );
-}
-
-export default function InquiryChatPage() {
-  return (
-    <Suspense fallback={<div className="max-w-[1200px] mx-auto px-4 py-16 text-sm font-semibold text-slate-400">채팅 정보를 불러오는 중...</div>}>
-      <InquiryChatPageContent />
-    </Suspense>
   );
 }
