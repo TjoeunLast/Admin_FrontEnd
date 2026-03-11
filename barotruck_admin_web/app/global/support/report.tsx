@@ -15,6 +15,13 @@ const REPORT_TYPE_MAP: Record<string, string> = {
   ETC: "기타 신고",
 };
 
+const FILTER_TABS = [
+  { id: "ALL", label: "전체 신고" },
+  { id: "RESOLVED", label: "답변완료" },
+  { id: "UNRESOLVED", label: "접수대기" },
+] as const;
+type ReportFilter = (typeof FILTER_TABS)[number]["id"];
+
 function getStatusBadgeClass(status: string) {
   if (status === "RESOLVED")
     return "bg-emerald-50 text-emerald-600 border-emerald-100";
@@ -71,6 +78,10 @@ export default function ReportList() {
   const [suspensionDays, setSuspensionDays] = useState("7");
   const [isApplyingSuspension, setIsApplyingSuspension] = useState(false);
 
+  const [activeFilter, setActiveFilter] = useState<ReportFilter>("ALL");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+
   const buildUserDetailHref = (userId?: number | null) =>
     userId ? `/global/users/${userId}` : null;
 
@@ -109,12 +120,21 @@ export default function ReportList() {
     }
   };
 
-  const summary = useMemo(() => {
-    return {
-      total: reports.length,
-      unresolvedCount: reports.filter((r) => r.status !== "RESOLVED").length,
-    };
-  }, [reports]);
+  const filteredData = useMemo(() => {
+    if (activeFilter === "ALL") return reports;
+    if (activeFilter === "RESOLVED") {
+      return reports.filter((item) => item.status === "RESOLVED");
+    }
+    // UNRESOLVED
+    return reports.filter((item) => item.status !== "RESOLVED");
+  }, [reports, activeFilter]);
+
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredData.slice(start, start + itemsPerPage);
+  }, [filteredData, currentPage]);
+
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
   const closeSuspensionModal = () => {
     if (isApplyingSuspension) return;
@@ -179,12 +199,36 @@ export default function ReportList() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-start gap-2 pr-1">
-        <div className="px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[12px] font-black text-slate-400">
-          전체 신고 <span className="text-slate-900 ml-1">{summary.total}</span>
-        </div>
-        <div className="px-4 py-2 bg-rose-50 border border-rose-100 rounded-xl text-[12px] font-black text-rose-500">
-          미해결 <span className="ml-1">{summary.unresolvedCount}</span>
+      <div className="flex items-center justify-between pr-1">
+        <div className="flex items-center gap-2">
+          {FILTER_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setActiveFilter(tab.id);
+                setCurrentPage(1);
+              }}
+              className={`px-4 py-2 rounded-xl text-[12px] font-black transition-all border ${
+                activeFilter === tab.id
+                  ? "bg-[#4E46E5] text-white border-[#4E46E5] shadow-sm"
+                  : "bg-white text-slate-400 border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              {tab.label}
+              <span
+                className={`ml-1.5 opacity-60 ${activeFilter === tab.id ? "text-slate-300" : "text-slate-400"}`}
+              >
+                {
+                  reports.filter((r) => {
+                    if (tab.id === "ALL") return true;
+                    if (tab.id === "RESOLVED") return r.status === "RESOLVED";
+                    if (tab.id === "UNRESOLVED") return r.status !== "RESOLVED";
+                    return false;
+                  }).length
+                }
+              </span>
+            </button>
+          ))}
         </div>
       </div>
 
@@ -203,7 +247,7 @@ export default function ReportList() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 font-sans">
-            {reports.length === 0 ? (
+            {paginatedData.length === 0 ? (
               <tr>
                 <td
                   colSpan={6}
@@ -213,7 +257,7 @@ export default function ReportList() {
                 </td>
               </tr>
             ) : (
-              reports.map((report) => (
+              paginatedData.map((report) => (
                 <tr
                   key={report.reportId}
                   className="odd:bg-white even:bg-slate-50/30 hover:bg-indigo-50/50 transition-all group"
@@ -284,6 +328,41 @@ export default function ReportList() {
             )}
           </tbody>
         </table>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-8 py-8 border-t border-slate-100 bg-slate-50/30">
+            <button
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((p) => p - 1)}
+              className="text-sm font-black text-slate-400 disabled:opacity-20 transition-all hover:text-slate-600"
+            >
+              이전
+            </button>
+            <div className="flex items-center gap-4">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                (pageNo) => (
+                  <button
+                    key={pageNo}
+                    onClick={() => setCurrentPage(pageNo)}
+                    className={`text-md font-black transition-all ${
+                      currentPage === pageNo
+                        ? "text-slate-900 underline underline-offset-8 decoration-2 decoration-[#4E46E5]"
+                        : "text-slate-400 hover:text-slate-600"
+                    }`}
+                  >
+                    {pageNo}
+                  </button>
+                ),
+              )}
+            </div>
+            <button
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage((p) => p + 1)}
+              className="text-sm font-black text-slate-400 disabled:opacity-20 transition-all hover:text-slate-600"
+            >
+              다음
+            </button>
+          </div>
+        )}
       </div>
 
       {isSuspensionModalOpen && activeReport && (
