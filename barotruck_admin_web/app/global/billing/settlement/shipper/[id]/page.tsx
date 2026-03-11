@@ -21,7 +21,6 @@ import {
   getEffectiveOrderStatus,
   getEffectivePaymentStatus,
   getEffectiveSettlementStatus,
-  getFeeAmount,
   getPayoutAmount,
   isPaymentCompleted,
   ORDER_STATUS_LABELS,
@@ -45,6 +44,24 @@ const formatAmount = (value?: number | null) =>
 
 const formatDateTime = (value?: string | null) =>
   value ? new Date(value).toLocaleString() : "-";
+
+const formatSignedAmount = (value?: number | null) => {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return "-";
+  }
+  const prefix = value > 0 ? "+" : value < 0 ? "-" : "";
+  return `${prefix}${formatAmount(Math.abs(value))}`;
+};
+
+const formatPercent = (value?: number | null) =>
+  typeof value === "number" && Number.isFinite(value)
+    ? `${(value * 100).toFixed(2)}%`
+    : "-";
+
+const formatCurrency = (value?: number | null) =>
+  typeof value === "number" && Number.isFinite(value)
+    ? `₩${formatAmount(value)}`
+    : "-";
 
 const requiresTransferProof = (settlement: SettlementResponse) =>
   String(settlement.paymentMethod ?? "").toUpperCase() === "TRANSFER";
@@ -278,6 +295,14 @@ function ShipperDetailPageContent({
           "내부 결제 상태와 Toss 실조회 상태가 다릅니다. PG 실조회 / 취소 운영 패널에서 먼저 동기화를 검토하세요.",
       };
     }
+    if (settlement?.negativeMargin) {
+      return {
+        tone: "rose" as const,
+        title: "적자 주문 우선 점검",
+        description:
+          "백엔드 pricing snapshot 기준 net revenue가 음수입니다. side 요율, promo 적용 여부, Toss 비용을 먼저 확인하세요.",
+      };
+    }
     if (paymentStatus === "READY") {
       return {
         tone: "blue" as const,
@@ -304,7 +329,7 @@ function ShipperDetailPageContent({
       title: "운영 모니터링 상태",
       description: "현재 상태를 유지하며 PG 실조회, 분쟁, 정산 이력을 함께 점검하는 구간입니다.",
     };
-  }, [paymentStatus, settlementStatus, tossComparison]);
+  }, [paymentStatus, settlement, settlementStatus, tossComparison]);
   const timelineItems = useMemo<SettlementTimelineItem[]>(
     () => [
       {
@@ -537,6 +562,8 @@ function ShipperDetailPageContent({
     );
   }
 
+  const hasNegativeMargin = settlement.negativeMargin === true;
+
   return (
     <main className="space-y-8 p-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -551,19 +578,42 @@ function ShipperDetailPageContent({
             주문 기본 정보, 결제 상태, 분쟁 처리 흐름을 한 화면에서 관리합니다.
           </p>
         </div>
-        <button
-          onClick={() => router.back()}
-          className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50"
-        >
-          목록으로 돌아가기
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          {hasNegativeMargin ? (
+            <span className="rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-black uppercase tracking-wider text-rose-700">
+              Negative margin
+            </span>
+          ) : null}
+          <button
+            onClick={() => router.back()}
+            className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50"
+          >
+            목록으로 돌아가기
+          </button>
+        </div>
       </div>
 
-      <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         <div className="rounded-2xl bg-slate-950 p-6 text-white shadow-sm">
           <div className="text-sm font-medium text-slate-300">총 청구액</div>
           <div className="mt-2 text-3xl font-black">₩{formatAmount(getBillingAmount(settlement))}</div>
-          <div className="mt-3 text-xs text-slate-400">주문 기준 청구/결제 스냅샷</div>
+          <div className="mt-3 text-xs text-slate-400">
+            base amount {formatCurrency(settlement.baseAmount)}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="text-sm font-medium text-slate-500">차주 지급액</div>
+          <div className="mt-2 text-2xl font-black text-slate-900">
+            ₩{formatAmount(getPayoutAmount(settlement))}
+          </div>
+          <div className="mt-3 text-xs text-slate-400">
+            driver fee {formatPercent(settlement.driverFeeRate)} / promo{" "}
+            {settlement.driverPromoApplied == null
+              ? "-"
+              : settlement.driverPromoApplied
+                ? "적용"
+                : "미적용"}
+          </div>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="text-sm font-medium text-slate-500">결제 상태</div>
@@ -584,12 +634,34 @@ function ShipperDetailPageContent({
           </div>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="text-sm font-medium text-slate-500">플랫폼 수수료</div>
+          <div className="text-sm font-medium text-slate-500">Platform gross</div>
           <div className="mt-2 text-2xl font-black text-slate-900">
-            ₩{formatAmount(getFeeAmount(settlement))}
+            {formatCurrency(settlement.platformGrossRevenue)}
           </div>
           <div className="mt-3 text-xs text-slate-400">
-            차주 지급액: ₩{formatAmount(getPayoutAmount(settlement))}
+            shipper fee {formatPercent(settlement.shipperFeeRate)} / driver fee{" "}
+            {formatPercent(settlement.driverFeeRate)}
+          </div>
+        </div>
+        <div
+          className={`rounded-2xl border p-6 shadow-sm ${
+            hasNegativeMargin
+              ? "border-rose-200 bg-rose-50"
+              : "border-emerald-200 bg-emerald-50"
+          }`}
+        >
+          <div className="text-sm font-medium text-slate-500">Platform net</div>
+          <div
+            className={`mt-2 text-2xl font-black ${
+              hasNegativeMargin ? "text-rose-700" : "text-emerald-700"
+            }`}
+          >
+            {typeof settlement.platformNetRevenue === "number"
+              ? `${formatSignedAmount(settlement.platformNetRevenue)}원`
+              : "-"}
+          </div>
+          <div className="mt-3 text-xs text-slate-500">
+            toss {formatPercent(settlement.tossFeeRate)} / {formatCurrency(settlement.tossFeeAmount)}
           </div>
         </div>
       </section>
@@ -630,11 +702,68 @@ function ShipperDetailPageContent({
       <section className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
         <SettlementTimeline items={timelineItems} />
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-900">운영 체크 포인트</h2>
+          <h2 className="text-lg font-bold text-slate-900">수익성 스냅샷</h2>
           <p className="mt-1 text-sm text-slate-500">
-            PG 실조회, 분쟁 처리, 정산/지급 단계에서 바로 확인해야 할 참조값입니다.
+            백엔드 응답으로 저장된 pricing snapshot을 그대로 보여줍니다.
           </p>
           <div className="mt-6 grid gap-4 md:grid-cols-2">
+            <div className="rounded-2xl bg-slate-50 p-5">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-400">정책 적용 기준</div>
+              <div className="mt-3 space-y-2 text-sm text-slate-600">
+                <div>fee policy #{settlement.feePolicyId ?? "-"}</div>
+                <div>적용 시각 {formatDateTime(settlement.feePolicyAppliedAt)}</div>
+                <div>base amount {formatCurrency(settlement.baseAmount)}</div>
+                <div>
+                  negative margin{" "}
+                  {settlement.negativeMargin == null
+                    ? "-"
+                    : hasNegativeMargin
+                      ? "예"
+                      : "아니오"}
+                </div>
+              </div>
+            </div>
+            <div className="rounded-2xl bg-slate-50 p-5">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Shipper side</div>
+              <div className="mt-3 space-y-2 text-sm text-slate-600">
+                <div>rate {formatPercent(settlement.shipperFeeRate)}</div>
+                <div>fee {formatCurrency(settlement.shipperFeeAmount)}</div>
+                <div>
+                  promo{" "}
+                  {settlement.shipperPromoApplied == null
+                    ? "-"
+                    : settlement.shipperPromoApplied
+                      ? "적용"
+                      : "미적용"}
+                </div>
+                <div>charge {formatCurrency(settlement.shipperChargeAmount)}</div>
+              </div>
+            </div>
+            <div className="rounded-2xl bg-slate-50 p-5">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Driver side</div>
+              <div className="mt-3 space-y-2 text-sm text-slate-600">
+                <div>rate {formatPercent(settlement.driverFeeRate)}</div>
+                <div>fee {formatCurrency(settlement.driverFeeAmount)}</div>
+                <div>
+                  promo{" "}
+                  {settlement.driverPromoApplied == null
+                    ? "-"
+                    : settlement.driverPromoApplied
+                      ? "적용"
+                      : "미적용"}
+                </div>
+                <div>payout {formatCurrency(settlement.driverPayoutAmount)}</div>
+              </div>
+            </div>
+            <div className="rounded-2xl bg-slate-50 p-5">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Toss / Margin</div>
+              <div className="mt-3 space-y-2 text-sm text-slate-600">
+                <div>toss rate {formatPercent(settlement.tossFeeRate)}</div>
+                <div>toss cost {formatCurrency(settlement.tossFeeAmount)}</div>
+                <div>gross {formatCurrency(settlement.platformGrossRevenue)}</div>
+                <div>net {typeof settlement.platformNetRevenue === "number" ? `${formatSignedAmount(settlement.platformNetRevenue)}원` : "-"}</div>
+              </div>
+            </div>
             <div className="rounded-2xl bg-slate-50 p-5">
               <div className="text-xs font-bold uppercase tracking-wider text-slate-400">결제 원장</div>
               <div className="mt-3 space-y-2 text-sm text-slate-600">
@@ -642,24 +771,6 @@ function ShipperDetailPageContent({
                 <div>pgTid {settlement.pgTid ?? "-"}</div>
                 <div>proofUrl {settlement.proofUrl ?? "-"}</div>
                 <div>입금 완료 {formatDateTime(settlement.paidAt)}</div>
-              </div>
-            </div>
-            <div className="rounded-2xl bg-slate-50 p-5">
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-400">정산 / 지급</div>
-              <div className="mt-3 space-y-2 text-sm text-slate-600">
-                <div>정산 ID #{settlement.settlementId}</div>
-                <div>지급 참조 {settlement.payoutRef ?? "-"}</div>
-                <div>지급 요청 {formatDateTime(settlement.payoutRequestedAt)}</div>
-                <div>지급 완료 {formatDateTime(settlement.payoutCompletedAt)}</div>
-              </div>
-            </div>
-            <div className="rounded-2xl bg-slate-50 p-5">
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-400">화주 / 차주</div>
-              <div className="mt-3 space-y-2 text-sm text-slate-600">
-                <div>화주 {settlement.shipperName}</div>
-                <div>차주 {settlement.driverName || "-"}</div>
-                <div>사업자번호 {settlement.bizNumber}</div>
-                <div>계좌 {settlement.bankName || "-"} {settlement.accountNum || ""}</div>
               </div>
             </div>
             <div className="rounded-2xl bg-slate-50 p-5">

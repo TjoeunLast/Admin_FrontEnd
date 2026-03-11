@@ -16,13 +16,16 @@ import {
   getEffectivePaymentStatus,
   getEffectivePayoutStatus,
   getEffectiveSettlementStatus,
+  getPlatformNetRevenue,
   getPayoutAmount,
   ORDER_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
   PAYOUT_STATUS_LABELS,
   SETTLEMENT_STATUS_LABELS,
+  isNegativeMargin,
   isPaymentCompleted,
   isSettlementCompleted,
+  sortAdminSettlementsByRecent,
 } from "@/app/features/shared/lib/admin_settlement_overview";
 import {
   DriverPayoutMonitorPanel,
@@ -58,6 +61,7 @@ const PAYOUT_FILTER_OPTIONS = [
   "재시도중",
   "미생성",
 ];
+const MARGIN_FILTER_OPTIONS = ["전체 손익", "적자 주문", "흑자 주문"];
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   CARD: "카드",
   CASH: "현금",
@@ -79,6 +83,21 @@ interface DriverPayoutOpsState {
 
 const formatAmount = (value: number) =>
   new Intl.NumberFormat("ko-KR").format(value || 0);
+const formatOptionalAmount = (value?: number | null) =>
+  typeof value === "number" && Number.isFinite(value)
+    ? `${formatAmount(value)}원`
+    : "-";
+const formatSignedAmount = (value?: number | null) => {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return "-";
+  }
+  const prefix = value > 0 ? "+" : value < 0 ? "-" : "";
+  return `${prefix}${formatAmount(Math.abs(value))}원`;
+};
+const formatPercent = (value?: number | null) =>
+  typeof value === "number" && Number.isFinite(value)
+    ? `${(value * 100).toFixed(1)}%`
+    : "-";
 const formatDateTime = (value?: string | null) =>
   value ? new Date(value).toLocaleString() : "-";
 const getPaymentMethodLabel = (value?: string | null) =>
@@ -222,6 +241,7 @@ export default function DriverSettlementPage() {
   const [statusFilter, setStatusFilter] = useState("전체 정산");
   const [paymentFilter, setPaymentFilter] = useState("전체 결제");
   const [payoutFilter, setPayoutFilter] = useState("전체 지급");
+  const [marginFilter, setMarginFilter] = useState("전체 손익");
   const [currentPage, setCurrentPage] = useState(1);
   const [showPaymentColumns, setShowPaymentColumns] = useState(false);
   const [submittingOrderId, setSubmittingOrderId] = useState<number | null>(
@@ -237,7 +257,9 @@ export default function DriverSettlementPage() {
   const loadSettlements = useCallback(async () => {
     try {
       setIsLoading(true);
-      setSettlements(await paymentAdminApi.getSettlements());
+      setSettlements(
+        sortAdminSettlementsByRecent(await paymentAdminApi.getSettlements()),
+      );
     } catch (error) {
       console.error(
         "정산 데이터 로드 실패:",
@@ -320,10 +342,6 @@ export default function DriverSettlementPage() {
     () => calculateAdminSettlementOverview(settlements),
     [settlements],
   );
-  const queueItems = useMemo(
-    () => calculateAdminSettlementQueues(settlements),
-    [settlements],
-  );
   const cards = useMemo(
     () => [
       {
@@ -384,16 +402,31 @@ export default function DriverSettlementPage() {
           ? !payoutStatus
           : payoutStatus &&
             PAYOUT_STATUS_LABELS[payoutStatus] === payoutFilter);
+      const matchesMargin =
+        marginFilter === "전체 손익" ||
+        (marginFilter === "적자 주문"
+          ? isNegativeMargin(settlement)
+          : !isNegativeMargin(settlement));
       return (
-        matchesSearch && matchesSettlement && matchesPayment && matchesPayout
+        matchesSearch &&
+        matchesSettlement &&
+        matchesPayment &&
+        matchesPayout &&
+        matchesMargin
       );
     });
-  }, [paymentFilter, payoutFilter, searchTerm, settlements, statusFilter]);
+  }, [marginFilter, paymentFilter, payoutFilter, searchTerm, settlements, statusFilter]);
+
+  const queueItems = useMemo(
+    () => calculateAdminSettlementQueues(filteredSettlements),
+    [filteredSettlements],
+  );
 
   useEffect(() => {
     setCurrentPage(1);
   }, [
     filteredSettlements.length,
+    marginFilter,
     paymentFilter,
     payoutFilter,
     searchTerm,
@@ -644,6 +677,12 @@ export default function DriverSettlementPage() {
               set: setPayoutFilter,
               opt: PAYOUT_FILTER_OPTIONS,
             },
+            {
+              label: "손익 상태",
+              val: marginFilter,
+              set: setMarginFilter,
+              opt: MARGIN_FILTER_OPTIONS,
+            },
           ].map((f) => (
             <div key={f.label} className="w-40 flex flex-col gap-2">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider pl-1">
@@ -698,7 +737,7 @@ export default function DriverSettlementPage() {
       <div className="rounded-[24px] border border-slate-200 bg-white overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table
-            className={`w-full min-w-[1180px] text-left border-collapse table-fixed ${showPaymentColumns ? "xl:min-w-[1800px]" : ""}`}
+            className={`w-full min-w-[1340px] text-left border-collapse table-fixed ${showPaymentColumns ? "xl:min-w-[1960px]" : ""}`}
           >
             <thead className="bg-slate-50/50 border-b border-slate-200">
               <tr className="text-[11px] font-black text-slate-400 uppercase tracking-wider">
@@ -709,11 +748,13 @@ export default function DriverSettlementPage() {
                 <th className="px-4 py-4 w-28 text-center">정산상태</th>
                 <th className="px-4 py-4 w-28 text-center">지급상태</th>
                 <th className="px-4 py-4 w-32 text-center">실지급액</th>
+                <th className="px-4 py-4 w-40 text-center">손익</th>
                 <th className="px-4 py-4 w-36 text-center">최근 동기화</th>
                 {showPaymentColumns && (
                   <>
                     <th className="px-4 py-4 w-24 text-center">수단/시점</th>
-                    <th className="px-4 py-4 w-28 text-right">수수료</th>
+                    <th className="px-4 py-4 w-28 text-right">Gross</th>
+                    <th className="px-4 py-4 w-28 text-right">Toss 비용</th>
                     <th className="px-4 py-4 w-36 text-center">입금시각</th>
                     <th className="px-4 py-4 w-48">계좌 / 사유</th>
                   </>
@@ -725,7 +766,7 @@ export default function DriverSettlementPage() {
               {isLoading ? (
                 <tr>
                   <td
-                    colSpan={15}
+                    colSpan={showPaymentColumns ? 15 : 10}
                     className="py-20 text-center text-slate-400 font-bold"
                   >
                     정산 데이터를 불러오는 중...
@@ -734,7 +775,7 @@ export default function DriverSettlementPage() {
               ) : paginatedSettlements.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={15}
+                    colSpan={showPaymentColumns ? 15 : 10}
                     className="py-20 text-center text-slate-400 font-bold"
                   >
                     조건에 맞는 정산 내역이 없습니다.
@@ -748,6 +789,8 @@ export default function DriverSettlementPage() {
                   const outStatus = getEffectivePayoutStatus(settlement);
                   const isSubmitting = submittingOrderId === settlement.orderId;
                   const isExpanded = expandedOrderId === settlement.orderId;
+                  const hasNegativeMargin = isNegativeMargin(settlement);
+                  const platformNetRevenue = getPlatformNetRevenue(settlement);
                   const needsAttention =
                     outStatus === "FAILED" ||
                     setStatus === "WAIT" ||
@@ -756,15 +799,28 @@ export default function DriverSettlementPage() {
                   return (
                     <Fragment key={settlement.orderId}>
                       <tr
-                        className={`${needsAttention ? "bg-amber-50/30" : "hover:bg-slate-50/50"} transition-all group`}
+                        className={`${
+                          hasNegativeMargin
+                            ? "bg-rose-50/40"
+                            : needsAttention
+                              ? "bg-amber-50/30"
+                              : "hover:bg-slate-50/50"
+                        } transition-all group`}
                       >
                         <td className="px-5 py-5 align-top">
-                          <Link
-                            href={`/global/billing/settlement/shipper/${settlement.orderId}`}
-                            className="text-sm font-black text-[#4E46E5] hover:underline transition-all"
-                          >
-                            #{settlement.orderId}
-                          </Link>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Link
+                              href={`/global/billing/settlement/shipper/${settlement.orderId}`}
+                              className="text-sm font-black text-[#4E46E5] hover:underline transition-all"
+                            >
+                              #{settlement.orderId}
+                            </Link>
+                            {hasNegativeMargin ? (
+                              <span className="rounded-full bg-rose-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-rose-700">
+                                적자
+                              </span>
+                            ) : null}
+                          </div>
                           <div className="mt-1.5 text-sm font-bold text-slate-800 truncate">
                             {settlement.driverName ||
                               `차주 #${settlement.driverUserId}`}
@@ -815,7 +871,23 @@ export default function DriverSettlementPage() {
                           />
                         </td>
                         <td className="px-4 py-5 align-top text-center font-black text-slate-900">
-                          {formatAmount(getPayoutAmount(settlement))}
+                          {formatAmount(getPayoutAmount(settlement))}원
+                        </td>
+                        <td className="px-4 py-5 align-top text-center">
+                        <div
+                          className={`text-sm font-black ${
+                              hasNegativeMargin ? "text-rose-600" : "text-emerald-600"
+                          }`}
+                        >
+                            {formatSignedAmount(platformNetRevenue)}
+                        </div>
+                          <div className="mt-1 text-[10px] font-medium leading-tight text-slate-400">
+                            <div>gross {formatOptionalAmount(settlement.platformGrossRevenue)}</div>
+                            <div>
+                              toss {formatOptionalAmount(settlement.tossFeeAmount)} / rate{" "}
+                              {formatPercent(settlement.tossFeeRate)}
+                            </div>
+                          </div>
                         </td>
                         <td className="px-4 py-5 align-top text-center text-[11px] font-medium text-slate-400 leading-tight">
                           {formatDateTime(getLastSyncedAt(settlement))
@@ -839,7 +911,10 @@ export default function DriverSettlementPage() {
                               </div>
                             </td>
                             <td className="px-4 py-5 align-top text-right font-bold text-slate-700 text-sm">
-                              {formatAmount(settlement.paymentFeeAmount ?? 0)}
+                              {formatOptionalAmount(settlement.platformGrossRevenue)}
+                            </td>
+                            <td className="px-4 py-5 align-top text-right font-bold text-slate-700 text-sm">
+                              {formatOptionalAmount(settlement.tossFeeAmount)}
                             </td>
                             <td className="px-4 py-5 align-top text-center text-[11px] text-slate-400">
                               {formatDateTime(settlement.paidAt)}
@@ -928,7 +1003,7 @@ export default function DriverSettlementPage() {
                       {isExpanded && (
                         <tr className="bg-slate-50/50">
                           <td
-                            colSpan={showPaymentColumns ? 15 : 11}
+                            colSpan={showPaymentColumns ? 15 : 10}
                             className="px-8 py-6"
                           >
                             <DriverPayoutMonitorPanel

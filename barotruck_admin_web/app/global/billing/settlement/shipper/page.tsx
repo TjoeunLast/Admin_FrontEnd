@@ -14,12 +14,14 @@ import {
   getEffectiveOrderStatus,
   getEffectivePaymentStatus,
   getEffectiveSettlementStatus,
-  getFeeAmount,
+  getPlatformNetRevenue,
   getPayoutAmount,
+  isNegativeMargin,
   isPaymentCompleted,
   ORDER_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
   SETTLEMENT_STATUS_LABELS,
+  sortAdminSettlementsByRecent,
 } from "@/app/features/shared/lib/admin_settlement_overview";
 import { StatusChip } from "@/app/features/shared/components/status_chip";
 
@@ -47,6 +49,7 @@ const PAYMENT_FILTER_OPTIONS = [
   "결제취소",
   "추적없음",
 ];
+const MARGIN_FILTER_OPTIONS = ["전체 손익", "적자 주문", "흑자 주문"];
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   CARD: "카드",
   CASH: "현금",
@@ -60,6 +63,21 @@ const PAYMENT_TIMING_LABELS: Record<string, string> = {
 
 const formatAmount = (value: number) =>
   new Intl.NumberFormat("ko-KR").format(value || 0);
+const formatOptionalAmount = (value?: number | null) =>
+  typeof value === "number" && Number.isFinite(value)
+    ? `${formatAmount(value)}원`
+    : "-";
+const formatSignedAmount = (value?: number | null) => {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return "-";
+  }
+  const prefix = value > 0 ? "+" : value < 0 ? "-" : "";
+  return `${prefix}${formatAmount(Math.abs(value))}원`;
+};
+const formatPercent = (value?: number | null) =>
+  typeof value === "number" && Number.isFinite(value)
+    ? `${(value * 100).toFixed(1)}%`
+    : "-";
 const formatDateTime = (value?: string | null) =>
   value ? new Date(value).toLocaleString() : "-";
 const getPaymentMethodLabel = (value?: string | null) =>
@@ -126,6 +144,7 @@ export default function ShipperSettlementPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("전체 정산");
   const [paymentFilter, setPaymentFilter] = useState("전체 결제");
+  const [marginFilter, setMarginFilter] = useState("전체 손익");
   const [currentPage, setCurrentPage] = useState(1);
   const [showPaymentColumns, setShowPaymentColumns] = useState(false);
   const [submittingOrderId, setSubmittingOrderId] = useState<number | null>(
@@ -137,7 +156,9 @@ export default function ShipperSettlementPage() {
   const loadSettlements = useCallback(async () => {
     try {
       setIsLoading(true);
-      setSettlements(await paymentAdminApi.getSettlements());
+      setSettlements(
+        sortAdminSettlementsByRecent(await paymentAdminApi.getSettlements()),
+      );
     } catch (error) {
       console.error("화주 정산 데이터 로드 실패:", error);
     } finally {
@@ -151,10 +172,6 @@ export default function ShipperSettlementPage() {
 
   const overview = useMemo(
     () => calculateAdminSettlementOverview(settlements),
-    [settlements],
-  );
-  const queueItems = useMemo(
-    () => calculateAdminSettlementQueues(settlements),
     [settlements],
   );
   const cards = useMemo(
@@ -208,13 +225,23 @@ export default function ShipperSettlementPage() {
             !settlement.paymentMethod &&
             !settlement.pgTid
           : PAYMENT_STATUS_LABELS[paymentStatus] === paymentFilter);
-      return matchesSearch && matchesSettlement && matchesPayment;
+      const matchesMargin =
+        marginFilter === "전체 손익" ||
+        (marginFilter === "적자 주문"
+          ? isNegativeMargin(settlement)
+          : !isNegativeMargin(settlement));
+      return matchesSearch && matchesSettlement && matchesPayment && matchesMargin;
     });
-  }, [paymentFilter, searchTerm, settlements, statusFilter]);
+  }, [marginFilter, paymentFilter, searchTerm, settlements, statusFilter]);
+
+  const queueItems = useMemo(
+    () => calculateAdminSettlementQueues(filteredSettlements),
+    [filteredSettlements],
+  );
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filteredSettlements.length, paymentFilter, searchTerm, statusFilter]);
+  }, [filteredSettlements.length, marginFilter, paymentFilter, searchTerm, statusFilter]);
 
   const totalPages = Math.max(
     1,
@@ -446,6 +473,12 @@ export default function ShipperSettlementPage() {
               set: setPaymentFilter,
               opt: PAYMENT_FILTER_OPTIONS,
             },
+            {
+              label: "손익 상태",
+              val: marginFilter,
+              set: setMarginFilter,
+              opt: MARGIN_FILTER_OPTIONS,
+            },
           ].map((f) => (
             <div key={f.label} className="w-44 flex flex-col gap-2">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider pl-1">
@@ -500,7 +533,7 @@ export default function ShipperSettlementPage() {
       <div className="rounded-[24px] border border-slate-200 bg-white overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table
-            className={`w-full min-w-[1120px] text-left border-collapse table-fixed ${showPaymentColumns ? "xl:min-w-[1600px]" : ""}`}
+            className={`w-full min-w-[1280px] text-left border-collapse table-fixed ${showPaymentColumns ? "xl:min-w-[1760px]" : ""}`}
           >
             <thead className="bg-slate-50/50 border-b border-slate-200">
               <tr className="text-[11px] font-black text-slate-400 uppercase tracking-wider">
@@ -510,11 +543,13 @@ export default function ShipperSettlementPage() {
                 <th className="px-4 py-4 w-28 text-center">결제상태</th>
                 <th className="px-4 py-4 w-28 text-center">정산상태</th>
                 <th className="px-4 py-4 w-32 text-center">총청구액</th>
+                <th className="px-4 py-4 w-40 text-center">손익</th>
                 <th className="px-4 py-4 w-36 text-center">최근 동기화</th>
                 {showPaymentColumns && (
                   <>
                     <th className="px-4 py-4 w-24 text-center">수단/시점</th>
-                    <th className="px-4 py-4 w-28 text-right">수수료</th>
+                    <th className="px-4 py-4 w-28 text-right">Gross</th>
+                    <th className="px-4 py-4 w-28 text-right">Toss 비용</th>
                     <th className="px-4 py-4 w-48">PG / 증빙</th>
                     <th className="px-4 py-4 w-36 text-center">입금시각</th>
                   </>
@@ -526,7 +561,7 @@ export default function ShipperSettlementPage() {
               {isLoading ? (
                 <tr>
                   <td
-                    colSpan={13}
+                    colSpan={showPaymentColumns ? 14 : 9}
                     className="py-20 text-center text-slate-400 font-bold"
                   >
                     결제 데이터를 불러오는 중...
@@ -535,7 +570,7 @@ export default function ShipperSettlementPage() {
               ) : paginatedSettlements.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={13}
+                    colSpan={showPaymentColumns ? 14 : 9}
                     className="py-20 text-center text-slate-400 font-bold"
                   >
                     조건에 맞는 내역이 없습니다.
@@ -547,6 +582,8 @@ export default function ShipperSettlementPage() {
                   const payStatus = getEffectivePaymentStatus(settlement);
                   const setStatus = getEffectiveSettlementStatus(settlement);
                   const isSubmitting = submittingOrderId === settlement.orderId;
+                  const hasNegativeMargin = isNegativeMargin(settlement);
+                  const platformNetRevenue = getPlatformNetRevenue(settlement);
                   const needsAttention =
                     payStatus === "DISPUTED" ||
                     payStatus === "ADMIN_HOLD" ||
@@ -555,15 +592,28 @@ export default function ShipperSettlementPage() {
                   return (
                     <tr
                       key={settlement.orderId}
-                      className={`${needsAttention ? "bg-amber-50/30" : "hover:bg-slate-50/50"} transition-all group`}
+                      className={`${
+                        hasNegativeMargin
+                          ? "bg-rose-50/40"
+                          : needsAttention
+                            ? "bg-amber-50/30"
+                            : "hover:bg-slate-50/50"
+                      } transition-all group`}
                     >
                       <td className="px-5 py-5 align-top">
-                        <Link
-                          href={`/global/billing/settlement/shipper/${settlement.orderId}`}
-                          className="text-sm font-black text-[#4E46E5] hover:underline transition-all"
-                        >
-                          #{settlement.orderId}
-                        </Link>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Link
+                            href={`/global/billing/settlement/shipper/${settlement.orderId}`}
+                            className="text-sm font-black text-[#4E46E5] hover:underline transition-all"
+                          >
+                            #{settlement.orderId}
+                          </Link>
+                          {hasNegativeMargin ? (
+                            <span className="rounded-full bg-rose-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-rose-700">
+                              적자
+                            </span>
+                          ) : null}
+                        </div>
                         <div className="mt-1.5 text-sm font-bold text-slate-800 truncate">
                           {settlement.shipperName}
                         </div>
@@ -604,7 +654,23 @@ export default function ShipperSettlementPage() {
                         />
                       </td>
                       <td className="px-4 py-5 align-top text-center font-black text-slate-900">
-                        {formatAmount(getBillingAmount(settlement))}
+                        {formatAmount(getBillingAmount(settlement))}원
+                      </td>
+                      <td className="px-4 py-5 align-top text-center">
+                        <div
+                          className={`text-sm font-black ${
+                            hasNegativeMargin ? "text-rose-600" : "text-emerald-600"
+                          }`}
+                        >
+                          {formatSignedAmount(platformNetRevenue)}
+                        </div>
+                        <div className="mt-1 text-[10px] font-medium leading-tight text-slate-400">
+                          <div>gross {formatOptionalAmount(settlement.platformGrossRevenue)}</div>
+                          <div>
+                            toss {formatOptionalAmount(settlement.tossFeeAmount)} / rate{" "}
+                            {formatPercent(settlement.tossFeeRate)}
+                          </div>
+                        </div>
                       </td>
                       <td className="px-4 py-5 align-top text-center text-[11px] font-medium text-slate-400 leading-tight">
                         {formatDateTime(getLastSyncedAt(settlement))
@@ -624,7 +690,10 @@ export default function ShipperSettlementPage() {
                             </div>
                           </td>
                           <td className="px-4 py-5 align-top text-right font-bold text-slate-700 text-sm">
-                            {formatAmount(getFeeAmount(settlement))}
+                            {formatOptionalAmount(settlement.platformGrossRevenue)}
+                          </td>
+                          <td className="px-4 py-5 align-top text-right font-bold text-slate-700 text-sm">
+                            {formatOptionalAmount(settlement.tossFeeAmount)}
                           </td>
                           <td className="px-4 py-5 align-top text-sm text-slate-600 truncate tracking-tight">
                             {settlement.pgTid || settlement.proofUrl || "-"}

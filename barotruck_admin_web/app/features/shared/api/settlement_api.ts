@@ -19,9 +19,43 @@ export interface SettlementResponse {
     accountNum?: string;  // ★ 추가: 은행 계좌번호
     shipperName: string;   // 화주 상호명
     bizNumber: string;     // 사업자 번호
+    orderStatus?: string | null;
+    paymentId?: number | null;
+    paymentMethod?: string | null;
+    paymentTiming?: string | null;
+    paymentStatus?: string | null;
+    paymentAmount?: number | null;
+    paymentFeeAmount?: number | null;
+    paymentNetAmount?: number | null;
+    baseAmount?: number | null;
+    shipperFeeRate?: number | null;
+    shipperFeeAmount?: number | null;
+    shipperPromoApplied?: boolean | null;
+    shipperChargeAmount?: number | null;
+    driverFeeRate?: number | null;
+    driverFeeAmount?: number | null;
+    driverPromoApplied?: boolean | null;
+    driverPayoutAmount?: number | null;
+    tossFeeRate?: number | null;
+    tossFeeAmount?: number | null;
+    platformGrossRevenue?: number | null;
+    platformNetRevenue?: number | null;
+    negativeMargin?: boolean | null;
+    feePolicyId?: number | null;
+    feePolicyAppliedAt?: string | null;
+    pgTid?: string | null;
+    proofUrl?: string | null;
+    paidAt?: string | null;
+    confirmedAt?: string | null;
     totalPrice: number;
-    status: string; 
+    status: string;
+    payoutStatus?: string | null;
+    payoutFailureReason?: string | null;
+    payoutRef?: string | null;
+    payoutRequestedAt?: string | null;
+    payoutCompletedAt?: string | null;
     feeDate: string;
+    feeCompleteDate?: string | null;
 }
 
 export interface SettlementStatusSummaryResponse {

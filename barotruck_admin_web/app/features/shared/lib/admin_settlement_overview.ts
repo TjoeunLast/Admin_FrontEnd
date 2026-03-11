@@ -135,23 +135,23 @@ const toAmount = (value?: number | null): number => {
 const normalizeStatus = (value?: string | null) => String(value ?? "").trim().toUpperCase();
 
 export const isPaymentCompleted = (settlement: SettlementResponse): boolean => {
-  // 데이터가 없다면 false
   if (!settlement) return false;
-  
-  if (settlement.confirmedAt || settlement.paidAt) {
-    return true;
-  }
 
   const paymentStatus = normalizeStatus(settlement.paymentStatus);
   if (paymentStatus) {
     return COMPLETED_PAYMENT_STATUSES.has(paymentStatus);
   }
 
+  if (settlement.confirmedAt || settlement.paidAt) {
+    return true;
+  }
+
   return isSettlementCompleted(settlement);
 };
 
 export const isSettlementCompleted = (settlement: SettlementResponse): boolean =>
-  Boolean(settlement.feeCompleteDate) ||
+  Boolean(settlement.payoutCompletedAt || settlement.feeCompleteDate) ||
+  normalizeStatus(settlement.payoutStatus) === "COMPLETED" ||
   COMPLETED_SETTLEMENT_STATUSES.has(normalizeStatus(settlement.status));
 
 export const getEffectivePaymentStatus = (
@@ -180,6 +180,11 @@ export const getEffectiveSettlementStatus = (
     return "COMPLETED";
   }
 
+  const rawStatus = normalizeStatus(settlement.status) as SettlementWorkflowStatus;
+  if (SETTLEMENT_STATUSES.has(rawStatus)) {
+    return rawStatus;
+  }
+
   const paymentStatus = getEffectivePaymentStatus(settlement);
   if (WAITING_SETTLEMENT_PAYMENT_STATUSES.has(paymentStatus)) {
     return "WAIT";
@@ -192,10 +197,6 @@ export const getEffectiveSettlementStatus = (
     return "READY";
   }
 
-  const rawStatus = normalizeStatus(settlement.status) as SettlementWorkflowStatus;
-  if (SETTLEMENT_STATUSES.has(rawStatus)) {
-    return rawStatus;
-  }
   return "READY";
 };
 
@@ -238,16 +239,47 @@ export const hasPaymentTracking = (settlement: SettlementResponse): boolean =>
   );
 
 export const getBillingAmount = (settlement: SettlementResponse): number => {
+  const shipperChargeAmount = toAmount(settlement.shipperChargeAmount);
+  if (shipperChargeAmount > 0) {
+    return shipperChargeAmount;
+  }
   const paymentAmount = toAmount(settlement.paymentAmount);
-  return paymentAmount > 0 ? paymentAmount : toAmount(settlement.totalPrice);
+  if (paymentAmount > 0) {
+    return paymentAmount;
+  }
+  const totalPrice = toAmount(settlement.totalPrice);
+  if (totalPrice > 0) {
+    return totalPrice;
+  }
+  return toAmount(settlement.baseAmount);
 };
 
 export const getPayoutAmount = (settlement: SettlementResponse): number => {
+  const payoutAmount = toAmount(settlement.driverPayoutAmount);
+  if (payoutAmount > 0) {
+    return payoutAmount;
+  }
   const netAmount = toAmount(settlement.paymentNetAmount);
-  return netAmount > 0 ? netAmount : toAmount(settlement.totalPrice);
+  if (netAmount > 0) {
+    return netAmount;
+  }
+  const totalPrice = toAmount(settlement.totalPrice);
+  if (totalPrice > 0) {
+    return totalPrice;
+  }
+  return toAmount(settlement.baseAmount);
 };
 
 export const getFeeAmount = (settlement: SettlementResponse): number => {
+  const grossRevenue = toAmount(settlement.platformGrossRevenue);
+  if (grossRevenue > 0) {
+    return grossRevenue;
+  }
+  const shipperFeeAmount = toAmount(settlement.shipperFeeAmount);
+  const driverFeeAmount = toAmount(settlement.driverFeeAmount);
+  if (shipperFeeAmount > 0 || driverFeeAmount > 0) {
+    return shipperFeeAmount + driverFeeAmount;
+  }
   const feeAmount = toAmount(settlement.paymentFeeAmount);
   if (feeAmount > 0) {
     return feeAmount;
@@ -260,6 +292,49 @@ export const getFeeAmount = (settlement: SettlementResponse): number => {
   }
 
   return 0;
+};
+
+export const getTossFeeAmount = (settlement: SettlementResponse): number =>
+  toAmount(settlement.tossFeeAmount);
+
+export const getPlatformGrossRevenue = (settlement: SettlementResponse): number =>
+  getFeeAmount(settlement);
+
+export const getPlatformNetRevenue = (settlement: SettlementResponse): number => {
+  if (typeof settlement.platformNetRevenue === "number") {
+    return settlement.platformNetRevenue;
+  }
+  return getPlatformGrossRevenue(settlement) - getTossFeeAmount(settlement);
+};
+
+export const getSettlementSortTimestamp = (settlement: SettlementResponse): number => {
+  const value =
+    settlement.payoutCompletedAt ??
+    settlement.payoutRequestedAt ??
+    settlement.feeCompleteDate ??
+    settlement.confirmedAt ??
+    settlement.paidAt ??
+    settlement.feeDate;
+  const time = value ? new Date(value).getTime() : 0;
+  return Number.isFinite(time) ? time : 0;
+};
+
+export const sortAdminSettlementsByRecent = (
+  settlements: SettlementResponse[]
+): SettlementResponse[] =>
+  [...settlements].sort((left, right) => {
+    const timeDiff = getSettlementSortTimestamp(right) - getSettlementSortTimestamp(left);
+    if (timeDiff !== 0) {
+      return timeDiff;
+    }
+    return (right.orderId ?? 0) - (left.orderId ?? 0);
+  });
+
+export const isNegativeMargin = (settlement: SettlementResponse): boolean => {
+  if (typeof settlement.negativeMargin === "boolean") {
+    return settlement.negativeMargin;
+  }
+  return getPlatformNetRevenue(settlement) < 0;
 };
 
 export const calculateAdminSettlementOverview = (
@@ -320,30 +395,18 @@ export const calculateAdminSettlementQueues = (
     const paymentStatus = getEffectivePaymentStatus(settlement);
     const settlementStatus = getEffectiveSettlementStatus(settlement);
     const payoutStatus = getEffectivePayoutStatus(settlement);
+    const settlementDone = isSettlementCompleted(settlement);
 
     if (paymentStatus === "READY") {
       summary.paymentReady.count += 1;
       summary.paymentReady.amount += billingAmount;
+      return;
     }
 
     if (paymentStatus === "PAID") {
       summary.driverConfirmWait.count += 1;
       summary.driverConfirmWait.amount += billingAmount;
-    }
-
-    if (settlementStatus === "READY" && (!payoutStatus || payoutStatus === "READY")) {
-      summary.settlementReady.count += 1;
-      summary.settlementReady.amount += payoutAmount;
-    }
-
-    if (payoutStatus === "REQUESTED" || payoutStatus === "RETRYING") {
-      summary.payoutRequested.count += 1;
-      summary.payoutRequested.amount += payoutAmount;
-    }
-
-    if (payoutStatus === "FAILED") {
-      summary.payoutFailed.count += 1;
-      summary.payoutFailed.amount += payoutAmount;
+      return;
     }
 
     if (
@@ -354,6 +417,29 @@ export const calculateAdminSettlementQueues = (
     ) {
       summary.holdOrDispute.count += 1;
       summary.holdOrDispute.amount += billingAmount;
+      return;
+    }
+
+    if (payoutStatus === "FAILED") {
+      summary.payoutFailed.count += 1;
+      summary.payoutFailed.amount += payoutAmount;
+      return;
+    }
+
+    if (payoutStatus === "REQUESTED" || payoutStatus === "RETRYING") {
+      summary.payoutRequested.count += 1;
+      summary.payoutRequested.amount += payoutAmount;
+      return;
+    }
+
+    if (
+      !settlementDone &&
+      settlementStatus === "READY" &&
+      (paymentStatus === "CONFIRMED" || paymentStatus === "ADMIN_FORCE_CONFIRMED") &&
+      (!payoutStatus || payoutStatus === "READY")
+    ) {
+      summary.settlementReady.count += 1;
+      summary.settlementReady.amount += payoutAmount;
     }
   });
 

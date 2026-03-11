@@ -177,6 +177,10 @@ export const fetchOrdersPage = async (page: number = 0, size: number = 20) => {
     return fetchPagedData<OrderListResponse>('/api/v1/admin/orders', { page, size });
 };
 
+export const fetchActiveOrdersPage = async (page: number = 0, size: number = 20) => {
+    return fetchPagedData<OrderListResponse>('/api/v1/admin/orders/active', { page, size });
+};
+
 // 2. 특정 주문 상세 정보 불러오기
 export const fetchOrderDetail = async (orderId: number) => {
     const response = await apiClient.get<AdminOrderDetailResponse>(`/api/v1/admin/orders/${orderId}`);
