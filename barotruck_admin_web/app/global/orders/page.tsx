@@ -2,7 +2,7 @@
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState, useMemo } from "react";
-import { fetchOrdersPage } from "./../../features/shared/api/order_api";
+import { fetchOrders, fetchOrdersPage } from "./../../features/shared/api/order_api";
 import {
   OrderListResponse,
   ORDER_DRIVING_STATUS_MAP,
@@ -17,8 +17,10 @@ type SortConfig = {
 export default function Order_Page() {
   const router = useRouter(); // 행 클릭 이동을 위해 추가
   const [orders, setOrders] = useState<OrderListResponse[]>([]);
+  const [allOrders, setAllOrders] = useState<OrderListResponse[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<OrderListResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isStatsLoading, setIsStatsLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [pageSize] = useState(20);
   const [totalPages, setTotalPages] = useState(0);
@@ -32,14 +34,15 @@ export default function Order_Page() {
   });
 
   const stats = useMemo(() => {
-    const total = orders.length;
-    const active = orders.filter(
+    const source = allOrders.length > 0 ? allOrders : orders;
+    const total = allOrders.length > 0 ? allOrders.length : totalElements;
+    const active = source.filter(
       (o) => o.status !== "COMPLETED" && !o.status.includes("CANCEL"),
     ).length;
-    const completed = orders.filter((o) => o.status === "COMPLETED").length;
-    const cancelled = orders.filter((o) => o.status.includes("CANCEL")).length;
+    const completed = source.filter((o) => o.status === "COMPLETED").length;
+    const cancelled = source.filter((o) => o.status.includes("CANCEL")).length;
     return { total, active, completed, cancelled };
-  }, [orders]);
+  }, [allOrders, orders, totalElements]);
 
   useEffect(() => {
     const loadOrders = async () => {
@@ -57,6 +60,21 @@ export default function Order_Page() {
     };
     loadOrders();
   }, [page, pageSize]);
+
+  useEffect(() => {
+    const loadAllOrdersForStats = async () => {
+      setIsStatsLoading(true);
+      try {
+        const allOrderData = await fetchOrders();
+        setAllOrders(allOrderData);
+      } catch (error) {
+        console.error("전체 주문 통계 로드 실패:", error);
+      } finally {
+        setIsStatsLoading(false);
+      }
+    };
+    loadAllOrdersForStats();
+  }, []);
 
   useEffect(() => {
     let result = [...orders];
@@ -115,7 +133,7 @@ export default function Order_Page() {
     }
   };
 
-  if (isLoading)
+  if (isLoading || isStatsLoading)
     return (
       <div className="p-20 text-center text-slate-400 font-black text-lg">
         데이터 분석 중...

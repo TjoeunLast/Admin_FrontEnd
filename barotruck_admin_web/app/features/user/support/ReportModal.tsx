@@ -50,7 +50,7 @@ export default function ReportModal({ report, onClose, onRefresh }: Props) {
 
     if (confirm(confirmMsg)) {
       try {
-        const success = await reportApi.updateReportStatus(report.reportId, nextStatus, days);
+        const success = await reportApi.updateReportStatus(report.reportId, nextStatus);
         if (success) {
           alert("정지 처리가 완료되었습니다.");
           onRefresh();
